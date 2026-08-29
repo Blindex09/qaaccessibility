@@ -1,0 +1,215 @@
+2026-08-09 19:15:57 [INFO] backend.src.services.telemetry: [telemetry] OTEL_EXPORTER_OTLP_ENDPOINT não configurado — telemetria desactivada.
+2026-08-09 19:15:57 [WARNING] backend.src.services.config_drift: [ConfigDrift] ANTHROPIC_BASE_URL esta definida no ambiente do processo mas nao em backend/.env -- o endpoint resolvido para o provider correspondente diverge silenciosamente do que o .env do projeto documenta. Declare em backend/.env se for intencional, ou remova do ambiente.
+2026-08-09 19:15:57 [INFO] backend.src.main: [App] QA Accessibility API inicializada
+2026-08-09 19:15:57 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url
+2026-08-09 19:15:57 [INFO] backend.src.routes.analyze: [Route] POST /analyze/url url=https://dequeuniversity.com/demo/mars/
+2026-08-09 19:15:57 [INFO] backend.src.services.browser: [Browser] Executando scrape do Firecrawl para: https://dequeuniversity.com/demo/mars/
+2026-08-09 19:15:58 [INFO] backend.src.services.browser: [Browser] Conectando via CDP ao Browserless para foco e tabs: https://dequeuniversity.com/demo/mars/
+2026-08-09 19:16:30 [INFO] backend.src.routes.analyze: [Route] HTML extraido: 66516 -> 47894 chars (72.0%) — 220 elementos a11y
+2026-08-09 19:16:30 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Iniciando pipeline task_type=TaskType.ANALYZE
+2026-08-09 19:16:31 [INFO] backend.src.services.context_compressor: [context_compressor:BS4] 47894 -> 31795 chars (66.4%, 1097ms)
+2026-08-09 19:16:31 [INFO] backend.src.agents.classifier.classifier: [ClassifierAgent] Analisando tecnologias no HTML...
+2026-08-09 19:16:36 [INFO] backend.src.services.ollama_cloud_adapter: [OllamaCloudAdapter] Catálogo descoberto: 18 modelos no Ollama Cloud
+2026-08-09 19:16:36 [INFO] backend.src.services.model_router: [Fast] provider=ollama-cloud -> kimi-k2.7-code (ranking multi-objetivo agêntico)
+2026-08-09 19:16:36 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-classifier-e3af1f0b model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:16:36 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-complexity_router-d012c54e model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:16:44 [WARNING] agent.models_dev: [models_dev] fetch_live_models(ollama-cloud) falhou: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /v1/models (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001EF450432D0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')) — usando fallback estático
+2026-08-09 19:16:44 [WARNING] agent.models_dev: [models_dev] fetch_live_models(ollama-cloud) falhou: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /v1/models (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001EF450435D0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')) — usando fallback estático
+2026-08-09 19:16:46 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:16:46 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (2 chars)
+2026-08-09 19:16:46 [INFO] backend.src.agents.classifier.classifier: [ClassifierAgent] Tecnologias detectadas: []
+2026-08-09 19:16:46 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:16:46 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (179 chars)
+2026-08-09 19:16:46 [INFO] backend.src.services.complexity_router: [ComplexityRouter] tradeoff=6 (Mostly repetitive image/link markup with some malformed SVG/video fragments and empty anchors, but no complex ARIA widgets or dynamic interactions.)
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Classificador detectou frameworks ativos: set()
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Roteamento seletivo: lang=en selecionados=18 [perceiver, operability, understandability, robustness, aria_specialist, section508, css_analyzer, ajax_dynamic, cognitive, screen_reader, forms_a11y, wcag_semantics, compliance_audit, agentic_ai_ui, spatial_3d_xr, web_components, niche_domains, visual_a11y]
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: perceiver -- base WCAG perceptivel sempre relevante para página web
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: operability -- base WCAG operavel sempre relevante para página web
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: understandability -- base WCAG compreensivel sempre relevante para página web
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: robustness -- base WCAG robusto sempre relevante para página web
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: aria_specialist -- ARIA e semântica assistiva podem afetar qualquer página web
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: section508 -- conformidade legal geral para página web
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: screen_reader -- compatibilidade com leitor de tela e essencial em página web
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: wcag_semantics -- semântica HTML e tecnologias assistivas
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: compliance_audit -- revisao consolidada WCAG/Section 508
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: agentic_ai_ui -- interfaces de IA agêntica, live regions e modais HITL
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: spatial_3d_xr -- WebXR XAUR 2026, Canvas Three.js/Babylon.js PAT DOM
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: web_components -- Custom Elements FACE ElementInternals e shadowrootreferencetarget
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: niche_domains -- Passkeys SC 3.3.8/3.3.9, Sonificação D3 e Kiosks ADA/EAA
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: css_analyzer -- HTML contem superficie CSS: classes, estilos inline, style ou stylesheet
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: ajax_dynamic -- HTML contem superficie dinamica: script, data-* ou aria-live/busy
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: cognitive -- página tem formulário ou volume de texto que exige avaliacao cognitiva
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: forms_a11y -- HTML contem controles de formulário/interacao
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: visual_a11y -- screenshot fornecido; avaliacao visual solicitada pelo pipeline
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: angular_framework -- classificador não detectou framework: angular
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: react_framework -- classificador não detectou framework: react
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: svelte_framework -- classificador não detectou framework: svelte
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: tailwind_css -- classificador não detectou framework: tailwind
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: vue_framework -- classificador não detectou framework: vue
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: mobile_a11y -- sem evidencia estrutural suficiente para este agente condicional
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: widgets_a11y -- sem evidencia estrutural suficiente para este agente condicional
+2026-08-09 19:16:46 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Disparando sub-agentes em paralelo (max_concurrent=3, timeout=180s)
+2026-08-09 19:16:46 [INFO] backend.src.agents.perceiver.perceiver: [PerceiverAgent] Verificando WCAG 1.x (Perceivable)
+2026-08-09 19:16:46 [INFO] backend.src.services.model_router: [Alto] provider=ollama-cloud -> kimi-k2.7-code (ranking multi-objetivo agêntico entre 18 candidatos, needs_vision=False, tradeoff=3)
+2026-08-09 19:16:46 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-perceiver-25c87a02 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:16:46 [INFO] backend.src.agents.operability.operability: [OperabilityAgent] Verificando WCAG 2.x (Operable)
+2026-08-09 19:16:46 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-operability-510ccb7a model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:16:46 [INFO] backend.src.agents.understandability.understandability: [UnderstandabilityAgent] Verificando WCAG 3.x (Understandable)
+2026-08-09 19:16:46 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-01738ef9 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:17:16 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:17:16 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (20541 chars)
+2026-08-09 19:17:16 [INFO] backend.src.agents.operability.operability: [OperabilityAgent] 15 issues (WCAG 2.x)
+2026-08-09 19:17:16 [INFO] backend.src.agents.robustness.robustness: [RobustnessAgent] Verificando WCAG 4.x (Robust)
+2026-08-09 19:17:16 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-bf6942cf model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:17:41 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:17:41 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (40816 chars)
+2026-08-09 19:17:41 [INFO] backend.src.agents.perceiver.perceiver: [PerceiverAgent] 32 issues (WCAG 1.x)
+2026-08-09 19:17:41 [INFO] backend.src.agents.aria_specialist.aria_specialist: [ARIASpecialistAgent] Auditando padrões WAI-ARIA
+2026-08-09 19:17:41 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-1405d45c model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:18:14 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:18:14 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (68582 chars)
+2026-08-09 19:18:14 [ERROR] backend.src.agents.understandability.understandability: [UnderstandabilityAgent] Erro: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "understandability-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "3.3.2 Labels or Instructions",\n      "severity": "high",\n      "confidence": "high",'
+2026-08-09 19:18:14 [INFO] backend.src.agents.section508.section508: [Section508Agent] Verificando ADA/Section 508
+2026-08-09 19:18:14 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-section508-cb7949dc model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:18:58 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:18:58 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (64051 chars)
+2026-08-09 19:18:58 [ERROR] backend.src.agents.robustness.robustness: [RobustnessAgent] Erro: No valid JSON array found in LLM output: '{"issues": [{"id": "robustness-1", "guideline": "WCAG 2.2", "criterion": "4.1.2 Name, Role, Value", "severity": "critical", "confidence": "high", "level": "A", "element": "<input class=\\"control-searc'
+2026-08-09 19:18:58 [INFO] backend.src.agents.css_analyzer.css_analyzer: [CSSAnalyzerAgent] Analisando CSS inline e embedded
+2026-08-09 19:18:58 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-css_analyzer-48332119 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:19:34 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:19:34 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (7007 chars)
+2026-08-09 19:19:34 [INFO] backend.src.agents.css_analyzer.css_analyzer: [CSSAnalyzerAgent] 5 issues (CSS)
+2026-08-09 19:19:34 [INFO] backend.src.agents.ajax_dynamic.ajax_dynamic: [AJAXDynamicAgent] Analisando conteúdo dinâmico e AJAX
+2026-08-09 19:19:34 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-42c00edc model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:20:01 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:20:01 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (64846 chars)
+2026-08-09 19:20:01 [ERROR] backend.src.agents.aria_specialist.aria_specialist: [ARIASpecialistAgent] Erro: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "aria-1",\n      "guideline": "WAI-ARIA",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A"'
+2026-08-09 19:20:01 [INFO] backend.src.agents.cognitive.cognitive: [CognitiveAgent] Analisando acessibilidade cognitiva
+2026-08-09 19:20:01 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-05ae5e25 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:20:14 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:20:14 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (50739 chars)
+2026-08-09 19:20:14 [INFO] backend.src.agents.section508.section508: [Section508Agent] 43 issues (Section 508)
+2026-08-09 19:20:14 [INFO] backend.src.agents.screen_reader.screen_reader: [ScreenReaderAgent] Analisando compatibilidade com screen readers
+2026-08-09 19:20:14 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-screen_reader-99d9d84f model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:20:15 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:20:15 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (8130 chars)
+2026-08-09 19:20:15 [INFO] backend.src.agents.ajax_dynamic.ajax_dynamic: [AJAXDynamicAgent] 5 issues (dynamic/AJAX)
+2026-08-09 19:20:15 [INFO] backend.src.agents.forms_a11y.forms_a11y: [FormsA11yAgent] Analisando acessibilidade de formularios
+2026-08-09 19:20:15 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-e9f88507 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:20:30 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:20:30 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (12336 chars)
+2026-08-09 19:20:30 [INFO] backend.src.agents.cognitive.cognitive: [CognitiveAgent] 8 issues (cognitive)
+2026-08-09 19:20:30 [INFO] backend.src.agents.wcag_semantics.wcag_semantics: [WCAGSemanticsAgent] Analisando semântica HTML para AT
+2026-08-09 19:20:30 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-ae26150d model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:21:00 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:21:00 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (7772 chars)
+2026-08-09 19:21:00 [INFO] backend.src.agents.forms_a11y.forms_a11y: [FormsA11yAgent] 6 issues (forms)
+2026-08-09 19:21:00 [INFO] backend.src.agents.compliance_audit.compliance_audit: [ComplianceAuditAgent] Auditando conformidade WCAG AA + Section 508
+2026-08-09 19:21:00 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-compliance_audit-999da2aa model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:21:21 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:21:21 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (36283 chars)
+2026-08-09 19:21:21 [INFO] backend.src.agents.screen_reader.screen_reader: [ScreenReaderAgent] 30 issues (screen-reader)
+2026-08-09 19:21:21 [INFO] backend.src.agents.agentic_ai_ui.agentic_ai_ui: [AgenticAIUIAgent] Iniciando analise de interfaces agenticas...
+2026-08-09 19:21:21 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-agentic_ai_ui-85e43e29 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:22:25 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:22:25 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (60552 chars)
+2026-08-09 19:22:25 [INFO] backend.src.agents.wcag_semantics.wcag_semantics: [WCAGSemanticsAgent] 50 issues (semantics)
+2026-08-09 19:22:25 [INFO] backend.src.agents.spatial_3d_xr.spatial_3d_xr: [Spatial3D_XR_Agent] Iniciando analise de interfaces 3D/WebXR...
+2026-08-09 19:22:25 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-spatial_3d_xr-82d7b899 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:22:26 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:22:26 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (14 chars)
+2026-08-09 19:22:26 [INFO] backend.src.agents.agentic_ai_ui.agentic_ai_ui: [AgenticAIUIAgent] Concluido: 0 issues encontrados
+2026-08-09 19:22:26 [INFO] backend.src.agents.web_components.web_components: [WebComponentsAgent] Iniciando analise de Web Components...
+2026-08-09 19:22:26 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-web_components-d4307d03 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:22:27 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:22:27 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (14 chars)
+2026-08-09 19:22:27 [INFO] backend.src.agents.spatial_3d_xr.spatial_3d_xr: [Spatial3D_XR_Agent] Concluido: 0 issues encontrados
+2026-08-09 19:22:27 [INFO] backend.src.agents.niche_domains.niche_domains: [NicheDomainsAgent] Iniciando analise de dominios de nicho...
+2026-08-09 19:22:27 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-niche_domains-44a92c95 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:22:28 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:22:28 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (14 chars)
+2026-08-09 19:22:28 [INFO] backend.src.agents.web_components.web_components: [WebComponentsAgent] Concluido: 0 issues encontrados
+2026-08-09 19:22:28 [INFO] backend.src.agents.visual_a11y.visual_a11y: [VisualA11yAgent] Analisando visualmente o screenshot da página...
+2026-08-09 19:22:28 [INFO] backend.src.agents.visual_a11y.visual_a11y: [VisualA11yAgent] Incluindo 9 screenshots de foco na análise
+2026-08-09 19:22:30 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:22:31 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:22:33 [INFO] backend.src.services.ollama_cloud_adapter: [OllamaCloudAdapter] Catálogo descoberto: 18 modelos no Ollama Cloud
+2026-08-09 19:22:33 [INFO] backend.src.services.model_router: [Alto] provider=ollama-cloud -> kimi-k2.6 (ranking multi-objetivo agêntico entre 7 candidatos, needs_vision=True, tradeoff=3)
+2026-08-09 19:22:33 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-visual-a11y-1365e97f model=kimi-k2.6 provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:22:33 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (38180 chars)
+2026-08-09 19:22:33 [INFO] backend.src.agents.compliance_audit.compliance_audit: [ComplianceAuditAgent] 30 issues (compliance)
+2026-08-09 19:22:33 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (14 chars)
+2026-08-09 19:22:33 [INFO] backend.src.agents.niche_domains.niche_domains: [NicheDomainsAgent] Concluido: 0 issues encontrados
+2026-08-09 19:22:48 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:22:48 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (6891 chars)
+2026-08-09 19:22:48 [INFO] backend.src.agents.visual_a11y.visual_a11y: [VisualA11yAgent] 5 problemas identificados visualmente
+2026-08-09 19:22:48 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Sub-agente 'understandability' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "understandability-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "3.3.2 Labels or Instructions",\n      "severity": "high",\n      "confidence": "high",'
+2026-08-09 19:22:48 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente 'understandability' falhou (87375ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "understandability-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "3.3.2 Labels or Instructions",\n      "severity": "high",\n      "confidence": "high",'
+2026-08-09 19:22:48 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Sub-agente 'robustness' reportou falha: No valid JSON array found in LLM output: '{"issues": [{"id": "robustness-1", "guideline": "WCAG 2.2", "criterion": "4.1.2 Name, Role, Value", "severity": "critical", "confidence": "high", "level": "A", "element": "<input class=\\"control-searc'
+2026-08-09 19:22:48 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente 'robustness' falhou (101594ms): No valid JSON array found in LLM output: '{"issues": [{"id": "robustness-1", "guideline": "WCAG 2.2", "criterion": "4.1.2 Name, Role, Value", "severity": "critical", "confidence": "high", "level": "A", "element": "<input class=\\"control-searc'
+2026-08-09 19:22:48 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Sub-agente 'aria_specialist' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "aria-1",\n      "guideline": "WAI-ARIA",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A"'
+2026-08-09 19:22:48 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente 'aria_specialist' falhou (139906ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "aria-1",\n      "guideline": "WAI-ARIA",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A"'
+2026-08-09 19:22:48 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Issues truncados de 191 para 150
+2026-08-09 19:22:48 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisando 150 issues -- AT: NVDA/JAWS/VoiceOver/TalkBack
+2026-08-09 19:22:48 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Batch review: 150 issues em lotes de 20
+2026-08-09 19:22:48 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Processando lote 1/8 (20 issues)
+2026-08-09 19:22:48 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-b18519df model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:22:48 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Processando lote 2/8 (20 issues)
+2026-08-09 19:22:48 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-7a208913 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:22:48 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Processando lote 3/8 (20 issues)
+2026-08-09 19:22:48 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-ef16391b model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:23:34 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:23:34 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (30092 chars)
+2026-08-09 19:23:34 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisao concluida -- 20 issues mantidos, 0 falsos positivos removidos
+2026-08-09 19:23:34 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Processando lote 4/8 (20 issues)
+2026-08-09 19:23:34 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-e0d489ba model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:23:34 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:23:34 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (29474 chars)
+2026-08-09 19:23:34 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisao concluida -- 19 issues mantidos, 1 falsos positivos removidos
+2026-08-09 19:23:34 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Processando lote 5/8 (20 issues)
+2026-08-09 19:23:34 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-b23c3dc0 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:23:37 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:23:37 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (31944 chars)
+2026-08-09 19:23:37 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisao concluida -- 20 issues mantidos, 0 falsos positivos removidos
+2026-08-09 19:23:37 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Processando lote 6/8 (20 issues)
+2026-08-09 19:23:37 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-f6fcb0d9 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:24:23 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:24:23 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (33540 chars)
+2026-08-09 19:24:23 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisao concluida -- 20 issues mantidos, 0 falsos positivos removidos
+2026-08-09 19:24:23 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Processando lote 7/8 (20 issues)
+2026-08-09 19:24:23 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-859ec108 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:24:24 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:24:24 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (31753 chars)
+2026-08-09 19:24:24 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisao concluida -- 20 issues mantidos, 0 falsos positivos removidos
+2026-08-09 19:24:24 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Processando lote 8/8 (10 issues)
+2026-08-09 19:24:24 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-1ed50449 model=kimi-k2.7-code provider=ollama-cloud base_url=None fallback=False
+2026-08-09 19:24:25 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:24:25 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (33187 chars)
+2026-08-09 19:24:25 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisao concluida -- 20 issues mantidos, 0 falsos positivos removidos
+2026-08-09 19:24:48 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:24:48 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (16212 chars)
+2026-08-09 19:24:48 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisao concluida -- 10 issues mantidos, 0 falsos positivos removidos
+2026-08-09 19:25:03 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 19:25:03 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (29640 chars)
+2026-08-09 19:25:03 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisao concluida -- 20 issues mantidos, 0 falsos positivos removidos
+2026-08-09 19:25:03 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Batch review concluido -- 149 issues mantidos, 1 falsos positivos removidos
+2026-08-09 19:25:03 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] ExpertReviewer removeu 1 falsos positivos (150 -> 149 issues)
+2026-08-09 19:25:11 [INFO] backend.src.services.contrast_verifier: [ContrastVerifier] Falso positivo removido: css-1 ratio=16.28 >= limite=4.5
+2026-08-09 19:25:11 [INFO] backend.src.services.contrast_verifier: [ContrastVerifier] Falso positivo removido: css-2 ratio=5.59 >= limite=4.5
+2026-08-09 19:25:11 [INFO] backend.src.services.contrast_verifier: [ContrastVerifier] Falso positivo removido: css-3 ratio=7.46 >= limite=3.0
+2026-08-09 19:25:11 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] ContrastVerifier removeu 3 falso(s) positivo(s) de contraste
+2026-08-09 19:25:11 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline concluido -- 146 issues, 17/20 agentes OK
+2026-08-09 19:25:11 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] 3/20 agentes falharam. Exemplo: agente='understandability'
+2026-08-09 19:25:11 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Análise parcial: 3/20 agentes falharam -- resultado pode estar incompleto.
+2026-08-09 19:25:11 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline ANALYZE concluido
+2026-08-09 19:25:11 [INFO] backend.src.services.last_analysis_store: [LastAnalysisStore] Cache atualizado com 146 issues para URL: https://dequeuniversity.com/demo/mars/ (sessão: default)
+2026-08-09 19:25:11 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url -> 200 (553497.9ms)
+2026-08-09 19:25:11 [INFO] httpx: HTTP Request: POST http://testserver/analyze/url "HTTP/1.1 200 OK"
+status=200 elapsed=553.6s
+success: True issues: 146 agents: 20
+agentes OK: 17/20
+  FALHOU: understandability
+  FALHOU: robustness
+  FALHOU: aria_specialist
+hook_events (chamadas reais de LLM observadas via agent_hooks): {'pre_llm': 28, 'post_llm': 28, 'pre_tool': 0, 'post_tool': 0, 'errors': 0}
+duplicatas restantes apos dedup: nenhuma

@@ -1,0 +1,3092 @@
+[
+  {
+    "id": "technical",
+    "message": "O que significa o critério de sucesso WCAG 2.2 2.4.11 Focus Not Obscured (Minimum), qual a diferença dele pro 2.4.7 Focus Visible, e como eu testo isso manualmente sem ferramenta automatizada?",
+    "event_types": [
+      "stream_id",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "done"
+    ],
+    "tokens_joined": "\nOlha, excelente pergunta! Vou explicar cada parte com calma.\n---\n**O que é o WCAG 2.2 2.4.11 Focus Not Obscured (Minimum)**\nEsse critério é novo na WCAG 2.2 (não existia na 2.1) e diz o seguinte: quando um elemento recebe foco via teclado, ele não pode ficar total ou parcialmente escondido por outro elemento da interface. O exemplo mais clássico é um header fixo (sticky) ou um footer fixo que sobrepõe o elemento em foco, fazendo com que a pessoa que navega por teclado não enxergue onde está o foco.\nA versão \"Minimum\" (Nível AA) exige que o indicador de foco não seja completamente obscurecido por nenhum outro elemento. Existe também a versão \"Enhanced\" (Nível AAA) que exige que o foco não seja obscurecido nem parcialmente.\n---\n**Diferença entre 2.4.11 Focus Not Obscured e 2.4.7 Focus Visible**\nEsses dois critérios são complementares, mas olham para problemas diferentes:\n| Aspecto | 2.4.7 Focus Visible | 2.4.11 Focus Not Obscured |\n|---|---|---|\n| O que verifica | Se o indicador de foco existe e é visualmente perceptível (ex: outline, borda, mudança de cor) | Se o indicador de foco, mesmo existindo, fica escondido atrás de outro elemento da página |\n| Problema típico | `outline: none` sem alternativa, contraste insuficiente do indicador | Header sticky que cobre o link/input em foco ao dar Tab |\n| Novidade | Já existia desde WCAG 2.0 | Novo na WCAG 2.2 |\n| Nível | AA | AA |\nEm resumo: o 2.4.7 quer saber se o foco aparece. O 2.4.11 quer saber se o foco aparece mas está escondido. Uma página pode passar no 2.4.7 (tem um outline bonito) e ainda assim falhar no 2.4.11 (esse outline está atrás do menu fixo).\n---\n**Como testar manualmente sem ferramenta automatizada**\nO teste é puramente manual e comportamental. Siga estes passos:\n1. **Identifique elementos sticky/fixos na página.** Olhe para headers, footers, banners, cookies consent bars, chat widgets, tudo que usa `position: sticky` ou `position: fixed` e fica sobreposto ao conteúdo.\n2. **Comece a navegar por Tab.** Do começo da página, pressione Tab repetidamente e observe cada elemento que recebe foco.\n3. **Preste atenção quando chegar perto do elemento sticky.** Conforme voce Tabula para baixo na página, repare se algum elemento focável (link, botao, input) fica posicionado exatamente atras do header fixo. header fixo. Voce vera o indicador de foco brilhar, mas ele estara total ou parcialmente encoberto.\n4. **Cenario critico**: va ate o final da pagina e tabele de volta com Shift+Tab. Muitas vezes o footer fixo ou o chat widget cobre o ultimo elemento focavel.\n5. **Dica pratica**: se a pagina tem um header sticky com altura de 80px, role a pagina de modo que um elemento focavel fique a menos de 80px do topo da janela. Se voce Tab ate ele e nao ve o indicador de foco (porque esta embaixo do header), a pagina falha no 2.4.11.\n**Exemplo concreto de falha**: um site com `position: sticky; top: 0` em um menu de 60px de altura. O usuario Tabula ate o primeiro link do conteudo principal, mas o outline desse link aparece a 60px do topo -- ou seja, atras do menu. A pessoa nao ve onde esta o foco.\n**Correcao tipica**: aplicar `scroll-padding-top: 80px` no elemento `html` ou no container principal, com valor igual ou maior que a altura do elemento sticky.\n```css\nhtml {\nscroll-padding-top: 80px; /* mesma altura do header sticky */\n}\n```\nIsso faz com que, ao navegar por Tab, o navegador role a pagina deixando espaco extra no topo, evitando que o elemento em foco fique escondido.\n---\nSe quiser, posso pesquisar exemplos mais especificos de como implementar `scroll-padding-top` ou ativar essa validacao em uma pagina que voce queira testar.",
+    "final": "\nOlha, excelente pergunta! Vou explicar cada parte com calma.\n---\n**O que é o WCAG 2.2 2.4.11 Focus Not Obscured (Minimum)**\nEsse critério é novo na WCAG 2.2 (não existia na 2.1) e diz o seguinte: quando um elemento recebe foco via teclado, ele não pode ficar total ou parcialmente escondido por outro elemento da interface. O exemplo mais clássico é um header fixo (sticky) ou um footer fixo que sobrepõe o elemento em foco, fazendo com que a pessoa que navega por teclado não enxergue onde está o foco.\nA versão \"Minimum\" (Nível AA) exige que o indicador de foco não seja completamente obscurecido por nenhum outro elemento. Existe também a versão \"Enhanced\" (Nível AAA) que exige que o foco não seja obscurecido nem parcialmente.\n---\n**Diferença entre 2.4.11 Focus Not Obscured e 2.4.7 Focus Visible**\nEsses dois critérios são complementares, mas olham para problemas diferentes:\n| Aspecto | 2.4.7 Focus Visible | 2.4.11 Focus Not Obscured |\n|---|---|---|\n| O que verifica | Se o indicador de foco existe e é visualmente perceptível (ex: outline, borda, mudança de cor) | Se o indicador de foco, mesmo existindo, fica escondido atrás de outro elemento da página |\n| Problema típico | `outline: none` sem alternativa, contraste insuficiente do indicador | Header sticky que cobre o link/input em foco ao dar Tab |\n| Novidade | Já existia desde WCAG 2.0 | Novo na WCAG 2.2 |\n| Nível | AA | AA |\nEm resumo: o 2.4.7 quer saber se o foco aparece. O 2.4.11 quer saber se o foco aparece mas está escondido. Uma página pode passar no 2.4.7 (tem um outline bonito) e ainda assim falhar no 2.4.11 (esse outline está atrás do menu fixo).\n---\n**Como testar manualmente sem ferramenta automatizada**\nO teste é puramente manual e comportamental. Siga estes passos:\n1. **Identifique elementos sticky/fixos na página.** Olhe para headers, footers, banners, cookies consent bars, chat widgets, tudo que usa `position: sticky` ou `position: fixed` e fica sobreposto ao conteúdo.\n2. **Comece a navegar por Tab.** Do começo da página, pressione Tab repetidamente e observe cada elemento que recebe foco.\n3. **Preste atenção quando chegar perto do elemento sticky.** Conforme voce Tabula para baixo na página, repare se algum elemento focável (link, botao, input) fica posicionado exatamente atras do header fixo. header fixo. Voce vera o indicador de foco brilhar, mas ele estara total ou parcialmente encoberto.\n4. **Cenario critico**: va ate o final da pagina e tabele de volta com Shift+Tab. Muitas vezes o footer fixo ou o chat widget cobre o ultimo elemento focavel.\n5. **Dica pratica**: se a pagina tem um header sticky com altura de 80px, role a pagina de modo que um elemento focavel fique a menos de 80px do topo da janela. Se voce Tab ate ele e nao ve o indicador de foco (porque esta embaixo do header), a pagina falha no 2.4.11.\n**Exemplo concreto de falha**: um site com `position: sticky; top: 0` em um menu de 60px de altura. O usuario Tabula ate o primeiro link do conteudo principal, mas o outline desse link aparece a 60px do topo -- ou seja, atras do menu. A pessoa nao ve onde esta o foco.\n**Correcao tipica**: aplicar `scroll-padding-top: 80px` no elemento `html` ou no container principal, com valor igual ou maior que a altura do elemento sticky.\n```css\nhtml {\n  scroll-padding-top: 80px; /* mesma altura do header sticky */\n}\n```\nIsso faz com que, ao navegar por Tab, o navegador role a pagina deixando espaco extra no topo, evitando que o elemento em foco fique escondido.\n---\nSe quiser, posso pesquisar exemplos mais especificos de como implementar `scroll-padding-top` ou ativar essa validacao em uma pagina que voce queira testar.",
+    "raw_events": [
+      {
+        "type": "stream_id",
+        "id": "49ea8e3a936e4dbbaa2b657480b2cbc8"
+      },
+      {
+        "type": "thinking",
+        "text": "The"
+      },
+      {
+        "type": "reasoning",
+        "text": "The"
+      },
+      {
+        "type": "thinking",
+        "text": " user is"
+      },
+      {
+        "type": "reasoning",
+        "text": " user is"
+      },
+      {
+        "type": "thinking",
+        "text": " asking about WCAG 2"
+      },
+      {
+        "type": "reasoning",
+        "text": " asking about WCAG 2"
+      },
+      {
+        "type": "thinking",
+        "text": ".2 Success Criterion"
+      },
+      {
+        "type": "reasoning",
+        "text": ".2 Success Criterion"
+      },
+      {
+        "type": "thinking",
+        "text": " 2.4.11"
+      },
+      {
+        "type": "reasoning",
+        "text": " 2.4.11"
+      },
+      {
+        "type": "thinking",
+        "text": " Focus Not Obscured ("
+      },
+      {
+        "type": "reasoning",
+        "text": " Focus Not Obscured ("
+      },
+      {
+        "type": "thinking",
+        "text": "Minimum), the difference from"
+      },
+      {
+        "type": "reasoning",
+        "text": "Minimum), the difference from"
+      },
+      {
+        "type": "thinking",
+        "text": " 2.4.7"
+      },
+      {
+        "type": "reasoning",
+        "text": " 2.4.7"
+      },
+      {
+        "type": "thinking",
+        "text": " Focus Visible, and how"
+      },
+      {
+        "type": "reasoning",
+        "text": " Focus Visible, and how"
+      },
+      {
+        "type": "thinking",
+        "text": " to manually test it without automated"
+      },
+      {
+        "type": "reasoning",
+        "text": " to manually test it without automated"
+      },
+      {
+        "type": "thinking",
+        "text": " tools. Let me provide"
+      },
+      {
+        "type": "reasoning",
+        "text": " tools. Let me provide"
+      },
+      {
+        "type": "thinking",
+        "text": " a thorough, accessible explanation"
+      },
+      {
+        "type": "reasoning",
+        "text": " a thorough, accessible explanation"
+      },
+      {
+        "type": "thinking",
+        "text": " in Portuguese.\n\nI have"
+      },
+      {
+        "type": "reasoning",
+        "text": " in Portuguese.\n\nI have"
+      },
+      {
+        "type": "thinking",
+        "text": " knowledge from my authoritative accessibility"
+      },
+      {
+        "type": "reasoning",
+        "text": " knowledge from my authoritative accessibility"
+      },
+      {
+        "type": "thinking",
+        "text": " reference about these criteria. Let"
+      },
+      {
+        "type": "reasoning",
+        "text": " reference about these criteria. Let"
+      },
+      {
+        "type": "thinking",
+        "text": " me use my internal knowledge plus"
+      },
+      {
+        "type": "reasoning",
+        "text": " me use my internal knowledge plus"
+      },
+      {
+        "type": "thinking",
+        "text": " search for additional details if"
+      },
+      {
+        "type": "reasoning",
+        "text": " search for additional details if"
+      },
+      {
+        "type": "thinking",
+        "text": " needed.\n\nActually, I have"
+      },
+      {
+        "type": "reasoning",
+        "text": " needed.\n\nActually, I have"
+      },
+      {
+        "type": "thinking",
+        "text": " good knowledge about these criteria already"
+      },
+      {
+        "type": "reasoning",
+        "text": " good knowledge about these criteria already"
+      },
+      {
+        "type": "thinking",
+        "text": " from my training data and the local"
+      },
+      {
+        "type": "reasoning",
+        "text": " from my training data and the local"
+      },
+      {
+        "type": "thinking",
+        "text": " reference. Let me check"
+      },
+      {
+        "type": "reasoning",
+        "text": " reference. Let me check"
+      },
+      {
+        "type": "thinking",
+        "text": " the reference I have:"
+      },
+      {
+        "type": "reasoning",
+        "text": " the reference I have:"
+      },
+      {
+        "type": "thinking",
+        "text": "\n\nFrom the local reference:\n-"
+      },
+      {
+        "type": "reasoning",
+        "text": "\n\nFrom the local reference:\n-"
+      },
+      {
+        "type": "thinking",
+        "text": " 2.4.11"
+      },
+      {
+        "type": "reasoning",
+        "text": " 2.4.11"
+      },
+      {
+        "type": "thinking",
+        "text": " Focus Not Obscured"
+      },
+      {
+        "type": "reasoning",
+        "text": " Focus Not Obscured"
+      },
+      {
+        "type": "thinking",
+        "text": " — sticky UI does not fully hide"
+      },
+      {
+        "type": "reasoning",
+        "text": " — sticky UI does not fully hide"
+      },
+      {
+        "type": "thinking",
+        "text": " focus (new in 2."
+      },
+      {
+        "type": "reasoning",
+        "text": " focus (new in 2."
+      },
+      {
+        "type": "thinking",
+        "text": "2)\n- 2"
+      },
+      {
+        "type": "reasoning",
+        "text": "2)\n- 2"
+      },
+      {
+        "type": "thinking",
+        "text": ".4.7 Focus Visible"
+      },
+      {
+        "type": "reasoning",
+        "text": ".4.7 Focus Visible"
+      },
+      {
+        "type": "thinking",
+        "text": " - Focus indicator absent or"
+      },
+      {
+        "type": "reasoning",
+        "text": " - Focus indicator absent or"
+      },
+      {
+        "type": "thinking",
+        "text": " invisible. Check [STY"
+      },
+      {
+        "type": "reasoning",
+        "text": " invisible. Check [STY"
+      },
+      {
+        "type": "thinking",
+        "text": "LES] for: outline:"
+      },
+      {
+        "type": "reasoning",
+        "text": "LES] for: outline:"
+      },
+      {
+        "type": "thinking",
+        "text": " none; outline: 0"
+      },
+      {
+        "type": "reasoning",
+        "text": " none; outline: 0"
+      },
+      {
+        "type": "thinking",
+        "text": "; :focus { outline"
+      },
+      {
+        "type": "reasoning",
+        "text": "; :focus { outline"
+      },
+      {
+        "type": "thinking",
+        "text": ": none } without corresponding :"
+      },
+      {
+        "type": "reasoning",
+        "text": ": none } without corresponding :"
+      },
+      {
+        "type": "thinking",
+        "text": "focus-visible rule providing"
+      },
+      {
+        "type": "reasoning",
+        "text": "focus-visible rule providing"
+      },
+      {
+        "type": "thinking",
+        "text": " visible alternative.\n\nThis is a conceptual"
+      },
+      {
+        "type": "reasoning",
+        "text": " visible alternative.\n\nThis is a conceptual"
+      },
+      {
+        "type": "thinking",
+        "text": "/educational question, not"
+      },
+      {
+        "type": "reasoning",
+        "text": "/educational question, not"
+      },
+      {
+        "type": "thinking",
+        "text": " a request to audit a"
+      },
+      {
+        "type": "reasoning",
+        "text": " a request to audit a"
+      },
+      {
+        "type": "thinking",
+        "text": " page or code. So"
+      },
+      {
+        "type": "reasoning",
+        "text": " page or code. So"
+      },
+      {
+        "type": "thinking",
+        "text": " I don't need to run"
+      },
+      {
+        "type": "reasoning",
+        "text": " I don't need to run"
+      },
+      {
+        "type": "thinking",
+        "text": " analyze_page or any tool"
+      },
+      {
+        "type": "reasoning",
+        "text": " analyze_page or any tool"
+      },
+      {
+        "type": "thinking",
+        "text": ". I can answer directly from"
+      },
+      {
+        "type": "reasoning",
+        "text": ". I can answer directly from"
+      },
+      {
+        "type": "thinking",
+        "text": " my knowledge.\n\nLet me provide"
+      },
+      {
+        "type": "reasoning",
+        "text": " my knowledge.\n\nLet me provide"
+      },
+      {
+        "type": "thinking",
+        "text": " a comprehensive, accurate answer in"
+      },
+      {
+        "type": "reasoning",
+        "text": " a comprehensive, accurate answer in"
+      },
+      {
+        "type": "thinking",
+        "text": " Portuguese with proper accents."
+      },
+      {
+        "type": "reasoning",
+        "text": " Portuguese with proper accents."
+      },
+      {
+        "type": "token",
+        "text": "\nOlha, excel"
+      },
+      {
+        "type": "token",
+        "text": "ente pergunta! V"
+      },
+      {
+        "type": "token",
+        "text": "ou explicar cada parte"
+      },
+      {
+        "type": "token",
+        "text": " com calma.\n---"
+      },
+      {
+        "type": "token",
+        "text": "\n**O que é o WC"
+      },
+      {
+        "type": "token",
+        "text": "AG 2.2"
+      },
+      {
+        "type": "token",
+        "text": " 2.4.11"
+      },
+      {
+        "type": "token",
+        "text": " Focus Not Obscured ("
+      },
+      {
+        "type": "token",
+        "text": "Minimum)**\nEsse crit"
+      },
+      {
+        "type": "token",
+        "text": "ério é novo na WCAG"
+      },
+      {
+        "type": "token",
+        "text": " 2.2 (não"
+      },
+      {
+        "type": "token",
+        "text": " existia na 2."
+      },
+      {
+        "type": "token",
+        "text": "1) e diz o seguinte"
+      },
+      {
+        "type": "token",
+        "text": ": quando um elemento rece"
+      },
+      {
+        "type": "token",
+        "text": "be foco via teclado"
+      },
+      {
+        "type": "token",
+        "text": ", ele não pode fic"
+      },
+      {
+        "type": "token",
+        "text": "ar total ou parcialmente es"
+      },
+      {
+        "type": "token",
+        "text": "condido por outro elemento da"
+      },
+      {
+        "type": "token",
+        "text": " interface. O exemplo mais"
+      },
+      {
+        "type": "token",
+        "text": " clássico é um"
+      },
+      {
+        "type": "token",
+        "text": " header fixo (sticky"
+      },
+      {
+        "type": "token",
+        "text": ") ou um footer fix"
+      },
+      {
+        "type": "token",
+        "text": "o que sobrepõ"
+      },
+      {
+        "type": "token",
+        "text": "e o elemento em foco"
+      },
+      {
+        "type": "token",
+        "text": ", fazendo com que a"
+      },
+      {
+        "type": "token",
+        "text": " pessoa que navega por"
+      },
+      {
+        "type": "token",
+        "text": " teclado não en"
+      },
+      {
+        "type": "token",
+        "text": "xergue onde está o"
+      },
+      {
+        "type": "token",
+        "text": " foco.\nA vers"
+      },
+      {
+        "type": "token",
+        "text": "ão \"Minimum\" (N"
+      },
+      {
+        "type": "token",
+        "text": "ível AA) exige que"
+      },
+      {
+        "type": "token",
+        "text": " o indicador de foco não"
+      },
+      {
+        "type": "token",
+        "text": " seja completamente obscurecido por"
+      },
+      {
+        "type": "token",
+        "text": " nenhum outro elemento."
+      },
+      {
+        "type": "token",
+        "text": " Existe também a versão \""
+      },
+      {
+        "type": "token",
+        "text": "Enhanced\" (Nível"
+      },
+      {
+        "type": "token",
+        "text": " AAA) que exige que"
+      },
+      {
+        "type": "token",
+        "text": " o foco não seja obscure"
+      },
+      {
+        "type": "token",
+        "text": "cido nem parcialmente."
+      },
+      {
+        "type": "token",
+        "text": "\n---\n**Diferença entre"
+      },
+      {
+        "type": "token",
+        "text": " 2.4.11"
+      },
+      {
+        "type": "token",
+        "text": " Focus Not Obscured"
+      },
+      {
+        "type": "token",
+        "text": " e 2.4."
+      },
+      {
+        "type": "token",
+        "text": "7 Focus Visible**\nEss"
+      },
+      {
+        "type": "token",
+        "text": "es dois critérios são"
+      },
+      {
+        "type": "token",
+        "text": " complementares, mas ol"
+      },
+      {
+        "type": "token",
+        "text": "ham para problemas diferentes:"
+      },
+      {
+        "type": "token",
+        "text": "\n| Aspecto | 2."
+      },
+      {
+        "type": "token",
+        "text": "4.7 Focus Visible |"
+      },
+      {
+        "type": "token",
+        "text": " 2.4.11"
+      },
+      {
+        "type": "token",
+        "text": " Focus Not Obscured |"
+      },
+      {
+        "type": "token",
+        "text": "\n|---|---|---|\n| O"
+      },
+      {
+        "type": "token",
+        "text": " que verifica | Se o indic"
+      },
+      {
+        "type": "token",
+        "text": "ador de foco existe"
+      },
+      {
+        "type": "token",
+        "text": " e é visualmente percept"
+      },
+      {
+        "type": "token",
+        "text": "ível (ex: outline"
+      },
+      {
+        "type": "token",
+        "text": ", borda, mud"
+      },
+      {
+        "type": "token",
+        "text": "ança de cor) | Se"
+      },
+      {
+        "type": "token",
+        "text": " o indicador de foco,"
+      },
+      {
+        "type": "token",
+        "text": " mesmo existindo, f"
+      },
+      {
+        "type": "token",
+        "text": "ica escondido at"
+      },
+      {
+        "type": "token",
+        "text": "rás de outro elemento da"
+      },
+      {
+        "type": "token",
+        "text": " página |\n| Problema t"
+      },
+      {
+        "type": "token",
+        "text": "ípico | `outline"
+      },
+      {
+        "type": "token",
+        "text": ": none` sem alternativa"
+      },
+      {
+        "type": "token",
+        "text": ", contraste insuficiente"
+      },
+      {
+        "type": "token",
+        "text": " do indicador | Header"
+      },
+      {
+        "type": "token",
+        "text": " sticky que cobre o"
+      },
+      {
+        "type": "token",
+        "text": " link/input em foco"
+      },
+      {
+        "type": "token",
+        "text": " ao dar Tab |\n|"
+      },
+      {
+        "type": "token",
+        "text": " Novidade | Já exist"
+      },
+      {
+        "type": "token",
+        "text": "ia desde WCAG"
+      },
+      {
+        "type": "token",
+        "text": " 2.0 | Novo"
+      },
+      {
+        "type": "token",
+        "text": " na WCAG 2"
+      },
+      {
+        "type": "token",
+        "text": ".2 |\n| N"
+      },
+      {
+        "type": "token",
+        "text": "ível | AA | AA"
+      },
+      {
+        "type": "token",
+        "text": " |\nEm resumo: o"
+      },
+      {
+        "type": "token",
+        "text": " 2.4.7"
+      },
+      {
+        "type": "token",
+        "text": " quer saber se o foco"
+      },
+      {
+        "type": "token",
+        "text": " aparece. O 2"
+      },
+      {
+        "type": "token",
+        "text": ".4.11 quer saber"
+      },
+      {
+        "type": "token",
+        "text": " se o foco aparece"
+      },
+      {
+        "type": "token",
+        "text": " mas está escondido"
+      },
+      {
+        "type": "token",
+        "text": ". Uma página pode passar"
+      },
+      {
+        "type": "token",
+        "text": " no 2.4"
+      },
+      {
+        "type": "token",
+        "text": ".7 (tem um outline"
+      },
+      {
+        "type": "token",
+        "text": " bonito) e ainda"
+      },
+      {
+        "type": "token",
+        "text": " assim falhar no"
+      },
+      {
+        "type": "token",
+        "text": " 2.4.11"
+      },
+      {
+        "type": "token",
+        "text": " (esse outline está at"
+      },
+      {
+        "type": "token",
+        "text": "rás do menu fixo)."
+      },
+      {
+        "type": "token",
+        "text": "\n---\n**Como testar"
+      },
+      {
+        "type": "token",
+        "text": " manualmente sem ferramenta"
+      },
+      {
+        "type": "token",
+        "text": " automatizada**\nO teste"
+      },
+      {
+        "type": "token",
+        "text": " é puramente manual e comport"
+      },
+      {
+        "type": "token",
+        "text": "amental. Siga est"
+      },
+      {
+        "type": "token",
+        "text": "es passos:\n1"
+      },
+      {
+        "type": "token",
+        "text": ". **Identifique elementos"
+      },
+      {
+        "type": "token",
+        "text": " sticky/fixos na"
+      },
+      {
+        "type": "token",
+        "text": " página.** Olhe para"
+      },
+      {
+        "type": "token",
+        "text": " headers, footers,"
+      },
+      {
+        "type": "token",
+        "text": " banners, cookies consent bars"
+      },
+      {
+        "type": "token",
+        "text": ", chat widgets, tudo"
+      },
+      {
+        "type": "token",
+        "text": " que usa `position: sticky"
+      },
+      {
+        "type": "token",
+        "text": "` ou `position: fixed`"
+      },
+      {
+        "type": "token",
+        "text": " e fica sobreposto"
+      },
+      {
+        "type": "token",
+        "text": " ao conteúdo.\n2. **"
+      },
+      {
+        "type": "token",
+        "text": "Comece a navegar por"
+      },
+      {
+        "type": "token",
+        "text": " Tab.** Do começo da"
+      },
+      {
+        "type": "token",
+        "text": " página, pressione Tab"
+      },
+      {
+        "type": "token",
+        "text": " repetidamente e observe"
+      },
+      {
+        "type": "token",
+        "text": " cada elemento que recebe"
+      },
+      {
+        "type": "token",
+        "text": " foco.\n3. **"
+      },
+      {
+        "type": "token",
+        "text": "Preste atenção quando che"
+      },
+      {
+        "type": "token",
+        "text": "gar perto do elemento"
+      },
+      {
+        "type": "token",
+        "text": " sticky.** Conforme voce"
+      },
+      {
+        "type": "token",
+        "text": " Tabula para baixo na"
+      },
+      {
+        "type": "token",
+        "text": " página, repare se"
+      },
+      {
+        "type": "token",
+        "text": " algum elemento focável ("
+      },
+      {
+        "type": "token",
+        "text": "link, botao, input)"
+      },
+      {
+        "type": "token",
+        "text": " fica posicionado ex"
+      },
+      {
+        "type": "token",
+        "text": "atamente atras do header"
+      },
+      {
+        "type": "token",
+        "text": " fixo. header fixo."
+      },
+      {
+        "type": "token",
+        "text": " Voce vera o indic"
+      },
+      {
+        "type": "token",
+        "text": "ador de foco br"
+      },
+      {
+        "type": "token",
+        "text": "ilhar, mas ele"
+      },
+      {
+        "type": "token",
+        "text": " estara total ou parcial"
+      },
+      {
+        "type": "token",
+        "text": "mente encoberto.\n4."
+      },
+      {
+        "type": "token",
+        "text": " **Cenario critico**:"
+      },
+      {
+        "type": "token",
+        "text": " va ate o final da pagina"
+      },
+      {
+        "type": "token",
+        "text": " e tabele de volta"
+      },
+      {
+        "type": "token",
+        "text": " com Shift+Tab. M"
+      },
+      {
+        "type": "token",
+        "text": "uitas vezes o footer"
+      },
+      {
+        "type": "token",
+        "text": " fixo ou o chat widget"
+      },
+      {
+        "type": "token",
+        "text": " cobre o ultimo elemento"
+      },
+      {
+        "type": "token",
+        "text": " focavel.\n5. **"
+      },
+      {
+        "type": "token",
+        "text": "Dica pratica**: se"
+      },
+      {
+        "type": "token",
+        "text": " a pagina tem um header sticky"
+      },
+      {
+        "type": "token",
+        "text": " com altura de 80px,"
+      },
+      {
+        "type": "token",
+        "text": " role a pagina de modo"
+      },
+      {
+        "type": "token",
+        "text": " que um elemento focavel f"
+      },
+      {
+        "type": "token",
+        "text": "ique a menos de 80"
+      },
+      {
+        "type": "token",
+        "text": "px do topo da"
+      },
+      {
+        "type": "token",
+        "text": " janela. Se voce"
+      },
+      {
+        "type": "token",
+        "text": " Tab ate ele e na"
+      },
+      {
+        "type": "token",
+        "text": "o ve o indicador de"
+      },
+      {
+        "type": "token",
+        "text": " foco (porque esta"
+      },
+      {
+        "type": "token",
+        "text": " embaixo do header"
+      },
+      {
+        "type": "token",
+        "text": "), a pagina falha no"
+      },
+      {
+        "type": "token",
+        "text": " 2.4.11"
+      },
+      {
+        "type": "token",
+        "text": ".\n**Exemplo con"
+      },
+      {
+        "type": "token",
+        "text": "creto de falha**:"
+      },
+      {
+        "type": "token",
+        "text": " um site com `position"
+      },
+      {
+        "type": "token",
+        "text": ": sticky; top: 0"
+      },
+      {
+        "type": "token",
+        "text": "` em um menu de"
+      },
+      {
+        "type": "token",
+        "text": " 60px de altura."
+      },
+      {
+        "type": "token",
+        "text": " O usuario Tabula ate"
+      },
+      {
+        "type": "token",
+        "text": " o primeiro link do conteudo principal"
+      },
+      {
+        "type": "token",
+        "text": ", mas o outline desse"
+      },
+      {
+        "type": "token",
+        "text": " link aparece a 60"
+      },
+      {
+        "type": "token",
+        "text": "px do topo --"
+      },
+      {
+        "type": "token",
+        "text": " ou seja, atras do"
+      },
+      {
+        "type": "token",
+        "text": " menu. A pessoa na"
+      },
+      {
+        "type": "token",
+        "text": "o ve onde esta o f"
+      },
+      {
+        "type": "token",
+        "text": "oco.\n**Correca"
+      },
+      {
+        "type": "token",
+        "text": "o tipica**: aplicar"
+      },
+      {
+        "type": "token",
+        "text": " `scroll-padding-top"
+      },
+      {
+        "type": "token",
+        "text": ": 80px`"
+      },
+      {
+        "type": "token",
+        "text": " no elemento `html` ou no"
+      },
+      {
+        "type": "token",
+        "text": " container principal, com valor"
+      },
+      {
+        "type": "token",
+        "text": " igual ou maior que a altura do"
+      },
+      {
+        "type": "token",
+        "text": " elemento sticky.\n```css"
+      },
+      {
+        "type": "token",
+        "text": "\nhtml {\nscroll-padding"
+      },
+      {
+        "type": "token",
+        "text": "-top: 80px;"
+      },
+      {
+        "type": "token",
+        "text": " /* mesma altura do header"
+      },
+      {
+        "type": "token",
+        "text": " sticky */\n}\n```\nIsso"
+      },
+      {
+        "type": "token",
+        "text": " faz com que, ao nave"
+      },
+      {
+        "type": "token",
+        "text": "gar por Tab, o"
+      },
+      {
+        "type": "token",
+        "text": " navegador role a"
+      },
+      {
+        "type": "token",
+        "text": " pagina deixando espaco extra"
+      },
+      {
+        "type": "token",
+        "text": " no topo, evitando que"
+      },
+      {
+        "type": "token",
+        "text": " o elemento em foco"
+      },
+      {
+        "type": "token",
+        "text": " fique escondido."
+      },
+      {
+        "type": "token",
+        "text": "\n---\nSe quiser,"
+      },
+      {
+        "type": "token",
+        "text": " posso pesquisar exempl"
+      },
+      {
+        "type": "token",
+        "text": "os mais especificos de"
+      },
+      {
+        "type": "token",
+        "text": " como implementar `scroll-padding"
+      },
+      {
+        "type": "token",
+        "text": "-top` ou ativar essa"
+      },
+      {
+        "type": "token",
+        "text": " validacao em uma pagina que"
+      },
+      {
+        "type": "token",
+        "text": " voce queira testar."
+      },
+      {
+        "type": "done",
+        "final": "\nOlha, excelente pergunta! Vou explicar cada parte com calma.\n---\n**O que é o WCAG 2.2 2.4.11 Focus Not Obscured (Minimum)**\nEsse critério é novo na WCAG 2.2 (não existia na 2.1) e diz o seguinte: quando um elemento recebe foco via teclado, ele não pode ficar total ou parcialmente escondido por outro elemento da interface. O exemplo mais clássico é um header fixo (sticky) ou um footer fixo que sobrepõe o elemento em foco, fazendo com que a pessoa que navega por teclado não enxergue onde está o foco.\nA versão \"Minimum\" (Nível AA) exige que o indicador de foco não seja completamente obscurecido por nenhum outro elemento. Existe também a versão \"Enhanced\" (Nível AAA) que exige que o foco não seja obscurecido nem parcialmente.\n---\n**Diferença entre 2.4.11 Focus Not Obscured e 2.4.7 Focus Visible**\nEsses dois critérios são complementares, mas olham para problemas diferentes:\n| Aspecto | 2.4.7 Focus Visible | 2.4.11 Focus Not Obscured |\n|---|---|---|\n| O que verifica | Se o indicador de foco existe e é visualmente perceptível (ex: outline, borda, mudança de cor) | Se o indicador de foco, mesmo existindo, fica escondido atrás de outro elemento da página |\n| Problema típico | `outline: none` sem alternativa, contraste insuficiente do indicador | Header sticky que cobre o link/input em foco ao dar Tab |\n| Novidade | Já existia desde WCAG 2.0 | Novo na WCAG 2.2 |\n| Nível | AA | AA |\nEm resumo: o 2.4.7 quer saber se o foco aparece. O 2.4.11 quer saber se o foco aparece mas está escondido. Uma página pode passar no 2.4.7 (tem um outline bonito) e ainda assim falhar no 2.4.11 (esse outline está atrás do menu fixo).\n---\n**Como testar manualmente sem ferramenta automatizada**\nO teste é puramente manual e comportamental. Siga estes passos:\n1. **Identifique elementos sticky/fixos na página.** Olhe para headers, footers, banners, cookies consent bars, chat widgets, tudo que usa `position: sticky` ou `position: fixed` e fica sobreposto ao conteúdo.\n2. **Comece a navegar por Tab.** Do começo da página, pressione Tab repetidamente e observe cada elemento que recebe foco.\n3. **Preste atenção quando chegar perto do elemento sticky.** Conforme voce Tabula para baixo na página, repare se algum elemento focável (link, botao, input) fica posicionado exatamente atras do header fixo. header fixo. Voce vera o indicador de foco brilhar, mas ele estara total ou parcialmente encoberto.\n4. **Cenario critico**: va ate o final da pagina e tabele de volta com Shift+Tab. Muitas vezes o footer fixo ou o chat widget cobre o ultimo elemento focavel.\n5. **Dica pratica**: se a pagina tem um header sticky com altura de 80px, role a pagina de modo que um elemento focavel fique a menos de 80px do topo da janela. Se voce Tab ate ele e nao ve o indicador de foco (porque esta embaixo do header), a pagina falha no 2.4.11.\n**Exemplo concreto de falha**: um site com `position: sticky; top: 0` em um menu de 60px de altura. O usuario Tabula ate o primeiro link do conteudo principal, mas o outline desse link aparece a 60px do topo -- ou seja, atras do menu. A pessoa nao ve onde esta o foco.\n**Correcao tipica**: aplicar `scroll-padding-top: 80px` no elemento `html` ou no container principal, com valor igual ou maior que a altura do elemento sticky.\n```css\nhtml {\n  scroll-padding-top: 80px; /* mesma altura do header sticky */\n}\n```\nIsso faz com que, ao navegar por Tab, o navegador role a pagina deixando espaco extra no topo, evitando que o elemento em foco fique escondido.\n---\nSe quiser, posso pesquisar exemplos mais especificos de como implementar `scroll-padding-top` ou ativar essa validacao em uma pagina que voce queira testar.",
+        "usage": {
+          "input_tokens": 8853,
+          "output_tokens": 1313,
+          "total_tokens": 10166
+        }
+      }
+    ]
+  },
+  {
+    "id": "ambiguous_vague",
+    "message": "meu site tá bom?",
+    "event_types": [
+      "stream_id",
+      "token",
+      "done"
+    ],
+    "tokens_joined": "Você poderia fornecer o URL do site ou o código-fonte para que eu possa analisar a acessibilidade?",
+    "final": "Você poderia fornecer o URL do site ou o código-fonte para que eu possa analisar a acessibilidade?",
+    "raw_events": [
+      {
+        "type": "stream_id",
+        "id": "ae66126d445b473f87f271686701c1cb"
+      },
+      {
+        "type": "token",
+        "text": "Você poderia fornecer o URL do site ou o código-fonte para que eu possa analisar a acessibilidade?"
+      },
+      {
+        "type": "done",
+        "final": "Você poderia fornecer o URL do site ou o código-fonte para que eu possa analisar a acessibilidade?"
+      }
+    ]
+  },
+  {
+    "id": "ambiguous_technical_mixed",
+    "message": "isso ta acessivel? <button onclick=\"doStuff()\"><i class=\"icon-close\"></i></button>",
+    "event_types": [
+      "stream_id",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "done"
+    ],
+    "tokens_joined": "\nOlha, esse botão tem dois problemas graves de acessibilidade:\n**1. Nome acessível ausente (viola WCAG 4.1.2 e 1.1.1)**\nO `<button>` não tem nenhum texto dentro. O `<i class=\"icon-close\"></i>` é um ícone (provavelmente uma font-icon ou SVG) sem conteúdo textual. Leitores de tela como NVDA e JAWS vão anunciar o botão como simplesmente \"botão\", sem informar qual é a ação dele. Isso quebra o critério 4.1.2 (Name, Role, Value) e o 1.1.1 (Non-text Content) porque o ícone não tem alternativa textual.\n**2. O ícone não é acessível por si só**\nA tag `<i>` com uma classe de ícone não passa informação semântica alguma para tecnologia assistiva. Mesmo que o ícone seja puramente decorativo, o botão inteiro fica sem nome.\n**O que precisa fazer?**\nAcrescentar um nome acessível ao botão. Você tem duas opções:\n- **Opção A (aria-label, mais comum para botões de ícone):**\n```html\n<button onclick=\"doStuff()\" aria-label=\"Fechar\"><i class=\"icon-close\"></i></button>\n```\n- **Opção B (texto visualmente escondido, mais resiliente):**\n```html\n<button onclick=\"doStuff()\">\n<i class=\"icon-close\" aria-hidden=\"true\"></i>\n<span class=\"sr-only\">Fechar</span>\n</button>\n```\n(onde `.sr-only` é uma classe CSS que esconde visualmente mas mantém no DOM para leitores de tela)\n- **Opção C (texto visível + ícone decorativo, o mais inclusivo):**\n```html\n<button onclick=\"doStuff()\"><i class=\"icon-close\" aria-hidden=\"true\"></i> Fechar</button>\n```\nSe o ícone for apenas decorativo, lembre-se de colocar `aria-hidden=\"true\"` no `<i>` para o leitor de tela ignorá-lo. Se o ícone carregar informação (raro), aí ele precisaria de `role=\"img\"` + `aria-label`.\nResumindo: do jeito que está, **não está acessível**. O maior problema é a falta de nome acessível no botão. Quer que eu simule como o NVDA leria esse botão ou prefere que eu sugira a correção completa?",
+    "final": "\nOlha, esse botão tem dois problemas graves de acessibilidade:\n**1. Nome acessível ausente (viola WCAG 4.1.2 e 1.1.1)**\nO `<button>` não tem nenhum texto dentro. O `<i class=\"icon-close\"></i>` é um ícone (provavelmente uma font-icon ou SVG) sem conteúdo textual. Leitores de tela como NVDA e JAWS vão anunciar o botão como simplesmente \"botão\", sem informar qual é a ação dele. Isso quebra o critério 4.1.2 (Name, Role, Value) e o 1.1.1 (Non-text Content) porque o ícone não tem alternativa textual.\n**2. O ícone não é acessível por si só**\nA tag `<i>` com uma classe de ícone não passa informação semântica alguma para tecnologia assistiva. Mesmo que o ícone seja puramente decorativo, o botão inteiro fica sem nome.\n**O que precisa fazer?**\nAcrescentar um nome acessível ao botão. Você tem duas opções:\n- **Opção A (aria-label, mais comum para botões de ícone):**\n  ```html\n  <button onclick=\"doStuff()\" aria-label=\"Fechar\"><i class=\"icon-close\"></i></button>\n  ```\n- **Opção B (texto visualmente escondido, mais resiliente):**\n  ```html\n  <button onclick=\"doStuff()\">\n    <i class=\"icon-close\" aria-hidden=\"true\"></i>\n    <span class=\"sr-only\">Fechar</span>\n  </button>\n  ```\n  (onde `.sr-only` é uma classe CSS que esconde visualmente mas mantém no DOM para leitores de tela)\n- **Opção C (texto visível + ícone decorativo, o mais inclusivo):**\n  ```html\n  <button onclick=\"doStuff()\"><i class=\"icon-close\" aria-hidden=\"true\"></i> Fechar</button>\n  ```\nSe o ícone for apenas decorativo, lembre-se de colocar `aria-hidden=\"true\"` no `<i>` para o leitor de tela ignorá-lo. Se o ícone carregar informação (raro), aí ele precisaria de `role=\"img\"` + `aria-label`.\nResumindo: do jeito que está, **não está acessível**. O maior problema é a falta de nome acessível no botão. Quer que eu simule como o NVDA leria esse botão ou prefere que eu sugira a correção completa?",
+    "raw_events": [
+      {
+        "type": "stream_id",
+        "id": "3e9e7fe2e31a435ebdfe3733714192a0"
+      },
+      {
+        "type": "thinking",
+        "text": "The"
+      },
+      {
+        "type": "reasoning",
+        "text": "The"
+      },
+      {
+        "type": "thinking",
+        "text": " user is"
+      },
+      {
+        "type": "reasoning",
+        "text": " user is"
+      },
+      {
+        "type": "thinking",
+        "text": " asking about the accessibility of a"
+      },
+      {
+        "type": "reasoning",
+        "text": " asking about the accessibility of a"
+      },
+      {
+        "type": "thinking",
+        "text": " specific HTML snippet:\n\n```html"
+      },
+      {
+        "type": "reasoning",
+        "text": " specific HTML snippet:\n\n```html"
+      },
+      {
+        "type": "thinking",
+        "text": "\n<button onclick=\"do"
+      },
+      {
+        "type": "reasoning",
+        "text": "\n<button onclick=\"do"
+      },
+      {
+        "type": "thinking",
+        "text": "Stuff()\"><i class=\""
+      },
+      {
+        "type": "reasoning",
+        "text": "Stuff()\"><i class=\""
+      },
+      {
+        "type": "thinking",
+        "text": "icon-close\"></i"
+      },
+      {
+        "type": "reasoning",
+        "text": "icon-close\"></i"
+      },
+      {
+        "type": "thinking",
+        "text": "></button>\n```\n\nLet"
+      },
+      {
+        "type": "reasoning",
+        "text": "></button>\n```\n\nLet"
+      },
+      {
+        "type": "thinking",
+        "text": " me analyze this against WCAG criteria"
+      },
+      {
+        "type": "reasoning",
+        "text": " me analyze this against WCAG criteria"
+      },
+      {
+        "type": "thinking",
+        "text": ":\n\n1. **WC"
+      },
+      {
+        "type": "reasoning",
+        "text": ":\n\n1. **WC"
+      },
+      {
+        "type": "thinking",
+        "text": "AG 1.1."
+      },
+      {
+        "type": "reasoning",
+        "text": "AG 1.1."
+      },
+      {
+        "type": "thinking",
+        "text": "1 Non-text Content**:"
+      },
+      {
+        "type": "reasoning",
+        "text": "1 Non-text Content**:"
+      },
+      {
+        "type": "thinking",
+        "text": " The `<i>` element"
+      },
+      {
+        "type": "reasoning",
+        "text": " The `<i>` element"
+      },
+      {
+        "type": "thinking",
+        "text": " with class `icon-"
+      },
+      {
+        "type": "reasoning",
+        "text": " with class `icon-"
+      },
+      {
+        "type": "thinking",
+        "text": "close` is likely an"
+      },
+      {
+        "type": "reasoning",
+        "text": "close` is likely an"
+      },
+      {
+        "type": "thinking",
+        "text": " icon font. There's no"
+      },
+      {
+        "type": "reasoning",
+        "text": " icon font. There's no"
+      },
+      {
+        "type": "thinking",
+        "text": " text content inside the button"
+      },
+      {
+        "type": "reasoning",
+        "text": " text content inside the button"
+      },
+      {
+        "type": "thinking",
+        "text": ", and no `aria"
+      },
+      {
+        "type": "reasoning",
+        "text": ", and no `aria"
+      },
+      {
+        "type": "thinking",
+        "text": "-label` or `aria"
+      },
+      {
+        "type": "reasoning",
+        "text": "-label` or `aria"
+      },
+      {
+        "type": "thinking",
+        "text": "-labelledby` to"
+      },
+      {
+        "type": "reasoning",
+        "text": "-labelledby` to"
+      },
+      {
+        "type": "thinking",
+        "text": " provide accessible name. Screen"
+      },
+      {
+        "type": "reasoning",
+        "text": " provide accessible name. Screen"
+      },
+      {
+        "type": "thinking",
+        "text": " readers will read the `"
+      },
+      {
+        "type": "reasoning",
+        "text": " readers will read the `"
+      },
+      {
+        "type": "thinking",
+        "text": "<i>` element as empty"
+      },
+      {
+        "type": "reasoning",
+        "text": "<i>` element as empty"
+      },
+      {
+        "type": "thinking",
+        "text": " or just \"icon-close"
+      },
+      {
+        "type": "reasoning",
+        "text": " or just \"icon-close"
+      },
+      {
+        "type": "thinking",
+        "text": "\" if the CSS content"
+      },
+      {
+        "type": "reasoning",
+        "text": "\" if the CSS content"
+      },
+      {
+        "type": "thinking",
+        "text": " has accessible name support..."
+      },
+      {
+        "type": "reasoning",
+        "text": " has accessible name support..."
+      },
+      {
+        "type": "thinking",
+        "text": " but `<i>` elements"
+      },
+      {
+        "type": "reasoning",
+        "text": " but `<i>` elements"
+      },
+      {
+        "type": "thinking",
+        "text": " are typically empty and decorative"
+      },
+      {
+        "type": "reasoning",
+        "text": " are typically empty and decorative"
+      },
+      {
+        "type": "thinking",
+        "text": "-only if they're icon"
+      },
+      {
+        "type": "reasoning",
+        "text": "-only if they're icon"
+      },
+      {
+        "type": "thinking",
+        "text": " fonts. The button has"
+      },
+      {
+        "type": "reasoning",
+        "text": " fonts. The button has"
+      },
+      {
+        "type": "thinking",
+        "text": " no accessible name.\n\n2. **"
+      },
+      {
+        "type": "reasoning",
+        "text": " no accessible name.\n\n2. **"
+      },
+      {
+        "type": "thinking",
+        "text": "WCAG 4.1"
+      },
+      {
+        "type": "reasoning",
+        "text": "WCAG 4.1"
+      },
+      {
+        "type": "thinking",
+        "text": ".2 Name, Role"
+      },
+      {
+        "type": "reasoning",
+        "text": ".2 Name, Role"
+      },
+      {
+        "type": "thinking",
+        "text": ", Value**: The button"
+      },
+      {
+        "type": "reasoning",
+        "text": ", Value**: The button"
+      },
+      {
+        "type": "thinking",
+        "text": " role is correct (it"
+      },
+      {
+        "type": "reasoning",
+        "text": " role is correct (it"
+      },
+      {
+        "type": "thinking",
+        "text": "'s a `<button>`"
+      },
+      {
+        "type": "reasoning",
+        "text": "'s a `<button>`"
+      },
+      {
+        "type": "thinking",
+        "text": " element), but it lacks an"
+      },
+      {
+        "type": "reasoning",
+        "text": " element), but it lacks an"
+      },
+      {
+        "type": "thinking",
+        "text": " accessible name. A button MUST"
+      },
+      {
+        "type": "reasoning",
+        "text": " accessible name. A button MUST"
+      },
+      {
+        "type": "thinking",
+        "text": " have an accessible name to"
+      },
+      {
+        "type": "reasoning",
+        "text": " have an accessible name to"
+      },
+      {
+        "type": "thinking",
+        "text": " be perceivable to assist"
+      },
+      {
+        "type": "reasoning",
+        "text": " be perceivable to assist"
+      },
+      {
+        "type": "thinking",
+        "text": "ive technology.\n\n3."
+      },
+      {
+        "type": "reasoning",
+        "text": "ive technology.\n\n3."
+      },
+      {
+        "type": "thinking",
+        "text": " **Keyboard accessibility (2"
+      },
+      {
+        "type": "reasoning",
+        "text": " **Keyboard accessibility (2"
+      },
+      {
+        "type": "thinking",
+        "text": ".1.1)"
+      },
+      {
+        "type": "reasoning",
+        "text": ".1.1)"
+      },
+      {
+        "type": "thinking",
+        "text": "**: Since it's a"
+      },
+      {
+        "type": "reasoning",
+        "text": "**: Since it's a"
+      },
+      {
+        "type": "thinking",
+        "text": " `<button>`, it's"
+      },
+      {
+        "type": "reasoning",
+        "text": " `<button>`, it's"
+      },
+      {
+        "type": "thinking",
+        "text": " inherently keyboard focusable and"
+      },
+      {
+        "type": "reasoning",
+        "text": " inherently keyboard focusable and"
+      },
+      {
+        "type": "thinking",
+        "text": " activatable with Enter/Space"
+      },
+      {
+        "type": "reasoning",
+        "text": " activatable with Enter/Space"
+      },
+      {
+        "type": "thinking",
+        "text": ", so that's fine.\n\nThe"
+      },
+      {
+        "type": "reasoning",
+        "text": ", so that's fine.\n\nThe"
+      },
+      {
+        "type": "thinking",
+        "text": " main issue is the missing accessible"
+      },
+      {
+        "type": "reasoning",
+        "text": " main issue is the missing accessible"
+      },
+      {
+        "type": "thinking",
+        "text": " name. The icon font"
+      },
+      {
+        "type": "reasoning",
+        "text": " name. The icon font"
+      },
+      {
+        "type": "thinking",
+        "text": " alone doesn't provide text for"
+      },
+      {
+        "type": "reasoning",
+        "text": " alone doesn't provide text for"
+      },
+      {
+        "type": "thinking",
+        "text": " screen readers. The user"
+      },
+      {
+        "type": "reasoning",
+        "text": " screen readers. The user"
+      },
+      {
+        "type": "thinking",
+        "text": " needs to add either:\n-"
+      },
+      {
+        "type": "reasoning",
+        "text": " needs to add either:\n-"
+      },
+      {
+        "type": "thinking",
+        "text": " Text inside the button (maybe"
+      },
+      {
+        "type": "reasoning",
+        "text": " Text inside the button (maybe"
+      },
+      {
+        "type": "thinking",
+        "text": " visually hidden with CSS)\n- An"
+      },
+      {
+        "type": "reasoning",
+        "text": " visually hidden with CSS)\n- An"
+      },
+      {
+        "type": "thinking",
+        "text": " `aria-label` like"
+      },
+      {
+        "type": "reasoning",
+        "text": " `aria-label` like"
+      },
+      {
+        "type": "thinking",
+        "text": " `aria-label=\"F"
+      },
+      {
+        "type": "reasoning",
+        "text": " `aria-label=\"F"
+      },
+      {
+        "type": "thinking",
+        "text": "echar\"`\n- An"
+      },
+      {
+        "type": "reasoning",
+        "text": "echar\"`\n- An"
+      },
+      {
+        "type": "thinking",
+        "text": " `aria-labelledby"
+      },
+      {
+        "type": "reasoning",
+        "text": " `aria-labelledby"
+      },
+      {
+        "type": "thinking",
+        "text": "` pointing to a visible"
+      },
+      {
+        "type": "reasoning",
+        "text": "` pointing to a visible"
+      },
+      {
+        "type": "thinking",
+        "text": " label\n\nAlso, `"
+      },
+      {
+        "type": "reasoning",
+        "text": " label\n\nAlso, `"
+      },
+      {
+        "type": "thinking",
+        "text": "onclick` instead of the"
+      },
+      {
+        "type": "reasoning",
+        "text": "onclick` instead of the"
+      },
+      {
+        "type": "thinking",
+        "text": " React `onClick` suggests"
+      },
+      {
+        "type": "reasoning",
+        "text": " React `onClick` suggests"
+      },
+      {
+        "type": "thinking",
+        "text": " this might be inline HTML, but"
+      },
+      {
+        "type": "reasoning",
+        "text": " this might be inline HTML, but"
+      },
+      {
+        "type": "thinking",
+        "text": " the user's question is about"
+      },
+      {
+        "type": "reasoning",
+        "text": " the user's question is about"
+      },
+      {
+        "type": "thinking",
+        "text": " accessibility.\n\nLet me give"
+      },
+      {
+        "type": "reasoning",
+        "text": " accessibility.\n\nLet me give"
+      },
+      {
+        "type": "thinking",
+        "text": " a clear, direct answer"
+      },
+      {
+        "type": "reasoning",
+        "text": " a clear, direct answer"
+      },
+      {
+        "type": "thinking",
+        "text": " about the violations and what"
+      },
+      {
+        "type": "reasoning",
+        "text": " about the violations and what"
+      },
+      {
+        "type": "thinking",
+        "text": " needs to be fixed."
+      },
+      {
+        "type": "reasoning",
+        "text": " needs to be fixed."
+      },
+      {
+        "type": "thinking",
+        "text": "\n\nI don't need to use"
+      },
+      {
+        "type": "reasoning",
+        "text": "\n\nI don't need to use"
+      },
+      {
+        "type": "thinking",
+        "text": " tools for this - it's a"
+      },
+      {
+        "type": "reasoning",
+        "text": " tools for this - it's a"
+      },
+      {
+        "type": "thinking",
+        "text": " simple code snippet analysis that"
+      },
+      {
+        "type": "reasoning",
+        "text": " simple code snippet analysis that"
+      },
+      {
+        "type": "thinking",
+        "text": " I can evaluate directly from my"
+      },
+      {
+        "type": "reasoning",
+        "text": " I can evaluate directly from my"
+      },
+      {
+        "type": "thinking",
+        "text": " knowledge. The snippet is clear"
+      },
+      {
+        "type": "reasoning",
+        "text": " knowledge. The snippet is clear"
+      },
+      {
+        "type": "thinking",
+        "text": ", and I have all"
+      },
+      {
+        "type": "reasoning",
+        "text": ", and I have all"
+      },
+      {
+        "type": "thinking",
+        "text": " the WCAG knowledge I need."
+      },
+      {
+        "type": "reasoning",
+        "text": " the WCAG knowledge I need."
+      },
+      {
+        "type": "thinking",
+        "text": "\n\nLet me write a response"
+      },
+      {
+        "type": "reasoning",
+        "text": "\n\nLet me write a response"
+      },
+      {
+        "type": "thinking",
+        "text": " in Portuguese, as the"
+      },
+      {
+        "type": "reasoning",
+        "text": " in Portuguese, as the"
+      },
+      {
+        "type": "thinking",
+        "text": " user wrote in Portuguese."
+      },
+      {
+        "type": "reasoning",
+        "text": " user wrote in Portuguese."
+      },
+      {
+        "type": "token",
+        "text": "\nOlha, esse"
+      },
+      {
+        "type": "token",
+        "text": " botão tem dois problemas graves"
+      },
+      {
+        "type": "token",
+        "text": " de acessibilidade:"
+      },
+      {
+        "type": "token",
+        "text": "\n**1. Nome a"
+      },
+      {
+        "type": "token",
+        "text": "cessível ausente ("
+      },
+      {
+        "type": "token",
+        "text": "viola WCAG 4"
+      },
+      {
+        "type": "token",
+        "text": ".1.2 e"
+      },
+      {
+        "type": "token",
+        "text": " 1.1.1"
+      },
+      {
+        "type": "token",
+        "text": ")**\nO `<button>` não"
+      },
+      {
+        "type": "token",
+        "text": " tem nenhum texto dentro."
+      },
+      {
+        "type": "token",
+        "text": " O `<i class=\"icon-"
+      },
+      {
+        "type": "token",
+        "text": "close\"></i>` é"
+      },
+      {
+        "type": "token",
+        "text": " um ícone (provavelmente"
+      },
+      {
+        "type": "token",
+        "text": " uma font-icon ou SVG"
+      },
+      {
+        "type": "token",
+        "text": ") sem conteúdo textual."
+      },
+      {
+        "type": "token",
+        "text": " Leitores de tela como"
+      },
+      {
+        "type": "token",
+        "text": " NVDA e JAWS v"
+      },
+      {
+        "type": "token",
+        "text": "ão anunciar o botão como"
+      },
+      {
+        "type": "token",
+        "text": " simplesmente \"botão\","
+      },
+      {
+        "type": "token",
+        "text": " sem informar qual é"
+      },
+      {
+        "type": "token",
+        "text": " a ação dele. Isso"
+      },
+      {
+        "type": "token",
+        "text": " quebra o critério"
+      },
+      {
+        "type": "token",
+        "text": " 4.1.2 ("
+      },
+      {
+        "type": "token",
+        "text": "Name, Role, Value)"
+      },
+      {
+        "type": "token",
+        "text": " e o 1."
+      },
+      {
+        "type": "token",
+        "text": "1.1 (Non-text"
+      },
+      {
+        "type": "token",
+        "text": " Content) porque o í"
+      },
+      {
+        "type": "token",
+        "text": "cone não tem alternativa textual."
+      },
+      {
+        "type": "token",
+        "text": "\n**2. O í"
+      },
+      {
+        "type": "token",
+        "text": "cone não é acessível por"
+      },
+      {
+        "type": "token",
+        "text": " si só**\nA tag `<i"
+      },
+      {
+        "type": "token",
+        "text": ">` com uma classe de"
+      },
+      {
+        "type": "token",
+        "text": " ícone não passa informação"
+      },
+      {
+        "type": "token",
+        "text": " semântica alguma para"
+      },
+      {
+        "type": "token",
+        "text": " tecnologia assistiva. Mes"
+      },
+      {
+        "type": "token",
+        "text": "mo que o ícone seja"
+      },
+      {
+        "type": "token",
+        "text": " puramente decorativo, o"
+      },
+      {
+        "type": "token",
+        "text": " botão inteiro f"
+      },
+      {
+        "type": "token",
+        "text": "ica sem nome.\n**O"
+      },
+      {
+        "type": "token",
+        "text": " que precisa fazer?**\nAc"
+      },
+      {
+        "type": "token",
+        "text": "rescentar um nome"
+      },
+      {
+        "type": "token",
+        "text": " acessível ao botão."
+      },
+      {
+        "type": "token",
+        "text": " Você tem duas opções"
+      },
+      {
+        "type": "token",
+        "text": ":\n- **Opção A"
+      },
+      {
+        "type": "token",
+        "text": " (aria-label, mais comum"
+      },
+      {
+        "type": "token",
+        "text": " para botões de ícone):"
+      },
+      {
+        "type": "token",
+        "text": "**\n```html"
+      },
+      {
+        "type": "token",
+        "text": "\n<button onclick=\"do"
+      },
+      {
+        "type": "token",
+        "text": "Stuff()\" aria-label=\""
+      },
+      {
+        "type": "token",
+        "text": "Fechar\"><i class"
+      },
+      {
+        "type": "token",
+        "text": "=\"icon-close\"></"
+      },
+      {
+        "type": "token",
+        "text": "i></button>\n```"
+      },
+      {
+        "type": "token",
+        "text": "\n- **Opção B"
+      },
+      {
+        "type": "token",
+        "text": " (texto visualmente escond"
+      },
+      {
+        "type": "token",
+        "text": "ido, mais resiliente):"
+      },
+      {
+        "type": "token",
+        "text": "**\n```html"
+      },
+      {
+        "type": "token",
+        "text": "\n<button onclick=\"do"
+      },
+      {
+        "type": "token",
+        "text": "Stuff()\">"
+      },
+      {
+        "type": "token",
+        "text": "\n<i class=\"icon-close"
+      },
+      {
+        "type": "token",
+        "text": "\" aria-hidden=\"true"
+      },
+      {
+        "type": "token",
+        "text": "\"></i>\n<span"
+      },
+      {
+        "type": "token",
+        "text": " class=\"sr-only\">"
+      },
+      {
+        "type": "token",
+        "text": "Fechar</span>"
+      },
+      {
+        "type": "token",
+        "text": "\n</button>"
+      },
+      {
+        "type": "token",
+        "text": "\n```\n(onde `."
+      },
+      {
+        "type": "token",
+        "text": "sr-only` é uma classe"
+      },
+      {
+        "type": "token",
+        "text": " CSS que esconde visual"
+      },
+      {
+        "type": "token",
+        "text": "mente mas mantém no"
+      },
+      {
+        "type": "token",
+        "text": " DOM para leitores"
+      },
+      {
+        "type": "token",
+        "text": " de tela)\n- **"
+      },
+      {
+        "type": "token",
+        "text": "Opção C (text"
+      },
+      {
+        "type": "token",
+        "text": "o visível + ícone decor"
+      },
+      {
+        "type": "token",
+        "text": "ativo, o mais inclus"
+      },
+      {
+        "type": "token",
+        "text": "ivo):**\n```"
+      },
+      {
+        "type": "token",
+        "text": "html\n<button onclick"
+      },
+      {
+        "type": "token",
+        "text": "=\"doStuff()\">"
+      },
+      {
+        "type": "token",
+        "text": "<i class=\"icon-close"
+      },
+      {
+        "type": "token",
+        "text": "\" aria-hidden=\"true"
+      },
+      {
+        "type": "token",
+        "text": "\"></i> Fech"
+      },
+      {
+        "type": "token",
+        "text": "ar</button>\n```"
+      },
+      {
+        "type": "token",
+        "text": "\nSe o ícone for"
+      },
+      {
+        "type": "token",
+        "text": " apenas decorativo, lembre-se"
+      },
+      {
+        "type": "token",
+        "text": " de colocar `aria-hidden=\""
+      },
+      {
+        "type": "token",
+        "text": "true\"` no `"
+      },
+      {
+        "type": "token",
+        "text": "<i>` para o leitor de"
+      },
+      {
+        "type": "token",
+        "text": " tela ignorá-lo."
+      },
+      {
+        "type": "token",
+        "text": " Se o ícone car"
+      },
+      {
+        "type": "token",
+        "text": "regar informação (r"
+      },
+      {
+        "type": "token",
+        "text": "aro), aí ele"
+      },
+      {
+        "type": "token",
+        "text": " precisaria de `role"
+      },
+      {
+        "type": "token",
+        "text": "=\"img\"` +"
+      },
+      {
+        "type": "token",
+        "text": " `aria-label`.\nResum"
+      },
+      {
+        "type": "token",
+        "text": "indo: do jeito"
+      },
+      {
+        "type": "token",
+        "text": " que está, **não"
+      },
+      {
+        "type": "token",
+        "text": " está acessível**."
+      },
+      {
+        "type": "token",
+        "text": " O maior problema é a"
+      },
+      {
+        "type": "token",
+        "text": " falta de nome acessível no"
+      },
+      {
+        "type": "token",
+        "text": " botão. Quer que"
+      },
+      {
+        "type": "token",
+        "text": " eu simule como o NVDA"
+      },
+      {
+        "type": "token",
+        "text": " leria esse botão ou"
+      },
+      {
+        "type": "token",
+        "text": " prefere que eu sug"
+      },
+      {
+        "type": "token",
+        "text": "ira a correção completa"
+      },
+      {
+        "type": "token",
+        "text": "?"
+      },
+      {
+        "type": "done",
+        "final": "\nOlha, esse botão tem dois problemas graves de acessibilidade:\n**1. Nome acessível ausente (viola WCAG 4.1.2 e 1.1.1)**\nO `<button>` não tem nenhum texto dentro. O `<i class=\"icon-close\"></i>` é um ícone (provavelmente uma font-icon ou SVG) sem conteúdo textual. Leitores de tela como NVDA e JAWS vão anunciar o botão como simplesmente \"botão\", sem informar qual é a ação dele. Isso quebra o critério 4.1.2 (Name, Role, Value) e o 1.1.1 (Non-text Content) porque o ícone não tem alternativa textual.\n**2. O ícone não é acessível por si só**\nA tag `<i>` com uma classe de ícone não passa informação semântica alguma para tecnologia assistiva. Mesmo que o ícone seja puramente decorativo, o botão inteiro fica sem nome.\n**O que precisa fazer?**\nAcrescentar um nome acessível ao botão. Você tem duas opções:\n- **Opção A (aria-label, mais comum para botões de ícone):**\n  ```html\n  <button onclick=\"doStuff()\" aria-label=\"Fechar\"><i class=\"icon-close\"></i></button>\n  ```\n- **Opção B (texto visualmente escondido, mais resiliente):**\n  ```html\n  <button onclick=\"doStuff()\">\n    <i class=\"icon-close\" aria-hidden=\"true\"></i>\n    <span class=\"sr-only\">Fechar</span>\n  </button>\n  ```\n  (onde `.sr-only` é uma classe CSS que esconde visualmente mas mantém no DOM para leitores de tela)\n- **Opção C (texto visível + ícone decorativo, o mais inclusivo):**\n  ```html\n  <button onclick=\"doStuff()\"><i class=\"icon-close\" aria-hidden=\"true\"></i> Fechar</button>\n  ```\nSe o ícone for apenas decorativo, lembre-se de colocar `aria-hidden=\"true\"` no `<i>` para o leitor de tela ignorá-lo. Se o ícone carregar informação (raro), aí ele precisaria de `role=\"img\"` + `aria-label`.\nResumindo: do jeito que está, **não está acessível**. O maior problema é a falta de nome acessível no botão. Quer que eu simule como o NVDA leria esse botão ou prefere que eu sugira a correção completa?",
+        "usage": {
+          "input_tokens": 8003,
+          "output_tokens": 1003,
+          "total_tokens": 9006
+        }
+      }
+    ]
+  },
+  {
+    "id": "out_of_scope",
+    "message": "me ajuda a escrever uma query SQL pra somar vendas por mes",
+    "event_types": [
+      "stream_id",
+      "token",
+      "done"
+    ],
+    "tokens_joined": "Desculpe, mas sou um assistente especializado exclusivamente em acessibilidade digital (WCAG, Section 508, WAI-ARIA). Não posso ajudar com assuntos gerais ou fora de escopo.",
+    "final": "Pedido fora de escopo de acessibilidade.",
+    "raw_events": [
+      {
+        "type": "stream_id",
+        "id": "6b481229a2b34048af18a94664ec61b5"
+      },
+      {
+        "type": "token",
+        "text": "Desculpe, mas sou um assistente especializado exclusivamente em acessibilidade digital (WCAG, Section 508, WAI-ARIA). Não posso ajudar com assuntos gerais ou fora de escopo."
+      },
+      {
+        "type": "done",
+        "final": "Pedido fora de escopo de acessibilidade."
+      }
+    ]
+  },
+  {
+    "id": "greeting",
+    "message": "fala meu amigo, blz? tudo certo?",
+    "event_types": [
+      "stream_id",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "thinking",
+      "reasoning",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "token",
+      "done"
+    ],
+    "tokens_joined": "\nFala aí, meu amigo! Beleza pura, tudo certo por aqui também. Pronto pra meter as mãos no código e garantir que ninguém fique de fora, né?\nMe fala aí: qual é o barato? Você quer auditar a acessibilidade de uma página, de um site inteiro, ou tem um arquivo (HTML, PDF, DOCX, um projeto zipado) que você quer que eu dê uma olhada? Pode mandar ver que a gente resolve.",
+    "final": "\nFala aí, meu amigo! Beleza pura, tudo certo por aqui também. Pronto pra meter as mãos no código e garantir que ninguém fique de fora, né?\nMe fala aí: qual é o barato? Você quer auditar a acessibilidade de uma página, de um site inteiro, ou tem um arquivo (HTML, PDF, DOCX, um projeto zipado) que você quer que eu dê uma olhada? Pode mandar ver que a gente resolve.",
+    "raw_events": [
+      {
+        "type": "stream_id",
+        "id": "f72584c8d1bc46cf804d0b758630c5b7"
+      },
+      {
+        "type": "thinking",
+        "text": "O"
+      },
+      {
+        "type": "reasoning",
+        "text": "O"
+      },
+      {
+        "type": "thinking",
+        "text": " usuário está"
+      },
+      {
+        "type": "reasoning",
+        "text": " usuário está"
+      },
+      {
+        "type": "thinking",
+        "text": " me cumprimentando de"
+      },
+      {
+        "type": "reasoning",
+        "text": " me cumprimentando de"
+      },
+      {
+        "type": "thinking",
+        "text": " forma descontraída."
+      },
+      {
+        "type": "reasoning",
+        "text": " forma descontraída."
+      },
+      {
+        "type": "thinking",
+        "text": " Vou responder de forma"
+      },
+      {
+        "type": "reasoning",
+        "text": " Vou responder de forma"
+      },
+      {
+        "type": "thinking",
+        "text": " amigável e natural,"
+      },
+      {
+        "type": "reasoning",
+        "text": " amigável e natural,"
+      },
+      {
+        "type": "thinking",
+        "text": " como um colega,"
+      },
+      {
+        "type": "reasoning",
+        "text": " como um colega,"
+      },
+      {
+        "type": "thinking",
+        "text": " perguntando como posso ajudar"
+      },
+      {
+        "type": "reasoning",
+        "text": " perguntando como posso ajudar"
+      },
+      {
+        "type": "thinking",
+        "text": ". Como ele não ped"
+      },
+      {
+        "type": "reasoning",
+        "text": ". Como ele não ped"
+      },
+      {
+        "type": "thinking",
+        "text": "iu nada específico ainda"
+      },
+      {
+        "type": "reasoning",
+        "text": "iu nada específico ainda"
+      },
+      {
+        "type": "thinking",
+        "text": ", vou apenas cumpr"
+      },
+      {
+        "type": "reasoning",
+        "text": ", vou apenas cumpr"
+      },
+      {
+        "type": "thinking",
+        "text": "imentar de volta e"
+      },
+      {
+        "type": "reasoning",
+        "text": "imentar de volta e"
+      },
+      {
+        "type": "thinking",
+        "text": " perguntar o que ele"
+      },
+      {
+        "type": "reasoning",
+        "text": " perguntar o que ele"
+      },
+      {
+        "type": "thinking",
+        "text": "precisa."
+      },
+      {
+        "type": "reasoning",
+        "text": "precisa."
+      },
+      {
+        "type": "token",
+        "text": "\nFala a"
+      },
+      {
+        "type": "token",
+        "text": "í, meu amigo!"
+      },
+      {
+        "type": "token",
+        "text": " Beleza pura,"
+      },
+      {
+        "type": "token",
+        "text": " tudo certo por aqui também"
+      },
+      {
+        "type": "token",
+        "text": ". Pronto pra meter"
+      },
+      {
+        "type": "token",
+        "text": " as mãos no código e"
+      },
+      {
+        "type": "token",
+        "text": " garantir que ninguém f"
+      },
+      {
+        "type": "token",
+        "text": "ique de fora, né"
+      },
+      {
+        "type": "token",
+        "text": "?\nMe fala a"
+      },
+      {
+        "type": "token",
+        "text": "í: qual é o bar"
+      },
+      {
+        "type": "token",
+        "text": "ato? Você quer aud"
+      },
+      {
+        "type": "token",
+        "text": "itar a acessibilidade de"
+      },
+      {
+        "type": "token",
+        "text": " uma página, de um"
+      },
+      {
+        "type": "token",
+        "text": " site inteiro, ou"
+      },
+      {
+        "type": "token",
+        "text": " tem um arquivo ("
+      },
+      {
+        "type": "token",
+        "text": "HTML, PDF, DOC"
+      },
+      {
+        "type": "token",
+        "text": "X, um projeto zip"
+      },
+      {
+        "type": "token",
+        "text": "ado) que você quer que"
+      },
+      {
+        "type": "token",
+        "text": " eu dê uma ol"
+      },
+      {
+        "type": "token",
+        "text": "hada? Pode mand"
+      },
+      {
+        "type": "token",
+        "text": "ar ver que a gente resolve"
+      },
+      {
+        "type": "token",
+        "text": "."
+      },
+      {
+        "type": "done",
+        "final": "\nFala aí, meu amigo! Beleza pura, tudo certo por aqui também. Pronto pra meter as mãos no código e garantir que ninguém fique de fora, né?\nMe fala aí: qual é o barato? Você quer auditar a acessibilidade de uma página, de um site inteiro, ou tem um arquivo (HTML, PDF, DOCX, um projeto zipado) que você quer que eu dê uma olhada? Pode mandar ver que a gente resolve.",
+        "usage": {
+          "input_tokens": 7416,
+          "output_tokens": 182,
+          "total_tokens": 7598
+        }
+      }
+    ]
+  }
+]

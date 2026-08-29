@@ -1,0 +1,46 @@
+[
+  {
+    "label": "1. Pedido AMBÍGUO/indireto",
+    "tools": [
+      "clarify",
+      "analyze_page",
+      "clarify"
+    ],
+    "elapsed_s": 889.6,
+    "final_text": "Certo, vou assumir que queres ver o resumo dos problemas críticos primeiro. Vou ler o relatório completo da análise para te dar um panorama bem claro.\nO relatório está aqui e posso consultá-lo diretamente. Vou agora apresentar-te o resumo do que encontrei.\n---\nResumo da auditoria: MarsCommuter (Deque University Demo)\nURL: https://dequeuniversity.com/demo/mars/\nTotal de problemas: 111\nProblemas mais graves para utilizadores de leitor de tela:\n1. Imagens sem texto alternativo (alt) -- CRÍTICO\nA imagem principal do astronauta na seção hero não tem alt nenhum. Uma imagem de tracking de 1x1 pixel também está sem alt. O link promocional \"Crater Adventure\" usa uma imagem sem alt, deixando o link completamente mudo para o leitor de tela. Isto viola o critério 1.1.1 (Conteúdo Não Textual).\n2. Texto alternativo enganoso ou incorreto -- ALTO\nA imagem da estação espacial tem alt=\"icecream.jpg\" (nome de ficheiro, não descrição). A imagem do nascer do sol em Marte tem alt a descrever um babuíno a andar de bicicleta -- completamente errado. O logótipo do canal YouTube tem alt=\"thumbnail-image\", genérico e inútil. Isto também viola 1.1.1.\n3. Links sem nome acessível -- CRÍTICO (padrão sistémico)\nNove ou mais links de navegação no menu principal e no footer não têm conteúdo de texto visível ou nome acessível. O leitor de tela anuncia \"link\" sem dizer para onde vai. Isto viola 2.4.4 (Propósito do Link) e 4.1.2 (Nome, Função, Valor).\n4. Ícones SVG sem nome acessível -- ALTO\nUm SVG de play button e um ícone de partilha não têm nome acessível. O ícone de partilha está marcado com aria-hidden=\"true\", o que o esconde do leitor de tela -- se for interativo, o utilizador nunca vai saber que existe.\n5. Estrutura semântica e navegação\nA página tem problemas de headings, landmarks e ordem de foco que dificultam a navegação rápida por teclado e leitor de tela.\n---\nQueres que eu aprofunde algum destes pontos, ou preferes que eu avance para as correções automáticas? Também posso gerar a planilha Excel ou o checklist estruturado se quiseres documentar tudo para a tua equipa."
+  },
+  {
+    "label": "2. Pedido DIRETO de correção",
+    "tools": [
+      "clarify",
+      "fix_and_zip_files"
+    ],
+    "elapsed_s": 1712.1,
+    "final_text": "Pronto, as correções foram aplicadas e o ZIP está gerado. Aqui está o link para baixares:\nhttp://127.0.0.1:8001/export/download_zip/qa-fixed-8948776c384b.zip\nO ficheiro contém a página index.html com todas as correções de acessibilidade aplicadas: imagens com alt corretos, links com nomes acessíveis, SVGs interativos identificáveis e a estrutura semântica ajustada.\nQueres que eu abra a pré-visualização ao vivo para comparares o antes e depois lado a lado?"
+  },
+  {
+    "label": "3. Pedido DIRETO de planilha",
+    "tools": [
+      "export_xlsx"
+    ],
+    "elapsed_s": 11.8,
+    "final_text": "Aqui está o link para baixares a planilha com todos os 111 problemas encontrados na auditoria:\nhttp://127.0.0.1:8001/export/last_xlsx\nA planilha inclui cada violação com o critério WCAG correspondente, severidade, descrição do problema e recomendação de correção. Queres também o checklist estruturado em PDF ou a suíte de testes automatizados para o CI da equipa?"
+  },
+  {
+    "label": "4. Checklist em PDF + salvar local ou link",
+    "tools": [
+      "generate_checklist",
+      "export_checklist_pdf"
+    ],
+    "elapsed_s": 136.2,
+    "final_text": "Pronto! Aqui está o link para baixares o PDF do checklist:\nhttp://127.0.0.1:8001/export/last_checklist_pdf\nNão consigo gravar diretamente no teu computador, mas quando clicares nesse link o ficheiro é descarregado automaticamente pelo navegador para a tua máquina, o que dá no mesmo.\nO PDF está em formato PDF/UA-1 acessível, com estrutura de tags real. Inclui 120 itens no total: 97 falhas detetadas automaticamente, 15 verificações manuais para a tua equipa de QA fazer com leitor de tela, e 8 critérios que já passaram.\nQueres que eu gere também a suíte de testes automatizados em Playwright para o CI da equipa?"
+  },
+  {
+    "label": "5. Ver o preview lado a lado",
+    "tools": [
+      "open_live_preview"
+    ],
+    "elapsed_s": 8.2,
+    "final_text": "Pronto, a pré-visualização ao vivo está aberta. Vais ver a página original e a corrigida lado a lado, com os destaques de acessibilidade aplicados.\n[LIVE_PREVIEW:a69b7948:1]\nQueres que eu feche a pré-visualização quando terminares de comparar?"
+  }
+]

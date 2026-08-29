@@ -1,0 +1,202 @@
+2026-08-09 17:15:37 [INFO] backend.src.services.telemetry: [telemetry] OTEL_EXPORTER_OTLP_ENDPOINT não configurado — telemetria desactivada.
+2026-08-09 17:15:37 [WARNING] backend.src.services.config_drift: [ConfigDrift] ANTHROPIC_BASE_URL esta definida no ambiente do processo mas nao em backend/.env -- o endpoint resolvido para o provider correspondente diverge silenciosamente do que o .env do projeto documenta. Declare em backend/.env se for intencional, ou remova do ambiente.
+2026-08-09 17:15:37 [INFO] backend.src.main: [App] QA Accessibility API inicializada
+2026-08-09 17:15:37 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url
+2026-08-09 17:15:37 [INFO] backend.src.routes.analyze: [Route] POST /analyze/url url=https://dequeuniversity.com/demo/mars/
+2026-08-09 17:15:37 [INFO] backend.src.services.browser: [Browser] Executando scrape do Firecrawl para: https://dequeuniversity.com/demo/mars/
+2026-08-09 17:15:39 [INFO] backend.src.services.browser: [Browser] Conectando via CDP ao Browserless para foco e tabs: https://dequeuniversity.com/demo/mars/
+2026-08-09 17:16:09 [INFO] backend.src.routes.analyze: [Route] HTML extraido: 66516 -> 47894 chars (72.0%) — 220 elementos a11y
+2026-08-09 17:16:09 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Iniciando pipeline task_type=TaskType.ANALYZE
+2026-08-09 17:16:10 [INFO] backend.src.services.context_compressor: [context_compressor:BS4] 47894 -> 3750 chars (7.8%, 24ms)
+2026-08-09 17:16:10 [INFO] backend.src.agents.classifier.classifier: [ClassifierAgent] Analisando tecnologias no HTML...
+2026-08-09 17:16:14 [INFO] backend.src.services.ollama_cloud_adapter: [OllamaCloudAdapter] Catálogo descoberto: 18 modelos no Ollama Cloud
+2026-08-09 17:16:14 [INFO] backend.src.services.model_router: [Fast] provider=ollama-cloud -> deepseek-v4-flash:preview (ranking multi-objetivo agêntico)
+2026-08-09 17:16:14 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-classifier-6eeeb8d5 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:16:20 [WARNING] agent.models_dev: [models_dev] fetch_live_models(ollama-cloud) falhou: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /v1/models (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000025F2A683DD0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')) — usando fallback estático
+2026-08-09 17:16:22 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:16:22 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (2 chars)
+2026-08-09 17:16:22 [INFO] backend.src.agents.classifier.classifier: [ClassifierAgent] Tecnologias detectadas: []
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Classificador detectou frameworks ativos: set()
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Roteamento seletivo: lang=en selecionados=15 [perceiver, operability, understandability, robustness, aria_specialist, section508, css_analyzer, screen_reader, wcag_semantics, compliance_audit, agentic_ai_ui, spatial_3d_xr, web_components, niche_domains, visual_a11y]
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: perceiver -- base WCAG perceptivel sempre relevante para página web
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: operability -- base WCAG operavel sempre relevante para página web
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: understandability -- base WCAG compreensivel sempre relevante para página web
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: robustness -- base WCAG robusto sempre relevante para página web
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: aria_specialist -- ARIA e semântica assistiva podem afetar qualquer página web
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: section508 -- conformidade legal geral para página web
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: screen_reader -- compatibilidade com leitor de tela e essencial em página web
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: wcag_semantics -- semântica HTML e tecnologias assistivas
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: compliance_audit -- revisao consolidada WCAG/Section 508
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: agentic_ai_ui -- interfaces de IA agêntica, live regions e modais HITL
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: spatial_3d_xr -- WebXR XAUR 2026, Canvas Three.js/Babylon.js PAT DOM
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: web_components -- Custom Elements FACE ElementInternals e shadowrootreferencetarget
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: niche_domains -- Passkeys SC 3.3.8/3.3.9, Sonificação D3 e Kiosks ADA/EAA
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: css_analyzer -- HTML contem superficie CSS: classes, estilos inline, style ou stylesheet
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: visual_a11y -- screenshot fornecido; avaliacao visual solicitada pelo pipeline
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: angular_framework -- classificador não detectou framework: angular
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: react_framework -- classificador não detectou framework: react
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: svelte_framework -- classificador não detectou framework: svelte
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: tailwind_css -- classificador não detectou framework: tailwind
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: vue_framework -- classificador não detectou framework: vue
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: ajax_dynamic -- sem evidencia estrutural suficiente para este agente condicional
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: cognitive -- sem evidencia estrutural suficiente para este agente condicional
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: mobile_a11y -- sem evidencia estrutural suficiente para este agente condicional
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: forms_a11y -- sem evidencia estrutural suficiente para este agente condicional
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente pulado: widgets_a11y -- sem evidencia estrutural suficiente para este agente condicional
+2026-08-09 17:16:22 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Disparando sub-agentes em paralelo (max_concurrent=3, timeout=180s)
+2026-08-09 17:16:22 [INFO] backend.src.agents.perceiver.perceiver: [PerceiverAgent] Verificando WCAG 1.x (Perceivable)
+2026-08-09 17:16:22 [INFO] backend.src.services.model_router: [Alto] provider=ollama-cloud -> deepseek-v4-flash:preview (ranking multi-objetivo agêntico entre 18 candidatos)
+2026-08-09 17:16:22 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-perceiver-f7055ba9 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:16:22 [INFO] backend.src.agents.operability.operability: [OperabilityAgent] Verificando WCAG 2.x (Operable)
+2026-08-09 17:16:22 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-ef568401 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:16:22 [INFO] backend.src.agents.understandability.understandability: [UnderstandabilityAgent] Verificando WCAG 3.x (Understandable)
+2026-08-09 17:16:22 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-45b2d6a6 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:16:28 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:16:28 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (4626 chars)
+2026-08-09 17:16:28 [INFO] backend.src.agents.understandability.understandability: [UnderstandabilityAgent] 3 issues (WCAG 3.x)
+2026-08-09 17:16:28 [INFO] backend.src.agents.robustness.robustness: [RobustnessAgent] Verificando WCAG 4.x (Robust)
+2026-08-09 17:16:28 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-ceedd62e model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:16:31 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:16:31 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (6302 chars)
+2026-08-09 17:16:31 [INFO] backend.src.agents.perceiver.perceiver: [PerceiverAgent] 5 issues (WCAG 1.x)
+2026-08-09 17:16:31 [INFO] backend.src.agents.aria_specialist.aria_specialist: [ARIASpecialistAgent] Auditando padrões WAI-ARIA
+2026-08-09 17:16:31 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-610ad323 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:16:33 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:16:33 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (7738 chars)
+2026-08-09 17:16:33 [ERROR] backend.src.agents.operability.operability: [OperabilityAgent] Erro: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "operability-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.2 Page Titled",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A",\n    '
+2026-08-09 17:16:33 [INFO] backend.src.agents.section508.section508: [Section508Agent] Verificando ADA/Section 508
+2026-08-09 17:16:33 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-71e06f48 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:16:40 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:16:40 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (8879 chars)
+2026-08-09 17:16:40 [INFO] backend.src.agents.robustness.robustness: [RobustnessAgent] 7 issues (WCAG 4.x)
+2026-08-09 17:16:40 [INFO] backend.src.agents.css_analyzer.css_analyzer: [CSSAnalyzerAgent] Analisando CSS inline e embedded
+2026-08-09 17:16:40 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-css_analyzer-d4eff644 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:16:41 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:16:41 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (6350 chars)
+2026-08-09 17:16:41 [INFO] backend.src.agents.aria_specialist.aria_specialist: [ARIASpecialistAgent] 5 issues (WAI-ARIA)
+2026-08-09 17:16:41 [INFO] backend.src.agents.screen_reader.screen_reader: [ScreenReaderAgent] Analisando compatibilidade com screen readers
+2026-08-09 17:16:41 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-ed2becc0 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:16:43 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:16:43 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (6231 chars)
+2026-08-09 17:16:43 [ERROR] backend.src.agents.section508.section508: [Section508Agent] Erro: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "s508-1",\n      "guideline": "ADA/Section 508",\n      "criterion": "1194.22(a) / WCAG 1.1.1 Non-text Content",\n      "severity": "critical",\n      "confidence": "high'
+2026-08-09 17:16:43 [INFO] backend.src.agents.wcag_semantics.wcag_semantics: [WCAGSemanticsAgent] Analisando semântica HTML para AT
+2026-08-09 17:16:43 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-b43ecf5d model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:17:01 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:17:01 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (16268 chars)
+2026-08-09 17:17:01 [ERROR] backend.src.agents.screen_reader.screen_reader: [ScreenReaderAgent] Falha: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "screen-reader-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.2 Page Titled",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A",\n  '
+2026-08-09 17:17:01 [INFO] backend.src.agents.compliance_audit.compliance_audit: [ComplianceAuditAgent] Auditando conformidade WCAG AA + Section 508
+2026-08-09 17:17:01 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-2fd9da64 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:17:05 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:17:05 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (18151 chars)
+2026-08-09 17:17:05 [INFO] backend.src.agents.wcag_semantics.wcag_semantics: [WCAGSemanticsAgent] 15 issues (semantics)
+2026-08-09 17:17:05 [INFO] backend.src.agents.agentic_ai_ui.agentic_ai_ui: [AgenticAIUIAgent] Iniciando analise de interfaces agenticas...
+2026-08-09 17:17:05 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-agentic_ai_ui-931cc60a model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:17:07 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:17:07 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (18 chars)
+2026-08-09 17:17:07 [INFO] backend.src.agents.agentic_ai_ui.agentic_ai_ui: [AgenticAIUIAgent] Concluido: 0 issues encontrados
+2026-08-09 17:17:07 [INFO] backend.src.agents.spatial_3d_xr.spatial_3d_xr: [Spatial3D_XR_Agent] Iniciando analise de interfaces 3D/WebXR...
+2026-08-09 17:17:07 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-spatial_3d_xr-43cd06f9 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:17:08 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:17:08 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (18 chars)
+2026-08-09 17:17:08 [INFO] backend.src.agents.spatial_3d_xr.spatial_3d_xr: [Spatial3D_XR_Agent] Concluido: 0 issues encontrados
+2026-08-09 17:17:08 [INFO] backend.src.agents.web_components.web_components: [WebComponentsAgent] Iniciando analise de Web Components...
+2026-08-09 17:17:08 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-web_components-cf6b6f72 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:17:10 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:17:10 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (18 chars)
+2026-08-09 17:17:10 [INFO] backend.src.agents.web_components.web_components: [WebComponentsAgent] Concluido: 0 issues encontrados
+2026-08-09 17:17:10 [INFO] backend.src.agents.niche_domains.niche_domains: [NicheDomainsAgent] Iniciando analise de dominios de nicho...
+2026-08-09 17:17:10 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-niche_domains-c7743c83 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:17:11 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:17:11 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (18 chars)
+2026-08-09 17:17:11 [INFO] backend.src.agents.niche_domains.niche_domains: [NicheDomainsAgent] Concluido: 0 issues encontrados
+2026-08-09 17:17:11 [INFO] backend.src.agents.visual_a11y.visual_a11y: [VisualA11yAgent] Analisando visualmente o screenshot da página...
+2026-08-09 17:17:11 [INFO] backend.src.agents.visual_a11y.visual_a11y: [VisualA11yAgent] Incluindo 9 screenshots de foco na análise
+2026-08-09 17:17:11 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-visual-a11y-e888ba5e model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:17:12 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-08-09 17:17:12 [WARNING] run_agent: [a11y:visual-a11y] Provider primário falhou; tentando o fallback configurado: Error code: 400 - {'error': {'message': 'this model does not support image input (ref: b2591d41-db0d-4eac-af62-cf45fba9bd2e)', 'type': 'invalid_request_error', 'param': None, 'code': None}}
+2026-08-09 17:17:13 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2026-08-09 17:17:13 [ERROR] run_agent: [a11y:visual-a11y][fallback] Conversa falhou: Error code: 400 - {'error': {'message': 'this model does not support image input (ref: 416134e6-08c1-491b-b7a0-ecd322258de6)', 'type': 'invalid_request_error', 'param': None, 'code': None}}
+2026-08-09 17:17:13 [ERROR] backend.src.services.llm_client: [AIAgent] Erro na chamada: Provider primário: Error code: 400 - {'error': {'message': 'this model does not support image input (ref: b2591d41-db0d-4eac-af62-cf45fba9bd2e)', 'type': 'invalid_request_error', 'param': None, 'code': None}}. Provider de reserva: A requisição enviada ao provedor de IA continha um parâmetro ou formato não suportado pelo modelo.
+
+Como resolver:
+1. Selecione o modo 'Alto' nas Configurações para usar os parâmetros padronizados do modelo.
+2. Se o erro persistir, tente trocar de Provedor..
+2026-08-09 17:17:13 [ERROR] backend.src.agents.visual_a11y.visual_a11y: [VisualA11yAgent] Erro na análise visual: A requisição enviada ao provedor de IA continha um parâmetro ou formato não suportado pelo modelo.
+
+Como resolver:
+1. Selecione o modo 'Alto' nas Configurações para usar os parâmetros padronizados do modelo.
+2. Se o erro persistir, tente trocar de Provedor.
+2026-08-09 17:17:50 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:17:50 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (63994 chars)
+2026-08-09 17:17:50 [ERROR] backend.src.agents.css_analyzer.css_analyzer: [CSSAnalyzerAgent] Erro: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "css-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A",\n      "'
+2026-08-09 17:18:30 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:18:30 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (63212 chars)
+2026-08-09 17:18:30 [ERROR] backend.src.agents.compliance_audit.compliance_audit: [ComplianceAuditAgent] Falha: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "compliance-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "critical",\n      "confidence": "high",\n      "level": "'
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Sub-agente 'operability' reportou falha: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "operability-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.2 Page Titled",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A",\n    '
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente 'operability' falhou (11797ms): No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "operability-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.2 Page Titled",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A",\n    '
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Sub-agente 'section508' reportou falha: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "s508-1",\n      "guideline": "ADA/Section 508",\n      "criterion": "1194.22(a) / WCAG 1.1.1 Non-text Content",\n      "severity": "critical",\n      "confidence": "high'
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente 'section508' falhou (9922ms): No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "s508-1",\n      "guideline": "ADA/Section 508",\n      "criterion": "1194.22(a) / WCAG 1.1.1 Non-text Content",\n      "severity": "critical",\n      "confidence": "high'
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Sub-agente 'css_analyzer' reportou falha: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "css-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A",\n      "'
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente 'css_analyzer' falhou (69656ms): No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "css-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A",\n      "'
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Sub-agente 'screen_reader' reportou falha: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "screen-reader-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.2 Page Titled",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A",\n  '
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente 'screen_reader' falhou (19656ms): No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "screen-reader-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.2 Page Titled",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A",\n  '
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Sub-agente 'compliance_audit' reportou falha: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "compliance-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "critical",\n      "confidence": "high",\n      "level": "'
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente 'compliance_audit' falhou (89563ms): No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "compliance-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "critical",\n      "confidence": "high",\n      "level": "'
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Sub-agente 'visual_a11y' reportou falha: A requisição enviada ao provedor de IA continha um parâmetro ou formato não suportado pelo modelo.
+
+Como resolver:
+1. Selecione o modo 'Alto' nas Configurações para usar os parâmetros padronizados do modelo.
+2. Se o erro persistir, tente trocar de Provedor.
+2026-08-09 17:18:30 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente 'visual_a11y' falhou (2141ms): A requisição enviada ao provedor de IA continha um parâmetro ou formato não suportado pelo modelo.
+
+Como resolver:
+1. Selecione o modo 'Alto' nas Configurações para usar os parâmetros padronizados do modelo.
+2. Se o erro persistir, tente trocar de Provedor.
+2026-08-09 17:18:30 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisando 26 issues -- AT: NVDA/JAWS/VoiceOver/TalkBack
+2026-08-09 17:18:30 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Batch review: 26 issues em lotes de 20
+2026-08-09 17:18:30 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Processando lote 1/2 (20 issues)
+2026-08-09 17:18:30 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-517e58a0 model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:18:30 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Processando lote 2/2 (6 issues)
+2026-08-09 17:18:30 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-dc5cef7e model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:18:42 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:18:42 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (9780 chars)
+2026-08-09 17:18:42 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisao concluida -- 6 issues mantidos, 0 falsos positivos removidos
+2026-08-09 17:19:07 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:19:07 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (30416 chars)
+2026-08-09 17:19:07 [ERROR] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Falha na revisao especializada: No valid JSON array found in LLM output: '```json\n[\n  {\n    "id": "perceiver-1",\n    "guideline": "WCAG 2.2",\n    "criterion": "1.1.1 Non-text Content",\n    "severity": "critical",\n    "element": "<img height=\\"1\\" src=\\"https://dequeuniversi'
+2026-08-09 17:19:07 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Batch review concluido -- 26 issues mantidos, 0 falsos positivos removidos
+2026-08-09 17:19:07 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] ExpertReviewer falhou (Um ou mais lotes falharam) -- usando issues sem revisao
+2026-08-09 17:19:07 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline concluido -- 26 issues, 10/17 agentes OK
+2026-08-09 17:19:07 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] 7/17 agentes falharam. Exemplo: agente='operability'
+2026-08-09 17:19:07 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Análise parcial: 7/17 agentes falharam -- resultado pode estar incompleto.
+2026-08-09 17:19:07 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline ANALYZE concluido
+2026-08-09 17:19:07 [INFO] backend.src.services.last_analysis_store: [LastAnalysisStore] Cache atualizado com 26 issues para URL: https://dequeuniversity.com/demo/mars/ (sessão: default)
+2026-08-09 17:19:07 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url -> 200 (209808.3ms)
+2026-08-09 17:19:07 [INFO] httpx: HTTP Request: POST http://testserver/analyze/url "HTTP/1.1 200 OK"
+status=200 elapsed=209.8s
+success: True error: None
+total issues: 26
+agents ran: 17
+  - classifier: success=True issues=0 duration=12062ms
+  - perceiver: success=True issues=5 duration=9688ms
+  - operability: success=False issues=0 duration=11797ms
+  - understandability: success=True issues=3 duration=6860ms
+  - robustness: success=True issues=7 duration=11437ms
+  - aria_specialist: success=True issues=5 duration=9734ms
+  - section508: success=False issues=0 duration=9922ms
+  - css_analyzer: success=False issues=0 duration=69656ms
+  - screen_reader: success=False issues=0 duration=19656ms
+  - wcag_semantics: success=True issues=15 duration=22063ms
+  - compliance_audit: success=False issues=0 duration=89563ms
+  - agentic_ai_ui: success=True issues=0 duration=1437ms
+  - spatial_3d_xr: success=True issues=0 duration=1172ms
+  - web_components: success=True issues=0 duration=1625ms
+  - niche_domains: success=True issues=0 duration=1500ms
+  - visual_a11y: success=False issues=0 duration=2141ms
+  - a11y_expert_reviewer: success=False issues=26 duration=0ms
+--- criteria found ---
+  14x 1.1.1 Non-text Content
+  7x 4.1.2 Name, Role, Value
+  3x 3.3.2 Labels or Instructions
+  1x 2.4.2 Page Titled
+  1x 1.3.1 Info and Relationships

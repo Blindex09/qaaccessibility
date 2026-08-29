@@ -1,0 +1,54 @@
+[
+  {
+    "label": "1. Pedido AMBÍGUO/indireto",
+    "tools": [
+      "clarify",
+      "analyze_page",
+      "clarify"
+    ],
+    "elapsed_s": 1414.8,
+    "final_text": ""
+  },
+  {
+    "label": "2. Pedido DIRETO de correção",
+    "tools": [
+      "clarify",
+      "analyze_page",
+      "clarify",
+      "fix_and_zip_files",
+      "fix_and_zip_files"
+    ],
+    "elapsed_s": 3338.5,
+    "final_text": "Verifiquez boeta ;)"
+  },
+  {
+    "label": "3. Pedido DIRETO de planilha",
+    "tools": [
+      "clarify",
+      "analyze_page",
+      "export_xlsx"
+    ],
+    "elapsed_s": 1164.3,
+    "final_text": "Clique no link abaixo para baixar a planilha no Excel com todo o relatório da análise:\nhttp://127.0.0.1:8001/export/last_xlsx\nA planilha inclui a pontuação geral, a contagem por severidade e as principais violações encontradas."
+  },
+  {
+    "label": "4. Checklist em PDF + salvar local ou link",
+    "tools": [
+      "generate_checklist",
+      "export_checklist_pdf"
+    ],
+    "elapsed_s": 117.7,
+    "final_text": "PDF do checklist: http://127.0.0.1:8001/export/last_checklist_pdf"
+  },
+  {
+    "label": "5. Ver o preview lado a lado",
+    "tools": [
+      "analyze_page",
+      "clarify",
+      "fix_and_zip_files",
+      "open_live_preview"
+    ],
+    "elapsed_s": 2580.9,
+    "final_text": "[o preview será aberto na visualização ao vivo] [LIVE_PREVIEW:ff97a889:1]"
+  }
+]

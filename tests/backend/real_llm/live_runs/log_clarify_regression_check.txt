@@ -1,0 +1,16 @@
+--- run 1 ---
+  used_real_clarify_tool = True
+  final_text contains fake 'Opções:' list = False
+--- run 2 ---
+  used_real_clarify_tool = True
+  final_text contains fake 'Opções:' list = False
+--- run 3 ---
+  used_real_clarify_tool = True
+  final_text contains fake 'Opções:' list = False
+--- run 4 ---
+  used_real_clarify_tool = False
+  final_text contains fake 'Opções:' list = False
+  final_text: Olha, entendi perfeitamente. Você quer fazer uma varredura no site da Deque University, mas limitada a 3 páginas para a gente ter um panorama geral sem exagerar no escopo agora.
+Como é um site inteiro, eu vou usar a ferramenta de varredura que navega pelos links internos. Para isso, vou montar um pl
+
+3/4 runs used the real clarify tool (no fake text options list)

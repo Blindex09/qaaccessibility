@@ -1,0 +1,20 @@
+[OK] analyze_page (923.8s): {"total_issues": 147, "score": 100, "counts_by_severity": {"critical": 0, "high": 0, "medium": 0, "low": 0}, "top_issues": [{"criterion": "1.1.1 Conte\u00fado n\u00e3o textual", "severity": "low", "element": "<img height=\"1\" src=\"https://dequeuniversity.com/assets/demo-sites/mars/js/seg\" width=\
+[OK] fix_and_zip_files (via cache, sem files) (1267.8s): {"download_url": "http://127.0.0.1:8001/export/download_zip/qa-fixed-5cde31d200a8.zip", "zip_filename": "qa-fixed-5cde31d200a8.zip", "changes_summary": ["[index.html] Added a proper <head> with charset and a descriptive <title> to satisfy WCAG 2.4.2.", "[index.html] Added a visible skip link as the 
+[OK] export_xlsx (0.0s): {"download_url": "http://127.0.0.1:8001/export/last_xlsx", "message": "Excel spreadsheet download link is ready. The user can download it by clicking the link."}
+[OK] export_checklist_pdf_tool (0.0s): {"download_url": "http://127.0.0.1:8001/export/last_checklist_pdf", "message": "Accessible checklist PDF (PDF/UA-1) download link is ready. The user can download it by clicking the link."}
+[OK] GET /export/last_checklist_pdf (fim-a-fim) (53.1s): status=200 content-type=application/pdf bytes=49785
+[OK] run_remote_test (cypress cloud, axe-core real) (23.8s): {"engine": "axe-core", "engine_version": "4.13.0", "total_violations": 6, "total_incomplete": 1, "violations_by_impact": {"critical": 2, "serious": 3, "moderate": 1}, "passed": false, "status": "ok", "runner": "cypress_remote", "cypress_cloud_synced": true, "cypress_project_id": "bae1oz", "url": "ht
+[OK] create_github_issue (0.6s): {"status": "created", "issue_url": "https://github.com/Blindex09/qaaccessibility/issues/2", "number": 2, "title": "[A11Y] Valida\u00e7\u00e3o de integra\u00e7\u00e3o completa (analyze->fix->export->remote_test->github)"}
+
+==============================================================================
+RESUMO DA INTEGRAÇÃO
+==============================================================================
+- OK analyze_page (923.8s)
+- OK fix_and_zip_files (via cache, sem files) (1267.8s)
+- OK export_xlsx (0.0s)
+- OK export_checklist_pdf_tool (0.0s)
+- OK GET /export/last_checklist_pdf (fim-a-fim) (53.1s)
+- OK run_remote_test (cypress cloud, axe-core real) (23.8s)
+- OK create_github_issue (0.6s)
+
+TODOS OS PASSOS OK: True

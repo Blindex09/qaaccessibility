@@ -1,0 +1,186 @@
+[
+  {
+    "case": "only_forms",
+    "only_agents": [
+      "forms_a11y"
+    ],
+    "body": {
+      "agent": "orchestrator",
+      "success": true,
+      "data": {
+        "issues": [],
+        "agent_metrics": [
+          {
+            "agent": "forms_a11y",
+            "duration_ms": 15547.0,
+            "issues_found": 0,
+            "success": true
+          }
+        ]
+      },
+      "error": null
+    },
+    "elapsed": 48.256853342056274
+  },
+  {
+    "case": "only_images",
+    "only_agents": [
+      "perceiver"
+    ],
+    "body": {
+      "agent": "orchestrator",
+      "success": true,
+      "data": {
+        "issues": [
+          {
+            "id": "perceiver-1",
+            "guideline": "WCAG 2.2",
+            "criterion": "1.1.1 Non-text Content",
+            "severity": "critical",
+            "element": "<img height=\"1\" src=\"https://dequeuniversity.com/assets/demo-sites/mars/js/seg\" width=\"1\"/>",
+            "description": "This image has no description for people who cannot see it. [SYSTEMIC PATTERN] This issue appears in 3+ elements, indicating a missing global rule in the design system or CSS framework.",
+            "suggestion": "Add a short, meaningful description of what the image shows.",
+            "confidence": "high",
+            "level": "A",
+            "description_technical": "The <img> element is missing the alt attribute, violating WCAG 2.2 SC 1.1.1 (Non-text Content).",
+            "why_simple": "A blind user relying on a screen reader hears nothing when this image is reached and loses the information it conveys.",
+            "why_technical": "Screen readers expose the alt attribute as the accessible name of the img element; without it, the AT announces the filename or 'image', providing no semantic value. NVDA + Firefox: announces 'image' with no label; JAWS 2024: announces 'graphic' with no description.",
+            "suggestion_technical": "Add alt=\"<descriptive text>\" to the <img> element, or alt=\"\" if the image is purely decorative.",
+            "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+            "criterion_pt": "1.1.1 Conteúdo não textual",
+            "severity_pt": "Critico",
+            "fixed_element_html": null,
+            "url": "https://dequeuniversity.com/demo/mars/"
+          },
+          {
+            "id": "perceiver-2",
+            "guideline": "WCAG 2.2",
+            "criterion": "1.1.1 Non-text Content",
+            "severity": "critical",
+            "element": "<img class=\"\" height=\"120\" src=\"https://dequeuniversity.com/assets/demo-sites/mars/images/mars-spaceman.jpg\" width=\"210\"/>",
+            "description": "This image has no description for people who cannot see it. [SYSTEMIC PATTERN] This issue appears in 3+ elements, indicating a missing global rule in the design system or CSS framework.",
+            "suggestion": "Add a short, meaningful description of what the image shows.",
+            "confidence": "high",
+            "level": "A",
+            "description_technical": "The <img> element is missing the alt attribute, violating WCAG 2.2 SC 1.1.1 (Non-text Content).",
+            "why_simple": "A blind user relying on a screen reader hears nothing when this image is reached and loses the information it conveys.",
+            "why_technical": "Screen readers expose the alt attribute as the accessible name of the img element; without it, the AT announces the filename or 'image', providing no semantic value. NVDA + Firefox: announces 'image' with no label; JAWS 2024: announces 'graphic' with no description.",
+            "suggestion_technical": "Add alt=\"<descriptive text>\" to the <img> element, or alt=\"\" if the image is purely decorative.",
+            "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+            "criterion_pt": "1.1.1 Conteúdo não textual",
+            "severity_pt": "Critico",
+            "fixed_element_html": null,
+            "url": "https://dequeuniversity.com/demo/mars/"
+          },
+          {
+            "id": "perceiver-5",
+            "guideline": "WCAG 2.2",
+            "criterion": "1.1.1 Non-text Content",
+            "severity": "high",
+            "element": "<img alt=\"icecream.jpg \" class=\"\" height=\"120\" src=\"https://dequeuniversity.com/assets/demo-sites/mars/images/space-station.jpg\" width=\"210\"/>",
+            "description": "The alt text is a filename, not a description of the image content.",
+            "suggestion": "Replace the alt text with a meaningful description of the image.",
+            "confidence": "high",
+            "level": "A",
+            "description_technical": "The alt attribute value is 'icecream.jpg ', which is a filename and does not describe the image content, violating WCAG 2.2 SC 1.1.1 (Non-text Content).",
+            "why_simple": "A screen reader user hears 'icecream.jpg' which gives no information about what the image actually shows.",
+            "why_technical": "Screen readers announce the alt attribute value as the accessible name; a filename provides no semantic information about the image content. NVDA + Firefox: announces 'icecream.jpg' verbatim; JAWS 2024: announces 'icecream.jpg' with no context.",
+            "suggestion_technical": "Change alt=\"icecream.jpg \" to alt=\"<descriptive text>\" that accurately describes the image content.",
+            "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+            "criterion_pt": "1.1.1 Conteúdo não textual",
+            "severity_pt": "Alto",
+            "fixed_element_html": null,
+            "url": "https://dequeuniversity.com/demo/mars/"
+          },
+          {
+            "id": "perceiver-8",
+            "guideline": "WCAG 2.2",
+            "criterion": "1.1.1 Non-text Content",
+            "severity": "high",
+            "element": "<img alt=\"thumbnail-image\" class=\"ytCoreImageHost ytmVideoInfoChannelLogo ytCoreImageFillParentHeight ytCoreImageFillParentWidth ytCoreImageContentModeScaleAspectFill\" style=\"background-color: transparent\"/>",
+            "description": "The alt text is generic and does not describe the image content.",
+            "suggestion": "Replace the alt text with a meaningful description of the image.",
+            "confidence": "high",
+            "level": "A",
+            "description_technical": "The alt attribute value is 'thumbnail-image', which is generic and does not describe the image content, violating WCAG 2.2 SC 1.1.1 (Non-text Content).",
+            "why_simple": "A screen reader user hears 'thumbnail-image' which gives no information about what the image actually shows.",
+            "why_technical": "Screen readers announce the alt attribute value as the accessible name; a generic term provides no semantic information about the image content. NVDA + Firefox: announces 'thumbnail-image' with no context; JAWS 2024: announces 'thumbnail-image' without describing the actual content.",
+            "suggestion_technical": "Change alt=\"thumbnail-image\" to alt=\"<descriptive text>\" that accurately describes the image content.",
+            "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+            "criterion_pt": "1.1.1 Conteúdo não textual",
+            "severity_pt": "Alto",
+            "fixed_element_html": null,
+            "url": "https://dequeuniversity.com/demo/mars/"
+          },
+          {
+            "id": "perceiver-9",
+            "guideline": "WCAG 2.2",
+            "criterion": "1.1.1 Non-text Content",
+            "severity": "high",
+            "element": "<svg height=\"100%\" version=\"1.1\" viewbox=\"0 0 36 36\" width=\"100%\"><!-- SVG desenho omitido --></svg>",
+            "description": "This SVG is used as meaningful content but has no accessible name.",
+            "suggestion": "Add an accessible name to the SVG using aria-label or a title element.",
+            "confidence": "high",
+            "level": "A",
+            "description_technical": "The <svg> element is used as meaningful content but lacks role=\"img\" and an accessible name (title + aria-labelledby or aria-label), violating WCAG 2.2 SC 1.1.1 (Non-text Content).",
+            "why_simple": "A screen reader user cannot understand what this SVG represents because it has no accessible name.",
+            "why_technical": "Screen readers treat SVG elements as images only when they have role=\"img\" and an accessible name; without these, the SVG content is not exposed to assistive technology. NVDA + Firefox: skips the SVG entirely; JAWS 2024: does not announce the SVG as an image; VoiceOver iOS: ignores the SVG in swipe navigation.",
+            "suggestion_technical": "Add role=\"img\" and aria-label=\"<descriptive text>\" to the <svg> element, or include a <title> child element with an id and reference it via aria-labelledby.",
+            "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+            "criterion_pt": "1.1.1 Conteúdo não textual",
+            "severity_pt": "Alto",
+            "fixed_element_html": null,
+            "url": "https://dequeuniversity.com/demo/mars/"
+          }
+        ],
+        "agent_metrics": [
+          {
+            "agent": "perceiver",
+            "duration_ms": 11032.0,
+            "issues_found": 9,
+            "success": true
+          },
+          {
+            "agent": "a11y_expert_reviewer",
+            "duration_ms": 0.0,
+            "issues_found": 5,
+            "success": true
+          }
+        ]
+      },
+      "error": null
+    },
+    "elapsed": 51.36499333381653
+  },
+  {
+    "case": "forms_and_widgets",
+    "only_agents": [
+      "forms_a11y",
+      "widgets_a11y"
+    ],
+    "body": {
+      "agent": "orchestrator",
+      "success": true,
+      "data": {
+        "issues": [],
+        "agent_metrics": [
+          {
+            "agent": "forms_a11y",
+            "duration_ms": 1781.0,
+            "issues_found": 0,
+            "success": false
+          },
+          {
+            "agent": "widgets_a11y",
+            "duration_ms": 1766.0,
+            "issues_found": 0,
+            "success": true
+          }
+        ],
+        "warning": "1/2 agentes falharam -- resultado pode estar incompleto."
+      },
+      "error": null
+    },
+    "elapsed": 34.26304244995117
+  }
+]

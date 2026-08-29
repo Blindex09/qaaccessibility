@@ -1,0 +1,88 @@
+[models_dev] fetch_live_models(ollama-cloud) falhou: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /v1/models (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001EC37FA33D0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')) — usando fallback estático
+
+======================================================================
+CASE: technical
+MSG: O que significa o critério de sucesso WCAG 2.2 2.4.11 Focus Not Obscured (Minimum), qual a diferença dele pro 2.4.7 Focus Visible, e como eu testo isso manualmente sem ferramenta automatizada?
+----------------------------------------------------------------------
+event_types: ['stream_id', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'done']
+RESPOSTA:
+
+Olha, excelente pergunta! Vou explicar cada parte com calma.
+---
+**O que é o WCAG 2.2 2.4.11 Focus Not Obscured (Minimum)**
+Esse critério é novo na WCAG 2.2 (não existia na 2.1) e diz o seguinte: quando um elemento recebe foco via teclado, ele não pode ficar total ou parcialmente escondido por outro elemento da interface. O exemplo mais clássico é um header fixo (sticky) ou um footer fixo que sobrepõe o elemento em foco, fazendo com que a pessoa que navega por teclado não enxergue onde está o foco.
+A versão "Minimum" (Nível AA) exige que o indicador de foco não seja completamente obscurecido por nenhum outro elemento. Existe também a versão "Enhanced" (Nível AAA) que exige que o foco não seja obscurecido nem parcialmente.
+---
+**Diferença entre 2.4.11 Focus Not Obscured e 2.4.7 Focus Visible**
+Esses dois critérios são complementares, mas olham para problemas diferentes:
+| Aspecto | 2.4.7 Focus Visible | 2.4.11 Focus Not Obscured |
+|---|---|---|
+| O que verifica | Se o indicador de foco existe e é visualmente perceptível (ex: outline, borda, mudança de cor) | Se o indicador de foco, mesmo existindo, fica escondido atrás de outro elemento da página |
+| Problema típico | `outline: none` sem alternativa, contraste insuficiente do indicador | Header sticky que cobre o link/input em foco ao dar Tab |
+| Novidade | Já existia desde WCAG 2.0 | Novo na WCAG 2.2 |
+| Nível | AA | AA |
+Em resumo: o 2.4.7 quer saber se o foco aparece. O 2.4.11 quer saber se o foco aparece mas está escondido. Uma página pode passar no 2.4.7 (tem um outline bonito) e ainda assim falhar no 2.4.11 (esse outline está atrás do menu fixo).
+---
+**Como testar manualmente sem ferramenta automatizada**
+O teste é puramente manual e comportamental. Siga estes passos:
+1. **Identifique elementos sticky/fixos na página.** Olhe para headers, footers, banners, cookies consent bars, chat widgets, tudo que usa `position: sticky` ou `position: fixed` e fica sobreposto ao conteúdo.
+2. **Comece a navegar por Tab.** Do 
+
+======================================================================
+CASE: ambiguous_vague
+MSG: meu site tá bom?
+----------------------------------------------------------------------
+event_types: ['stream_id', 'token', 'done']
+RESPOSTA:
+Você poderia fornecer o URL do site ou o código-fonte para que eu possa analisar a acessibilidade?
+
+======================================================================
+CASE: ambiguous_technical_mixed
+MSG: isso ta acessivel? <button onclick="doStuff()"><i class="icon-close"></i></button>
+----------------------------------------------------------------------
+event_types: ['stream_id', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'done']
+RESPOSTA:
+
+Olha, esse botão tem dois problemas graves de acessibilidade:
+**1. Nome acessível ausente (viola WCAG 4.1.2 e 1.1.1)**
+O `<button>` não tem nenhum texto dentro. O `<i class="icon-close"></i>` é um ícone (provavelmente uma font-icon ou SVG) sem conteúdo textual. Leitores de tela como NVDA e JAWS vão anunciar o botão como simplesmente "botão", sem informar qual é a ação dele. Isso quebra o critério 4.1.2 (Name, Role, Value) e o 1.1.1 (Non-text Content) porque o ícone não tem alternativa textual.
+**2. O ícone não é acessível por si só**
+A tag `<i>` com uma classe de ícone não passa informação semântica alguma para tecnologia assistiva. Mesmo que o ícone seja puramente decorativo, o botão inteiro fica sem nome.
+**O que precisa fazer?**
+Acrescentar um nome acessível ao botão. Você tem duas opções:
+- **Opção A (aria-label, mais comum para botões de ícone):**
+```html
+<button onclick="doStuff()" aria-label="Fechar"><i class="icon-close"></i></button>
+```
+- **Opção B (texto visualmente escondido, mais resiliente):**
+```html
+<button onclick="doStuff()">
+<i class="icon-close" aria-hidden="true"></i>
+<span class="sr-only">Fechar</span>
+</button>
+```
+(onde `.sr-only` é uma classe CSS que esconde visualmente mas mantém no DOM para leitores de tela)
+- **Opção C (texto visível + ícone decorativo, o mais inclusivo):**
+```html
+<button onclick="doStuff()"><i class="icon-close" aria-hidden="true"></i> Fechar</button>
+```
+Se o ícone for apenas decorativo, lembre-se de colocar `aria-hidden="true"` no `<i>` para o leitor de tela ignorá-lo. Se o ícone carregar informação (raro), aí ele precisaria de `role="img"` + `aria-label`.
+Resumindo: do jeito que está, **não está acessível**. O maior problema é a falta de nome acessível no botão. Quer que eu simule como o NVDA leria esse botão ou prefere que eu sugira a correção completa?
+
+======================================================================
+CASE: out_of_scope
+MSG: me ajuda a escrever uma query SQL pra somar vendas por mes
+----------------------------------------------------------------------
+event_types: ['stream_id', 'token', 'done']
+RESPOSTA:
+Desculpe, mas sou um assistente especializado exclusivamente em acessibilidade digital (WCAG, Section 508, WAI-ARIA). Não posso ajudar com assuntos gerais ou fora de escopo.
+
+======================================================================
+CASE: greeting
+MSG: fala meu amigo, blz? tudo certo?
+----------------------------------------------------------------------
+event_types: ['stream_id', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'thinking', 'reasoning', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'token', 'done']
+RESPOSTA:
+
+Fala aí, meu amigo! Beleza pura, tudo certo por aqui também. Pronto pra meter as mãos no código e garantir que ninguém fique de fora, né?
+Me fala aí: qual é o barato? Você quer auditar a acessibilidade de uma página, de um site inteiro, ou tem um arquivo (HTML, PDF, DOCX, um projeto zipado) que você quer que eu dê uma olhada? Pode mandar ver que a gente resolve.

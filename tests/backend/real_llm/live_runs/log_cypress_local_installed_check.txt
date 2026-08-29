@@ -1,0 +1,39 @@
+USER: Roda um teste real de acessibilidade com Cypress LOCAL (não na nuvem) nessa página: https://dequeuniversity.com/demo/mars/
+------------------------------------------------------------------------------
+  [TOOL_START] clarify
+  [CLARIFY] Confirmação de execução do teste Cypress local na página https://dequeuniversity.com/demo/mars/
+
+1. [ ] Escolher modo de execução
+
+Como a execução local roda binários reais nesta máquina, confirme com
+  [CLARIFY CHOICES] ['Executar localmente apenas esta vez', 'Sempre aprovar execução local nesta conversa', 'Cancelar']
+  -> respondendo: 'Executar localmente apenas esta vez'
+  [TOOL_RESULT] clarify
+  [TOOL_START] run_remote_test
+  [CLARIFY] A ferramenta 'run_remote_test' realizará uma ação com efeito externo ou gravará um artefato. Argumentos: {"location": "local", "pre_exec_msg": "Iniciando o teste real de acessibilidade com Cypress loc
+  [CLARIFY CHOICES] ['Aprovar', 'Cancelar']
+  -> respondendo: 'Aprovar'
+  [TOOL_RESULT] run_remote_test
+
+ASSISTANT (106.7s):
+Pronto! O teste real com Cypress + axe-core rodou localmente e encontrou uma série de violações na página do Mars Computer. Aqui está o resumo:
+**Total de violações:** 10
+- **Críticas:** 3
+- **Graves:** 5
+- **Moderadas:** 2
+**Principais problemas encontrados:**
+1. **button-name (Crítico)** — Botão do seletor de data não tem texto discernível (`.departure-date > .ui-datepicker-trigger:nth-child(4)`).
+2. **image-alt (Crítico)** — 4 imagens sem texto alternativo (ex.: `img[src$="seg"]`).
+3. **select-name (Crítico)** — 2 elementos `<select>` sem nome acessível (ex.: `#time0`).
+4. **color-contrast (Grave)** — 6 elementos com contraste abaixo do mínimo WCAG 2 AA (ex.: `a[href="mars2.html?a=be_bold"] > h3`).
+5. **frame-title (Grave)** — 1 `<iframe>` sem nome acessível (`#fafbba78`).
+6. **link-name (Grave)** — 8 links sem texto discernível (ex.: `.link[href$="mars/#"]`).
+7. **link-in-text-block (Grave)** — Link indistinguível do texto ao redor sem depender de cor.
+8. **tabindex (Grave)** — 4 elementos com `tabindex` maior que zero (`#from0`).
+9. **landmark-unique (Moderado)** — Landmark repetido sem identificação única.
+10. **region (Moderado)** — 35 elementos fora de landmarks de página.
+A página **não passou** no teste de acessibilidade.
+Se quiser, posso gerar uma suíte de testes automatizados em Playwright + axe-core com base nesses achados para o seu CI, ou exportar os resultados numa planilha Excel. O que faz sentido agora?
+
+
+tools_called: ['clarify', 'run_remote_test']

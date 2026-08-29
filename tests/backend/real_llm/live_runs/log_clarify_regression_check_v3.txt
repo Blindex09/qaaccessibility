@@ -1,0 +1,55 @@
+[AIAgent] resposta vazia do subagente; refazendo com instrucao JSON estrita
+[AIAgent] resposta vazia do subagente; refazendo com instrucao JSON estrita
+[ComplexityRouter] Falha na classificação (No valid JSON object found in LLM output: '{"') -- mantendo tradeoff default=3
+[ClassifierAgent] Falha na classificacao: AIAgent returned an empty final response after recovery retry
+[Orchestrator] Classificador falhou (AIAgent returned an empty final response after recovery retry). Continuando com base + condicionais por estrutura; frameworks pulados.
+[Orchestrator] Sub-agente 'section508' reportou falha: Timeout after 180.0s
+[Orchestrator] Agente 'section508' falhou (180015ms): Timeout after 180.0s
+[Orchestrator] 2/21 agentes falharam. Exemplo: agente='classifier'
+[Orchestrator] Análise parcial: 2/21 agentes falharam -- resultado pode estar incompleto.
+[AIAgent] resposta vazia do subagente; refazendo com instrucao JSON estrita
+[AIAgent] resposta vazia do subagente; refazendo com instrucao JSON estrita
+[ComplexityRouter] Falha na classificação (AIAgent returned an empty final response after recovery retry) -- mantendo tradeoff default=3
+[ClassifierAgent] Falha na classificacao: AIAgent returned an empty final response after recovery retry
+[Orchestrator] Classificador falhou (AIAgent returned an empty final response after recovery retry). Continuando com base + condicionais por estrutura; frameworks pulados.
+[Orchestrator] 1/19 agentes falharam. Exemplo: agente='classifier'
+[Orchestrator] Análise parcial: 1/19 agentes falharam -- resultado pode estar incompleto.
+--- run 1 ---
+  used_real_clarify_tool = False
+  final_text contains fake 'Opções:' list = True
+  final_text: {
+  "question": "Plano de auditoria do site:\n1. [ ] Definir escopo de até 3 páginas do domínio https://dequeuniversity.com/demo/mars/\n2. [ ] Executar varredura e análise de acessibilidade nas páginas encontradas\nOpções: ['Aprovar Plano', 'Cancelar']",
+  "options": ["Aprovar Plano", "Cancelar"]
+}
+--- run 2 ---
+  used_real_clarify_tool = True
+  final_text contains fake 'Opções:' list = True
+--- run 3 ---
+  used_real_clarify_tool = False
+  final_text contains fake 'Opções:' list = False
+  final_text: {
+  "question": "Plano de auditoria do site (até 3 páginas):\n1. [ ] Definir limite de páginas (max 3) e domínio alvo\n2. [ ] Rastrear links internos dentro do domínio\n3. [ ] Analisar cada página rastreada com agentes especializados (WCAG, contraste, formulários, ARIA, mídia)\n4. [ ] Consolidar res
+--- run 4 ---
+  used_real_clarify_tool = False
+  final_text contains fake 'Opções:' list = True
+Traceback (most recent call last):
+  File "C:\qaaccessibility\tests\backend\real_llm\live_runs\run_clarify_regression_check.py", line 68, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\Python311\Lib\asyncio\runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python311\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python311\Lib\asyncio\base_events.py", line 654, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\qaaccessibility\tests\backend\real_llm\live_runs\run_clarify_regression_check.py", line 62, in main
+    ok = await run_once(i)
+         ^^^^^^^^^^^^^^^^^
+  File "C:\qaaccessibility\tests\backend\real_llm\live_runs\run_clarify_regression_check.py", line 55, in run_once
+    print(f"  final_text: {final_text[:300]}")
+  File "C:\Program Files\Python311\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2011' in position 215: character maps to <undefined>

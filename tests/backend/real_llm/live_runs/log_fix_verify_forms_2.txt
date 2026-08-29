@@ -1,0 +1,39 @@
+2026-08-09 17:56:11 [INFO] backend.src.services.telemetry: [telemetry] OTEL_EXPORTER_OTLP_ENDPOINT não configurado — telemetria desactivada.
+2026-08-09 17:56:11 [WARNING] backend.src.services.config_drift: [ConfigDrift] ANTHROPIC_BASE_URL esta definida no ambiente do processo mas nao em backend/.env -- o endpoint resolvido para o provider correspondente diverge silenciosamente do que o .env do projeto documenta. Declare em backend/.env se for intencional, ou remova do ambiente.
+2026-08-09 17:56:11 [INFO] backend.src.main: [App] QA Accessibility API inicializada
+2026-08-09 17:56:11 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url
+2026-08-09 17:56:11 [INFO] backend.src.routes.analyze: [Route] POST /analyze/url url=https://dequeuniversity.com/demo/mars/
+2026-08-09 17:56:11 [INFO] backend.src.services.browser: [Browser] Executando scrape do Firecrawl para: https://dequeuniversity.com/demo/mars/
+2026-08-09 17:56:12 [INFO] backend.src.services.browser: [Browser] Conectando via CDP ao Browserless para foco e tabs: https://dequeuniversity.com/demo/mars/
+2026-08-09 17:56:42 [INFO] backend.src.routes.analyze: [Route] HTML extraido: 66516 -> 47894 chars (72.0%) — 220 elementos a11y
+2026-08-09 17:56:42 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Iniciando pipeline task_type=TaskType.ANALYZE
+2026-08-09 17:56:44 [INFO] backend.src.services.context_compressor: [context_compressor:BS4] 47894 -> 31795 chars (66.4%, 1199ms)
+2026-08-09 17:56:44 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Executando apenas os agentes selecionados via only_agents: ['forms_a11y']
+2026-08-09 17:56:44 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Roteamento seletivo: lang=en selecionados=1 [forms_a11y]
+2026-08-09 17:56:44 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: forms_a11y -- selecionado explicitamente via only_agents
+2026-08-09 17:56:44 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Disparando sub-agentes em paralelo (max_concurrent=3, timeout=180s)
+2026-08-09 17:56:44 [INFO] backend.src.agents.forms_a11y.forms_a11y: [FormsA11yAgent] Analisando acessibilidade de formularios
+2026-08-09 17:56:49 [INFO] backend.src.services.ollama_cloud_adapter: [OllamaCloudAdapter] Catálogo descoberto: 18 modelos no Ollama Cloud
+2026-08-09 17:56:49 [INFO] backend.src.services.model_router: [Alto] provider=ollama-cloud -> deepseek-v4-flash:preview (ranking multi-objetivo agêntico entre 18 candidatos, needs_vision=False)
+2026-08-09 17:56:49 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-c047e0fa model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:56:56 [WARNING] agent.models_dev: [models_dev] fetch_live_models(ollama-cloud) falhou: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /v1/models (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000228AD81D610>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')) — usando fallback estático
+2026-08-09 17:57:09 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:57:09 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (8260 chars)
+2026-08-09 17:57:09 [INFO] backend.src.agents.forms_a11y.forms_a11y: [FormsA11yAgent] 5 issues (forms)
+2026-08-09 17:57:09 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisando 5 issues -- AT: NVDA/JAWS/VoiceOver/TalkBack
+2026-08-09 17:57:09 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-dc81d35f model=deepseek-v4-flash:preview provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:57:22 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:57:22 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (9353 chars)
+2026-08-09 17:57:22 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisao concluida -- 5 issues mantidos, 0 falsos positivos removidos
+2026-08-09 17:57:34 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline concluido -- 5 issues, 2/2 agentes OK
+2026-08-09 17:57:34 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline ANALYZE concluido
+2026-08-09 17:57:34 [INFO] backend.src.services.last_analysis_store: [LastAnalysisStore] Cache atualizado com 5 issues para URL: https://dequeuniversity.com/demo/mars/ (sessão: default)
+2026-08-09 17:57:34 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url -> 200 (82910.1ms)
+2026-08-09 17:57:34 [INFO] httpx: HTTP Request: POST http://testserver/analyze/url "HTTP/1.1 200 OK"
+status 200 success True
+issues: 5
+ - critical 1.3.1 Info and Relationships | <input class="search" name="query" placeholder="search" type="text"/>
+ - high 1.3.1 Info and Relationships | <input class="control-search" type="submit"/>
+ - critical 1.3.1 Info and Relationships | <input class="no-border" id="id-country-preference" name="country-preference" ty
+ - high 1.3.1 Info and Relationships | <form id="search">
+ - medium 1.3.5 Identify Input Purpose | <input class="search" name="query" placeholder="search" type="text"/>

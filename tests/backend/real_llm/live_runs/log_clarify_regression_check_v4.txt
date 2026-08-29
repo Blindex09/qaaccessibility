@@ -1,0 +1,424 @@
+[AIAgent] perceiver parse/schema falhou (tentativa 1/2): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "perceiver-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "critical",\n      "confidence": "high",\n      "le'
+[RobustnessAgent] Erro: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "robustness-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.2 Name, Role, Value",\n      "severity": "high",\n      "confidence": "high",\n      "leve'
+[ARIASpecialistAgent] Erro: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "aria-1",\n      "guideline": "WAI-ARIA",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A"'
+[AIAgent] section508 parse/schema falhou (tentativa 1/2): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "s508-1",\n      "guideline": "ADA/Section 508",\n      "criterion": "1194.22(a) / WCAG 1.1.1 Non-text Content",\n      "severity": "critical",\n      "confidence'
+[AJAXDynamicAgent] Erro: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "dynamic-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.3 Status Messages",\n      "severity": "high",\n      "confidence": "high",\n      "level": "'
+[AIAgent] screen_reader parse/schema falhou (tentativa 1/2): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "screen-reader-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "le'
+[FormsA11yAgent] Falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "forms-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.3.1 Info and Relationships",\n      "severity": "critical",\n      "confidence": "high",\n      "'
+[WidgetsA11yAgent] Falha: No valid JSON array found in LLM output: '[\n  {\n    "issues": [\n      {\n        "id": "widget-1",\n        "guideline": "WAI-ARIA",\n        "criterion": "4.1.2 Name, Role, Value",\n        "severity": "high",\n        "confidence": "high",\n     '
+[LinkCheckerAgent] Falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "l'
+[WCAGSemanticsAgent] Falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "semantics-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[Orchestrator] Sub-agente 'robustness' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "robustness-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.2 Name, Role, Value",\n      "severity": "high",\n      "confidence": "high",\n      "leve'
+[Orchestrator] Agente 'robustness' falhou (73469ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "robustness-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.2 Name, Role, Value",\n      "severity": "high",\n      "confidence": "high",\n      "leve'
+[Orchestrator] Sub-agente 'aria_specialist' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "aria-1",\n      "guideline": "WAI-ARIA",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A"'
+[Orchestrator] Agente 'aria_specialist' falhou (66203ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "aria-1",\n      "guideline": "WAI-ARIA",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A"'
+[Orchestrator] Sub-agente 'section508' reportou falha: Timeout after 180.0s
+[Orchestrator] Agente 'section508' falhou (180000ms): Timeout after 180.0s
+[Orchestrator] Sub-agente 'ajax_dynamic' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "dynamic-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.3 Status Messages",\n      "severity": "high",\n      "confidence": "high",\n      "level": "'
+[Orchestrator] Agente 'ajax_dynamic' falhou (67610ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "dynamic-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.3 Status Messages",\n      "severity": "high",\n      "confidence": "high",\n      "level": "'
+[Orchestrator] Sub-agente 'screen_reader' reportou falha: Timeout after 180.0s
+[Orchestrator] Agente 'screen_reader' falhou (180015ms): Timeout after 180.0s
+[Orchestrator] Sub-agente 'forms_a11y' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "forms-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.3.1 Info and Relationships",\n      "severity": "critical",\n      "confidence": "high",\n      "'
+[Orchestrator] Agente 'forms_a11y' falhou (63187ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "forms-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.3.1 Info and Relationships",\n      "severity": "critical",\n      "confidence": "high",\n      "'
+[Orchestrator] Sub-agente 'widgets_a11y' reportou falha: No valid JSON array found in LLM output: '[\n  {\n    "issues": [\n      {\n        "id": "widget-1",\n        "guideline": "WAI-ARIA",\n        "criterion": "4.1.2 Name, Role, Value",\n        "severity": "high",\n        "confidence": "high",\n     '
+[Orchestrator] Agente 'widgets_a11y' falhou (75391ms): No valid JSON array found in LLM output: '[\n  {\n    "issues": [\n      {\n        "id": "widget-1",\n        "guideline": "WAI-ARIA",\n        "criterion": "4.1.2 Name, Role, Value",\n        "severity": "high",\n        "confidence": "high",\n     '
+[Orchestrator] Sub-agente 'link_checker' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "l'
+[Orchestrator] Agente 'link_checker' falhou (57187ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "l'
+[Orchestrator] Sub-agente 'wcag_semantics' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "semantics-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[Orchestrator] Agente 'wcag_semantics' falhou (53594ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "semantics-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[Orchestrator] 9/21 agentes falharam. Exemplo: agente='robustness'
+[Orchestrator] Análise parcial: 9/21 agentes falharam -- resultado pode estar incompleto.
+[AIAgent] screen_reader parse/schema falhou (tentativa 1/2): 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...d-relationships.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...d-relationships.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...d-relationships.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...d-relationships.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...d-relationships.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...d-relationships.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...d-relationships.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[LinkCheckerAgent] Falha: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "level": "'
+[Orchestrator] Sub-agente 'link_checker' reportou falha: No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "level": "'
+[Orchestrator] Agente 'link_checker' falhou (66406ms): No valid JSON array found in LLM output: '{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "level": "'
+[Orchestrator] Issues truncados de 169 para 150
+[Orchestrator] 1/19 agentes falharam. Exemplo: agente='link_checker'
+[Orchestrator] Análise parcial: 1/19 agentes falharam -- resultado pode estar incompleto.
+[Firecrawl] Falha no /v2/map para https://dequeuniversity.com/demo/mars/: HTTP Error 502: Bad Gateway
+[Crawler] Firecrawl não retornou links. Caindo de volta para o crawl local.
+[AIAgent] perceiver parse/schema falhou (tentativa 1/2): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "perceiver-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[RobustnessAgent] Erro: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "robustness-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.2 Name, Role, Value",\n      "severity": "high",\n      "confidence": "high",\n      "leve'
+[ARIASpecialistAgent] Erro: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "aria-1",\n      "guideline": "WAI-ARIA",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A"'
+[AIAgent] section508 parse/schema falhou (tentativa 1/2): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "s508-1",\n      "guideline": "ADA/Section 508",\n      "criterion": "1194.22(a) / WCAG 1.1.1 Non-text Content",\n      "severity": "critical",\n      "confidence'
+[AIAgent] screen_reader parse/schema falhou (tentativa 1/2): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "screen-reader-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "le'
+[AIAgent] perceiver parse/schema falhou (tentativa 2/2): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "perceiver-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[PerceiverAgent] Erro: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "perceiver-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[AIAgent] section508 parse/schema falhou (tentativa 2/2): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "s508-1",\n      "guideline": "ADA/Section 508",\n      "criterion": "1194.22(a) / WCAG 1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "'
+[Section508Agent] Erro: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "s508-1",\n      "guideline": "ADA/Section 508",\n      "criterion": "1194.22(a) / WCAG 1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "'
+[LinkCheckerAgent] Falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "l'
+[WCAGSemanticsAgent] Falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "semantics-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[Spatial3D_XR_Agent] Erro durante execucao: 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[Orchestrator] Sub-agente 'perceiver' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "perceiver-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[Orchestrator] Agente 'perceiver' falhou (159125ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "perceiver-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[Orchestrator] Sub-agente 'robustness' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "robustness-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.2 Name, Role, Value",\n      "severity": "high",\n      "confidence": "high",\n      "leve'
+[Orchestrator] Agente 'robustness' falhou (49000ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "robustness-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.2 Name, Role, Value",\n      "severity": "high",\n      "confidence": "high",\n      "leve'
+[Orchestrator] Sub-agente 'aria_specialist' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "aria-1",\n      "guideline": "WAI-ARIA",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A"'
+[Orchestrator] Agente 'aria_specialist' falhou (51516ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "aria-1",\n      "guideline": "WAI-ARIA",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level": "A"'
+[Orchestrator] Sub-agente 'section508' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "s508-1",\n      "guideline": "ADA/Section 508",\n      "criterion": "1194.22(a) / WCAG 1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "'
+[Orchestrator] Agente 'section508' falhou (175844ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "s508-1",\n      "guideline": "ADA/Section 508",\n      "criterion": "1194.22(a) / WCAG 1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "'
+[Orchestrator] Sub-agente 'screen_reader' reportou falha: Timeout after 180.0s
+[Orchestrator] Agente 'screen_reader' falhou (180000ms): Timeout after 180.0s
+[Orchestrator] Sub-agente 'link_checker' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "l'
+[Orchestrator] Agente 'link_checker' falhou (63594ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "l'
+[Orchestrator] Sub-agente 'wcag_semantics' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "semantics-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[Orchestrator] Agente 'wcag_semantics' falhou (54484ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "semantics-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[Orchestrator] Sub-agente 'spatial_3d_xr' reportou falha: 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[Orchestrator] Agente 'spatial_3d_xr' falhou (14047ms): 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[Orchestrator] 8/21 agentes falharam. Exemplo: agente='perceiver'
+[Orchestrator] Análise parcial: 8/21 agentes falharam -- resultado pode estar incompleto.
+[AIAgent] operability parse/schema falhou (tentativa 1/2): 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': [{'id': 'opera...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': [{'id': 'opera...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': [{'id': 'opera...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': [{'id': 'opera...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': [{'id': 'opera...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': [{'id': 'opera...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': [{'id': 'opera...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[WebComponentsAgent] Erro durante execucao: 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[Orchestrator] Sub-agente 'web_components' reportou falha: 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[Orchestrator] Agente 'web_components' falhou (1281ms): 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[Orchestrator] 1/17 agentes falharam. Exemplo: agente='web_components'
+[Orchestrator] Análise parcial: 1/17 agentes falharam -- resultado pode estar incompleto.
+[AIAgent] screen_reader parse/schema falhou (tentativa 1/2): 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': [{'id': 'scree...g/bypass-blocks.html'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[NicheDomainsAgent] Erro durante execucao: 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[Orchestrator] Sub-agente 'niche_domains' reportou falha: 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[Orchestrator] Agente 'niche_domains' falhou (1360ms): 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[Orchestrator] 1/17 agentes falharam. Exemplo: agente='niche_domains'
+[Orchestrator] Análise parcial: 1/17 agentes falharam -- resultado pode estar incompleto.
+[UnderstandabilityAgent] Erro: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "understandability-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "3.3.2 Labels or Instructions",\n      "severity": "high",\n      "confidence": "high",'
+[AIAgent] perceiver parse/schema falhou (tentativa 1/2): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "perceiver-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "critical",\n      "confidence": "high",\n      "le'
+[RobustnessAgent] Erro: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "robustness-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.2 Name, Role, Value",\n      "severity": "high",\n      "confidence": "high",\n      "leve'
+[AIAgent] section508 parse/schema falhou (tentativa 1/2): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "s508-1",\n      "guideline": "ADA/Section 508",\n      "criterion": "1194.22(a) / WCAG 1.1.1 Non-text Content",\n      "severity": "critical",\n      "confidence'
+[AIAgent] screen_reader parse/schema falhou (tentativa 1/2): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "screen-reader-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "le'
+[FormsA11yAgent] Falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "forms-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.3.1 Info and Relationships",\n      "severity": "critical",\n      "confidence": "high",\n      "'
+[LinkCheckerAgent] Falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "l'
+[Spatial3D_XR_Agent] Erro durante execucao: 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[WCAGSemanticsAgent] Falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "semantics-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[Orchestrator] Sub-agente 'understandability' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "understandability-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "3.3.2 Labels or Instructions",\n      "severity": "high",\n      "confidence": "high",'
+[Orchestrator] Agente 'understandability' falhou (61609ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "understandability-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "3.3.2 Labels or Instructions",\n      "severity": "high",\n      "confidence": "high",'
+[Orchestrator] Sub-agente 'robustness' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "robustness-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.2 Name, Role, Value",\n      "severity": "high",\n      "confidence": "high",\n      "leve'
+[Orchestrator] Agente 'robustness' falhou (69672ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "robustness-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "4.1.2 Name, Role, Value",\n      "severity": "high",\n      "confidence": "high",\n      "leve'
+[Orchestrator] Sub-agente 'section508' reportou falha: Timeout after 180.0s
+[Orchestrator] Agente 'section508' falhou (180016ms): Timeout after 180.0s
+[Orchestrator] Sub-agente 'screen_reader' reportou falha: Timeout after 180.0s
+[Orchestrator] Agente 'screen_reader' falhou (180000ms): Timeout after 180.0s
+[Orchestrator] Sub-agente 'forms_a11y' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "forms-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.3.1 Info and Relationships",\n      "severity": "critical",\n      "confidence": "high",\n      "'
+[Orchestrator] Agente 'forms_a11y' falhou (58328ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "forms-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.3.1 Info and Relationships",\n      "severity": "critical",\n      "confidence": "high",\n      "'
+[Orchestrator] Sub-agente 'link_checker' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "l'
+[Orchestrator] Agente 'link_checker' falhou (70656ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "links-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "2.4.4 Link Purpose (In Context)",\n      "severity": "high",\n      "confidence": "high",\n      "l'
+[Orchestrator] Sub-agente 'wcag_semantics' reportou falha: No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "semantics-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[Orchestrator] Agente 'wcag_semantics' falhou (74781ms): No valid JSON array found in LLM output: '```json\n{\n  "issues": [\n    {\n      "id": "semantics-1",\n      "guideline": "WCAG 2.2",\n      "criterion": "1.1.1 Non-text Content",\n      "severity": "high",\n      "confidence": "high",\n      "level"'
+[Orchestrator] Sub-agente 'spatial_3d_xr' reportou falha: 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[Orchestrator] Agente 'spatial_3d_xr' falhou (1469ms): 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+[Orchestrator] Issues truncados de 151 para 150
+[Orchestrator] 8/21 agentes falharam. Exemplo: agente='understandability'
+[Orchestrator] Análise parcial: 8/21 agentes falharam -- resultado pode estar incompleto.

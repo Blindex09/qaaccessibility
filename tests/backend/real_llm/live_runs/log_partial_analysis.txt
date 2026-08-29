@@ -1,0 +1,167 @@
+2026-08-09 17:19:59 [INFO] backend.src.services.telemetry: [telemetry] OTEL_EXPORTER_OTLP_ENDPOINT não configurado — telemetria desactivada.
+2026-08-09 17:19:59 [WARNING] backend.src.services.config_drift: [ConfigDrift] ANTHROPIC_BASE_URL esta definida no ambiente do processo mas nao em backend/.env -- o endpoint resolvido para o provider correspondente diverge silenciosamente do que o .env do projeto documenta. Declare em backend/.env se for intencional, ou remova do ambiente.
+2026-08-09 17:19:59 [INFO] backend.src.main: [App] QA Accessibility API inicializada
+2026-08-09 17:19:59 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url
+2026-08-09 17:19:59 [INFO] backend.src.routes.analyze: [Route] POST /analyze/url url=https://dequeuniversity.com/demo/mars/
+2026-08-09 17:19:59 [INFO] backend.src.services.browser: [Browser] Executando scrape do Firecrawl para: https://dequeuniversity.com/demo/mars/
+2026-08-09 17:20:00 [INFO] backend.src.services.browser: [Browser] Conectando via CDP ao Browserless para foco e tabs: https://dequeuniversity.com/demo/mars/
+2026-08-09 17:20:32 [INFO] backend.src.routes.analyze: [Route] HTML extraido: 66516 -> 47894 chars (72.0%) — 220 elementos a11y
+2026-08-09 17:20:32 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Iniciando pipeline task_type=TaskType.ANALYZE
+2026-08-09 17:20:32 [INFO] backend.src.services.context_compressor: [context_compressor:BS4] 47894 -> 3750 chars (7.8%, 30ms)
+2026-08-09 17:20:32 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Executando apenas os agentes selecionados via only_agents: ['forms_a11y']
+2026-08-09 17:20:32 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Roteamento seletivo: lang=en selecionados=1 [forms_a11y]
+2026-08-09 17:20:32 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: forms_a11y -- selecionado explicitamente via only_agents
+2026-08-09 17:20:32 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Disparando sub-agentes em paralelo (max_concurrent=3, timeout=180s)
+2026-08-09 17:20:32 [INFO] backend.src.agents.forms_a11y.forms_a11y: [FormsA11yAgent] Analisando acessibilidade de formularios
+2026-08-09 17:20:38 [INFO] backend.src.services.ollama_cloud_adapter: [OllamaCloudAdapter] Catálogo descoberto: 18 modelos no Ollama Cloud
+2026-08-09 17:20:38 [INFO] backend.src.services.model_router: [Alto] provider=ollama-cloud -> deepseek-v4-flash:0731 (ranking multi-objetivo agêntico entre 18 candidatos)
+2026-08-09 17:20:38 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-2d443b19 model=deepseek-v4-flash:0731 provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:20:45 [WARNING] agent.models_dev: [models_dev] fetch_live_models(ollama-cloud) falhou: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /v1/models (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001CB2937C7D0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')) — usando fallback estático
+2026-08-09 17:20:47 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:20:47 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (2 chars)
+2026-08-09 17:20:47 [INFO] backend.src.agents.forms_a11y.forms_a11y: [FormsA11yAgent] 0 issues (forms)
+2026-08-09 17:20:47 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline concluido -- 0 issues, 1/1 agentes OK
+2026-08-09 17:20:47 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline ANALYZE concluido
+2026-08-09 17:20:47 [INFO] backend.src.services.last_analysis_store: [LastAnalysisStore] Cache atualizado com 0 issues para URL: https://dequeuniversity.com/demo/mars/ (sessão: default)
+2026-08-09 17:20:47 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url -> 200 (48238.5ms)
+2026-08-09 17:20:47 [INFO] httpx: HTTP Request: POST http://testserver/analyze/url "HTTP/1.1 200 OK"
+
+=== only_forms (only_agents=['forms_a11y']) elapsed=48.3s status=200 ===
+success=True error=None
+agents ran: ['forms_a11y']
+issues: 0
+2026-08-09 17:20:47 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url
+2026-08-09 17:20:47 [INFO] backend.src.routes.analyze: [Route] POST /analyze/url url=https://dequeuniversity.com/demo/mars/
+2026-08-09 17:20:48 [INFO] backend.src.services.browser: [Browser] Executando scrape do Firecrawl para: https://dequeuniversity.com/demo/mars/
+2026-08-09 17:20:49 [INFO] backend.src.services.browser: [Browser] Conectando via CDP ao Browserless para foco e tabs: https://dequeuniversity.com/demo/mars/
+2026-08-09 17:21:20 [INFO] backend.src.routes.analyze: [Route] HTML extraido: 66516 -> 47894 chars (72.0%) — 220 elementos a11y
+2026-08-09 17:21:20 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Iniciando pipeline task_type=TaskType.ANALYZE
+2026-08-09 17:21:20 [INFO] backend.src.services.context_compressor: [context_compressor:BS4] 47894 -> 3750 chars (7.8%, 29ms)
+2026-08-09 17:21:20 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Executando apenas os agentes selecionados via only_agents: ['perceiver']
+2026-08-09 17:21:20 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Roteamento seletivo: lang=en selecionados=1 [perceiver]
+2026-08-09 17:21:20 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: perceiver -- selecionado explicitamente via only_agents
+2026-08-09 17:21:20 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Disparando sub-agentes em paralelo (max_concurrent=3, timeout=180s)
+2026-08-09 17:21:20 [INFO] backend.src.agents.perceiver.perceiver: [PerceiverAgent] Verificando WCAG 1.x (Perceivable)
+2026-08-09 17:21:20 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-perceiver-06786a0b model=deepseek-v4-flash:0731 provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:21:31 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:21:31 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (11166 chars)
+2026-08-09 17:21:31 [INFO] backend.src.agents.perceiver.perceiver: [PerceiverAgent] 9 issues (WCAG 1.x)
+2026-08-09 17:21:31 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisando 5 issues -- AT: NVDA/JAWS/VoiceOver/TalkBack
+2026-08-09 17:21:31 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-a43494ae model=deepseek-v4-flash:0731 provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:21:39 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:21:39 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (7561 chars)
+2026-08-09 17:21:39 [INFO] backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer: [A11yExpertReviewer] Revisao concluida -- 5 issues mantidos, 0 falsos positivos removidos
+2026-08-09 17:21:39 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline concluido -- 5 issues, 2/2 agentes OK
+2026-08-09 17:21:39 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline ANALYZE concluido
+2026-08-09 17:21:39 [INFO] backend.src.services.last_analysis_store: [LastAnalysisStore] Cache atualizado com 5 issues para URL: https://dequeuniversity.com/demo/mars/ (sessão: default)
+2026-08-09 17:21:39 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url -> 200 (51287.7ms)
+2026-08-09 17:21:39 [INFO] httpx: HTTP Request: POST http://testserver/analyze/url "HTTP/1.1 200 OK"
+
+=== only_images (only_agents=['perceiver']) elapsed=51.4s status=200 ===
+success=True error=None
+agents ran: ['perceiver', 'a11y_expert_reviewer']
+issues: 5
+  - [critical] 1.1.1 Non-text Content | <img height="1" src="https://dequeuniversity.com/assets/demo | This image has no description for people who cannot see it. [SYSTEMIC PATTERN] This issue 
+  - [critical] 1.1.1 Non-text Content | <img class="" height="120" src="https://dequeuniversity.com/ | This image has no description for people who cannot see it. [SYSTEMIC PATTERN] This issue 
+  - [high] 1.1.1 Non-text Content | <img alt="icecream.jpg " class="" height="120" src="https:// | The alt text is a filename, not a description of the image content.
+  - [high] 1.1.1 Non-text Content | <img alt="thumbnail-image" class="ytCoreImageHost ytmVideoIn | The alt text is generic and does not describe the image content.
+  - [high] 1.1.1 Non-text Content | <svg height="100%" version="1.1" viewbox="0 0 36 36" width=" | This SVG is used as meaningful content but has no accessible name.
+2026-08-09 17:21:39 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url
+2026-08-09 17:21:39 [INFO] backend.src.routes.analyze: [Route] POST /analyze/url url=https://dequeuniversity.com/demo/mars/
+2026-08-09 17:21:39 [INFO] backend.src.services.browser: [Browser] Executando scrape do Firecrawl para: https://dequeuniversity.com/demo/mars/
+2026-08-09 17:21:40 [INFO] backend.src.services.browser: [Browser] Conectando via CDP ao Browserless para foco e tabs: https://dequeuniversity.com/demo/mars/
+2026-08-09 17:22:11 [INFO] backend.src.routes.analyze: [Route] HTML extraido: 66516 -> 47894 chars (72.0%) — 220 elementos a11y
+2026-08-09 17:22:11 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Iniciando pipeline task_type=TaskType.ANALYZE
+2026-08-09 17:22:11 [INFO] backend.src.services.context_compressor: [context_compressor:BS4] 47894 -> 3750 chars (7.8%, 29ms)
+2026-08-09 17:22:11 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Executando apenas os agentes selecionados via only_agents: ['forms_a11y', 'widgets_a11y']
+2026-08-09 17:22:11 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Roteamento seletivo: lang=en selecionados=2 [forms_a11y, widgets_a11y]
+2026-08-09 17:22:11 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: forms_a11y -- selecionado explicitamente via only_agents
+2026-08-09 17:22:11 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente selecionado: widgets_a11y -- selecionado explicitamente via only_agents
+2026-08-09 17:22:11 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Disparando sub-agentes em paralelo (max_concurrent=3, timeout=180s)
+2026-08-09 17:22:11 [INFO] backend.src.agents.forms_a11y.forms_a11y: [FormsA11yAgent] Analisando acessibilidade de formularios
+2026-08-09 17:22:11 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-82108795 model=deepseek-v4-flash:0731 provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:22:11 [INFO] backend.src.agents.widgets_a11y.widgets_a11y: [WidgetsA11yAgent] Analisando padrões ARIA de widgets
+2026-08-09 17:22:11 [INFO] backend.src.services.llm_client: [AIAgent] subagent=a11y-leaf-efc07be4 model=deepseek-v4-flash:0731 provider=ollama-cloud base_url=None fallback=False
+2026-08-09 17:22:13 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:22:13 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (18 chars)
+2026-08-09 17:22:13 [INFO] backend.src.agents.widgets_a11y.widgets_a11y: [WidgetsA11yAgent] 0 issues (widgets)
+2026-08-09 17:22:13 [INFO] httpx: HTTP Request: POST https://ollama.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-09 17:22:13 [INFO] backend.src.services.llm_client: [AIAgent] Resposta recebida (28 chars)
+2026-08-09 17:22:13 [ERROR] backend.src.agents.forms_a11y.forms_a11y: [FormsA11yAgent] Falha: 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+2026-08-09 17:22:13 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Sub-agente 'forms_a11y' reportou falha: 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+2026-08-09 17:22:13 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Agente 'forms_a11y' falhou (1781ms): 7 validation errors for AccessibilityIssue
+id
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+guideline
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+criterion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+severity
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+element
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+description
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+suggestion
+  Field required [type=missing, input_value={'issues': []}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
+2026-08-09 17:22:13 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline concluido -- 0 issues, 1/2 agentes OK
+2026-08-09 17:22:13 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] 1/2 agentes falharam. Exemplo: agente='forms_a11y'
+2026-08-09 17:22:13 [WARNING] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Análise parcial: 1/2 agentes falharam -- resultado pode estar incompleto.
+2026-08-09 17:22:13 [INFO] backend.src.agents.orchestrator.orchestrator: [Orchestrator] Pipeline ANALYZE concluido
+2026-08-09 17:22:13 [INFO] backend.src.services.last_analysis_store: [LastAnalysisStore] Cache atualizado com 0 issues para URL: https://dequeuniversity.com/demo/mars/ (sessão: default)
+2026-08-09 17:22:13 [INFO] backend.src.middleware.logging_middleware: [HTTP] POST /analyze/url -> 200 (34256.7ms)
+2026-08-09 17:22:13 [INFO] httpx: HTTP Request: POST http://testserver/analyze/url "HTTP/1.1 200 OK"
+
+=== forms_and_widgets (only_agents=['forms_a11y', 'widgets_a11y']) elapsed=34.3s status=200 ===
+success=True error=None
+agents ran: ['forms_a11y', 'widgets_a11y']
+issues: 0

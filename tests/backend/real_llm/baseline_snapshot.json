@@ -1,0 +1,43 @@
+{
+  "_comment": "Baseline gerado por real_llm/test_02_agent_evals_real.py em 2026-08-09 contra Ollama Cloud tier alto. Regenerar via docs/real_llm_testing.md quando o prompt ou o modelo padrao mudarem de forma intencional.",
+  "_known_flakiness": "GC005 (screen_reader) falhou uma vez em 3 execucoes com 'No valid JSON output truncado antes de fechar as chaves) -- nao determinismo do provider real, nao um bug de parsing conhecido. Ver test_09_production_observability_real.py.",
+  "model": "deepseek-v4-flash:preview",
+  "provider": "ollama-cloud",
+  "cases": {
+    "GC001": {
+      "description": "img sem alt — WCAG 1.1.1",
+      "issue_count": 1,
+      "criteria": [
+        "1.1.1 Non-text Content"
+      ]
+    },
+    "GC002": {
+      "description": "button sem nome acessível — WCAG 4.1.2",
+      "issue_count": 1,
+      "criteria": [
+        "4.1.2 Name, Role, Value"
+      ]
+    },
+    "GC003": {
+      "description": "input sem label — WCAG 1.3.1",
+      "issue_count": 1,
+      "criteria": [
+        "1.3.1 Info and Relationships"
+      ]
+    },
+    "GC004": {
+      "description": "link sem texto visível — WCAG 2.4.4",
+      "issue_count": 1,
+      "criteria": [
+        "1.1.1 Non-text Content"
+      ]
+    },
+    "GC005": {
+      "description": "heading skip (h1 → h3) — WCAG 1.3.1",
+      "issue_count": 1,
+      "criteria": [
+        "1.3.1 Info and Relationships"
+      ]
+    }
+  }
+}
