@@ -1,0 +1,22 @@
+{
+  "name": "qaaccessibility-root",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2"
+  },
+  "lint-staged": {
+    "web/src/**/*.{ts,tsx}": [
+      "eslint --fix --max-warnings=0 --no-eslintrc -c web/.eslintrc.js",
+      "prettier --write"
+    ],
+    "web/src/**/*.{json,md}": [
+      "prettier --write"
+    ]
+  }
+}

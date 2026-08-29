@@ -1,0 +1,58 @@
+# Secrets / environment
+.env
+.env.*
+!.env.example
+
+# Cofre local de segredos (DPAPI/Fernet) — nunca versionar
+.secrets.json
+*.secrets.json
+backend/.secrets.json
+backend/.secrets.key
+*.secrets.key
+
+# Chaves e certificados
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+*.pid
+
+# Node
+node_modules/
+npm-debug.log*
+dist/
+build/
+.next/
+.turbo/
+
+# Logs
+logs/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Misc caches
+.cache/
+
+# Expo (cache de build local — nunca versionar)
+.expo/
+.expo-shared/

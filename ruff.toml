@@ -1,0 +1,27 @@
+# Ruff configuration — https://docs.astral.sh/ruff/configuration/
+line-length = 120
+
+[lint]
+# E = pycodestyle errors, W = warnings, F = pyflakes, I = isort
+# N = pep8-naming, UP = pyupgrade, B = flake8-bugbear, SIM = flake8-simplify
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM"]
+
+# E501: line-too-long — handled by ruff-format with line-length above
+# N806: uppercase constants inside functions are intentional (_MAX_*)
+ignore = ["E501", "N806"]
+
+# Não aplicar em arquivos gerados ou configurações
+exclude = [
+    ".venv",
+    "node_modules",
+    "__pycache__",
+    "*.egg-info",
+]
+
+[lint.per-file-ignores]
+# Testes: variáveis não usadas e asserts são esperados
+"tests/**" = ["F841", "S101"]
+# conftest.py precisa inserir PROJECT_ROOT em sys.path antes de importar
+# backend.src.main -- a ordem dos imports é intencional, não um erro.
+"tests/backend/conftest.py" = ["E402"]
+"scripts/**" = ["E402", "F841", "B007", "SIM105", "SIM108"]
