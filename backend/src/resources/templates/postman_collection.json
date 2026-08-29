@@ -1,0 +1,120 @@
+{
+  "info": {
+    "name": "QA Accessibility API & Contract Suite",
+    "_postman_id": "a11y-suite-2026",
+    "description": "Coleção de testes de API e contratos de acessibilidade (WCAG 2.2 / Section 508) para Postman e Newman CLI.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code e 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('API esta operacional', function () {",
+              "    var data = pm.response.json();",
+              "    pm.expect(data.status).to.eql('ok');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auditoria Webhook (POST /webhook/analyze)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"url\": \"https://example.com\",\n  \"max_pages\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/webhook/analyze",
+          "host": ["{{baseUrl}}"],
+          "path": ["webhook", "analyze"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Webhook aceito com sucesso (200)', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Retorna job_id para acompanhamento', function () {",
+              "    var data = pm.response.json();",
+              "    pm.expect(data).to.have.property('job_id');",
+              "    pm.environment.set('last_job_id', data.job_id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Resultado do Webhook (GET /webhook/result/:job_id)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/webhook/result/{{last_job_id}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["webhook", "result", "{{last_job_id}}"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Resposta valida de resultado de auditoria', function () {",
+              "    pm.response.to.have.status(200);",
+              "    var data = pm.response.json();",
+              "    pm.expect(data).to.have.property('status');",
+              "    if (data.status === 'done') {",
+              "        pm.test('Score de Acessibilidade >= 80', function () {",
+              "            pm.expect(data.score).to.be.at.least(80);",
+              "        });",
+              "        pm.test('Sem falhas criticas', function () {",
+              "            pm.expect(data.issues_by_severity.critical || 0).to.eql(0);",
+              "        });",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8001",
+      "type": "string"
+    }
+  ]
+}
