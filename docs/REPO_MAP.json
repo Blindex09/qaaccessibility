@@ -1,0 +1,541 @@
+{
+  "$schema_note": "Gerado por scripts/generate_repo_map.py -- nao editar a mao. Rode 'python scripts/generate_repo_map.py' apos mudar um agente.",
+  "agents": [
+    {
+      "name": "a11y_expert_reviewer",
+      "file": "backend/src/agents/a11y_expert_reviewer/a11y_expert_reviewer.py",
+      "entry_points": [
+        "run_a11y_expert_reviewer"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "You are a senior accessibility expert with deep expertise in WCAG 2.1/2.2,"
+    },
+    {
+      "name": "agentic_ai_ui",
+      "file": "backend/src/agents/agentic_ai_ui/agentic_ai_ui.py",
+      "entry_points": [
+        "run_agentic_ai_ui_agent"
+      ],
+      "id_prefixes": [
+        "agentic-ai"
+      ],
+      "guidelines": [
+        "WAI-ARIA"
+      ],
+      "responsibility": "You are a specialist in Agentic AI UI & LLM Messaging Accessibility. Your ONLY job is to audit chat interfaces, AI assistants, streaming responses, and Human-in-the-Loop (HITL) tool execution interfaces."
+    },
+    {
+      "name": "ajax_dynamic",
+      "file": "backend/src/agents/ajax_dynamic/ajax_dynamic.py",
+      "entry_points": [
+        "run_ajax_dynamic"
+      ],
+      "id_prefixes": [
+        "dynamic"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a dynamic content and AJAX accessibility specialist. Your ONLY job is to detect"
+    },
+    {
+      "name": "angular_framework",
+      "file": "backend/src/agents/angular_framework/angular_framework.py",
+      "entry_points": [
+        "run_angular_framework"
+      ],
+      "id_prefixes": [
+        "angular"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are an Angular framework accessibility specialist. Your ONLY job is to"
+    },
+    {
+      "name": "aria_specialist",
+      "file": "backend/src/agents/aria_specialist/aria_specialist.py",
+      "entry_points": [
+        "run_aria_specialist"
+      ],
+      "id_prefixes": [
+        "aria"
+      ],
+      "guidelines": [
+        "WAI-ARIA"
+      ],
+      "responsibility": "You are a WAI-ARIA 1.3 and ARIA in HTML (2026) specialist. Your ONLY job is to audit WAI-ARIA patterns deeply."
+    },
+    {
+      "name": "checklist",
+      "file": "backend/src/agents/checklist/checklist.py",
+      "entry_points": [
+        "run_checklist"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "You are a hybrid digital accessibility compliance specialist. Given a list of automated accessibility issues (detected via scanners) and the HTML content of the page, generate a structured, hybrid checklist for developers and stakeholders."
+    },
+    {
+      "name": "clarifier",
+      "file": "backend/src/agents/clarifier/clarifier.py",
+      "entry_points": [
+        "run_clarifier"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "You are the QA Accessibility Clarifier and Semantic Router. Your ONLY job is to analyze the user's incoming message and route it to the correct intent, determining if the message is within the scope of digital accessibility auditing or if it is ambiguous and needs clarification."
+    },
+    {
+      "name": "classifier",
+      "file": "backend/src/agents/classifier/classifier.py",
+      "entry_points": [
+        "run_classifier"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "You are a web technology and framework classifier. Your ONLY job is to analyze the provided HTML and determine which of the following specific frontend technologies/frameworks are used on the page:"
+    },
+    {
+      "name": "cognitive",
+      "file": "backend/src/agents/cognitive/cognitive.py",
+      "entry_points": [
+        "run_cognitive"
+      ],
+      "id_prefixes": [
+        "cognitive"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a cognitive accessibility specialist. Your ONLY job is to detect patterns"
+    },
+    {
+      "name": "compliance_audit",
+      "file": "backend/src/agents/compliance_audit/compliance_audit.py",
+      "entry_points": [
+        "run_compliance_audit"
+      ],
+      "id_prefixes": [
+        "compliance"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are an accessibility compliance auditor."
+    },
+    {
+      "name": "css_analyzer",
+      "file": "backend/src/agents/css_analyzer/css_analyzer.py",
+      "entry_points": [
+        "run_css_analyzer"
+      ],
+      "id_prefixes": [
+        "css"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a CSS accessibility specialist. Your ONLY job is to detect accessibility"
+    },
+    {
+      "name": "deep_research",
+      "file": "backend/src/agents/deep_research/deep_research.py",
+      "entry_points": [
+        "run_deep_research"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "Deep Research Agent — Pesquisa normativa iterativa de acessibilidade."
+    },
+    {
+      "name": "delegation_coordinator",
+      "file": "backend/src/agents/delegation_coordinator/delegation_coordinator.py",
+      "entry_points": [
+        "run_delegation_coordinator"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "You are the delegation coordinator of a multi-agent web accessibility audit pipeline."
+    },
+    {
+      "name": "design_review",
+      "file": "backend/src/agents/design_review/design_review.py",
+      "entry_points": [
+        "run_design_review"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "You are an accessibility design reviewer. Your job happens BEFORE any code is written --"
+    },
+    {
+      "name": "excel_accessibility",
+      "file": "backend/src/agents/excel_accessibility/excel_accessibility.py",
+      "entry_points": [
+        "run_excel_accessibility"
+      ],
+      "id_prefixes": [
+        "excel"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a Microsoft Excel (XLSX) accessibility specialist. Your ONLY job is to detect"
+    },
+    {
+      "name": "fixer",
+      "file": "backend/src/agents/fixer/fixer.py",
+      "entry_points": [
+        "run_fixer"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "You are an expert web accessibility engineer. You will receive an HTML document"
+    },
+    {
+      "name": "forms_a11y",
+      "file": "backend/src/agents/forms_a11y/forms_a11y.py",
+      "entry_points": [
+        "run_forms_a11y"
+      ],
+      "id_prefixes": [
+        "forms"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are an accessible forms specialist. Your ONLY job is to detect accessibility"
+    },
+    {
+      "name": "gap_research",
+      "file": "backend/src/agents/gap_research/gap_research.py",
+      "entry_points": [
+        "run_gap_research_check"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": ""
+    },
+    {
+      "name": "link_checker",
+      "file": "backend/src/agents/link_checker/link_checker.py",
+      "entry_points": [
+        "run_link_checker"
+      ],
+      "id_prefixes": [
+        "links"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a link accessibility specialist. Your ONLY job is to detect accessibility"
+    },
+    {
+      "name": "mobile_a11y",
+      "file": "backend/src/agents/mobile_a11y/mobile_a11y.py",
+      "entry_points": [
+        "run_mobile_a11y"
+      ],
+      "id_prefixes": [
+        "mobile"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a mobile web accessibility specialist. Your ONLY job is to detect accessibility"
+    },
+    {
+      "name": "niche_domains",
+      "file": "backend/src/agents/niche_domains/niche_domains.py",
+      "entry_points": [
+        "run_niche_domains_agent"
+      ],
+      "id_prefixes": [
+        "niche-auth"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a specialist in Niche Accessibility Domains (Passkeys/WebAuthn, Data Sonification, Kiosks/POS, and HTML Emails). Your ONLY job is to audit specialized authentication flows, SVG data charts, hardware kiosks, and email templates against WCAG 2.2 SC 3.3.7/3.3.8/3.3.9, ADA Title III, and EAA EN 301 549 standards."
+    },
+    {
+      "name": "operability",
+      "file": "backend/src/agents/operability/operability.py",
+      "entry_points": [
+        "run_operability"
+      ],
+      "id_prefixes": [
+        "operability"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a WCAG 2.2 Operability specialist (Principle 2)."
+    },
+    {
+      "name": "orchestrator",
+      "file": "backend/src/agents/orchestrator/orchestrator.py",
+      "entry_points": [
+        "orchestrate"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": ""
+    },
+    {
+      "name": "pdf_accessibility",
+      "file": "backend/src/agents/pdf_accessibility/pdf_accessibility.py",
+      "entry_points": [
+        "run_pdf_accessibility"
+      ],
+      "id_prefixes": [
+        "pdf"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a PDF accessibility specialist (PDF/UA -- ISO 14289-1, and PDF/UA-2 -- ISO 14289-2,"
+    },
+    {
+      "name": "perceiver",
+      "file": "backend/src/agents/perceiver/perceiver.py",
+      "entry_points": [
+        "run_perceiver"
+      ],
+      "id_prefixes": [
+        "perceiver"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a WCAG 2.2 Perceivability specialist (Principle 1)."
+    },
+    {
+      "name": "react_framework",
+      "file": "backend/src/agents/react_framework/react_framework.py",
+      "entry_points": [
+        "run_react_framework"
+      ],
+      "id_prefixes": [
+        "react"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a React and JavaScript framework accessibility specialist. Your ONLY job is to"
+    },
+    {
+      "name": "reporter",
+      "file": "backend/src/agents/reporter/reporter.py",
+      "entry_points": [
+        "run_reporter"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "You are a caring and empathetic accessibility consultant writing a report for a"
+    },
+    {
+      "name": "robustness",
+      "file": "backend/src/agents/robustness/robustness.py",
+      "entry_points": [
+        "run_robustness"
+      ],
+      "id_prefixes": [
+        "robustness"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a WCAG 2.2 Robustness specialist (Principle 4)."
+    },
+    {
+      "name": "screen_reader",
+      "file": "backend/src/agents/screen_reader/screen_reader.py",
+      "entry_points": [
+        "run_screen_reader"
+      ],
+      "id_prefixes": [
+        "screen-reader"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a screen reader compatibility specialist. Your ONLY job is to detect HTML"
+    },
+    {
+      "name": "section508",
+      "file": "backend/src/agents/section508/section508.py",
+      "entry_points": [
+        "run_section508"
+      ],
+      "id_prefixes": [
+        "s508"
+      ],
+      "guidelines": [
+        "ADA/Section 508"
+      ],
+      "responsibility": "You are an ADA/Section 508 compliance specialist (US Federal Standard)."
+    },
+    {
+      "name": "spatial_3d_xr",
+      "file": "backend/src/agents/spatial_3d_xr/spatial_3d_xr.py",
+      "entry_points": [
+        "run_spatial_3d_xr_agent"
+      ],
+      "id_prefixes": [
+        "spatial-3d"
+      ],
+      "guidelines": [
+        "W3C XAUR 2026"
+      ],
+      "responsibility": "You are a spatial computing & 3D canvas accessibility specialist. Your ONLY job is to audit WebXR (VR/AR), Three.js, Babylon.js, WebGL, and 3D Canvas interfaces against W3C XAUR 2026 standards and Video Game Accessibility Guidelines (XAG/GAG)."
+    },
+    {
+      "name": "svelte_framework",
+      "file": "backend/src/agents/svelte_framework/svelte_framework.py",
+      "entry_points": [
+        "run_svelte_framework"
+      ],
+      "id_prefixes": [
+        "svelte"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a Svelte and SvelteKit framework accessibility specialist. Your ONLY job is to"
+    },
+    {
+      "name": "tables_data",
+      "file": "backend/src/agents/tables_data/tables_data.py",
+      "entry_points": [
+        "run_tables_data"
+      ],
+      "id_prefixes": [
+        "tables"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a data table accessibility specialist. Your ONLY job is to detect accessibility"
+    },
+    {
+      "name": "tailwind_css",
+      "file": "backend/src/agents/tailwind_css/tailwind_css.py",
+      "entry_points": [
+        "run_tailwind_css"
+      ],
+      "id_prefixes": [
+        "tailwind"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a Tailwind CSS framework accessibility specialist. Your ONLY job is to"
+    },
+    {
+      "name": "test_generator",
+      "file": "backend/src/agents/test_generator/test_generator.py",
+      "entry_points": [
+        "run_test_generator"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "You are an expert accessibility test engineer combining:"
+    },
+    {
+      "name": "understandability",
+      "file": "backend/src/agents/understandability/understandability.py",
+      "entry_points": [
+        "run_understandability"
+      ],
+      "id_prefixes": [
+        "understandability"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a WCAG 2.2 Understandability specialist (Principle 3)."
+    },
+    {
+      "name": "visual_a11y",
+      "file": "backend/src/agents/visual_a11y/visual_a11y.py",
+      "entry_points": [
+        "run_visual_a11y"
+      ],
+      "id_prefixes": [
+        "visual-a11y"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a senior sighted web accessibility auditor specialist."
+    },
+    {
+      "name": "vpat_reporter",
+      "file": "backend/src/agents/vpat_reporter/vpat_reporter.py",
+      "entry_points": [
+        "run_vpat_reporter"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "You are a senior compliance auditor with expertise in WCAG 2.2, Section 508,"
+    },
+    {
+      "name": "vue_framework",
+      "file": "backend/src/agents/vue_framework/vue_framework.py",
+      "entry_points": [
+        "run_vue_framework"
+      ],
+      "id_prefixes": [
+        "vue"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a Vue.js and Nuxt framework accessibility specialist. Your ONLY job is to"
+    },
+    {
+      "name": "wcag_semantics",
+      "file": "backend/src/agents/wcag_semantics/wcag_semantics.py",
+      "entry_points": [
+        "run_wcag_semantics"
+      ],
+      "id_prefixes": [
+        "semantics"
+      ],
+      "guidelines": [
+        "WCAG 2.2"
+      ],
+      "responsibility": "You are a WCAG 2.2 web semantics specialist. Your ONLY job is to detect semantic"
+    },
+    {
+      "name": "web_components",
+      "file": "backend/src/agents/web_components/web_components.py",
+      "entry_points": [
+        "run_web_components_agent"
+      ],
+      "id_prefixes": [
+        "web-comp"
+      ],
+      "guidelines": [
+        "WAI-ARIA"
+      ],
+      "responsibility": "You are a Web Components & Custom Elements accessibility specialist. Your ONLY job is to audit Form-Associated Custom Elements (FACE), ElementInternals, Shadow DOM encapsulation, and Lit/Stencil components against W3C Custom Elements and ARIA specs."
+    },
+    {
+      "name": "widgets_a11y",
+      "file": "backend/src/agents/widgets_a11y/widgets_a11y.py",
+      "entry_points": [
+        "run_widgets_a11y"
+      ],
+      "id_prefixes": [
+        "widget"
+      ],
+      "guidelines": [
+        "WAI-ARIA"
+      ],
+      "responsibility": "You are a WAI-ARIA widget accessibility specialist. Your ONLY job is to detect"
+    }
+  ]
+}
