@@ -1,0 +1,15 @@
+{
+  "_comment": "Configuracao do servidor MCP QA Accessibility. Cole este bloco no claude_desktop_config.json (seccao mcpServers) ou no settings.json do VS Code (seccao mcp.servers). Substitua os valores das variaveis de ambiente pelos seus.",
+  "mcpServers": {
+    "qa-accessibility": {
+      "command": "python",
+      "args": ["backend/src/services/mcp_server.py"],
+      "env": {
+        "PYTHONPATH": ".",
+        "BROWSERLESS_URL": "${BROWSERLESS_URL}",
+        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}",
+        "MCP_TRANSPORT": "stdio"
+      }
+    }
+  }
+}
