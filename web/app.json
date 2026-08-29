@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "QA Accessibility",
+    "slug": "qaaccessibility-web",
+    "version": "1.0.0",
+    "platforms": ["web"],
+    "sdkVersion": "51.0.0",
+    "web": {
+      "bundler": "webpack"
+    }
+  }
+}
