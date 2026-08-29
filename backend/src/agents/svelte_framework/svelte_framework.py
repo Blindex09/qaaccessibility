@@ -102,8 +102,17 @@ async def run_svelte_framework(html_content: str) -> AgentResult:
     # Pre-filter: se o HTML nao contem indicadores Svelte, pula o LLM (mesmo
     # padrao de vue_framework.py -- evita custo de LLM sem evidencia estrutural).
     svelte_indicators = [
-        "data-svelte-h", "svelte-", "{#if", "{#each", "{#snippet", "{@html",
-        "{@render", "transition:", "in:", "out:", "sveltekit",
+        "data-svelte-h",
+        "svelte-",
+        "{#if",
+        "{#each",
+        "{#snippet",
+        "{@html",
+        "{@render",
+        "transition:",
+        "in:",
+        "out:",
+        "sveltekit",
     ]
     if not any(ind in html_content for ind in svelte_indicators):
         logger.info("[SvelteFrameworkAgent] Nenhum indicador Svelte encontrado — pulando análise")

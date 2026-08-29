@@ -64,7 +64,9 @@ def save_scan(url: str, issues: list[dict[str, Any]]) -> None:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(
                 {"url": url, "issues": issues, "scanned_at": time.time()},
-                f, ensure_ascii=False, indent=2,
+                f,
+                ensure_ascii=False,
+                indent=2,
             )
     except OSError as exc:
         logger.warning("[UrlScanHistory] Falha ao salvar histórico de %s: %s", url, exc)

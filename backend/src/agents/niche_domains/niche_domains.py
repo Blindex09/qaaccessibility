@@ -86,7 +86,9 @@ async def run_niche_domains_agent(html_content: str) -> AgentResult:
     """
     logger.info("[NicheDomainsAgent] Iniciando analise de dominios de nicho...")
     try:
-        user_prompt = f"Audit the following HTML/JS content for Niche Domains accessibility failures:\n\n{html_content[:15000]}"
+        user_prompt = (
+            f"Audit the following HTML/JS content for Niche Domains accessibility failures:\n\n{html_content[:15000]}"
+        )
         issues = await call_llm_structured(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=user_prompt,

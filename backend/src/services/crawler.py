@@ -75,6 +75,7 @@ def _normalize(url: str) -> str:
 def _extract_links_soup(html_content: str, base_url: str) -> list[str]:
     """Extrai todos os links internos de uma página HTML usando BeautifulSoup."""
     from bs4 import BeautifulSoup
+
     try:
         soup = BeautifulSoup(html_content, "html.parser")
         links: list[str] = []
@@ -104,15 +105,9 @@ class CrawlPageResult:
 def _discover_site_links_firecrawl(url: str, api_key: str, limit: int = 10) -> list[str] | None:
     """Usa o endpoint /v2/map do Firecrawl para obter links internos rapidamente."""
     req_url = "https://api.firecrawl.dev/v2/map"
-    payload = {
-        "url": url,
-        "limit": limit
-    }
+    payload = {"url": url, "limit": limit}
 
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
     try:
         data = json.dumps(payload).encode("utf-8")
@@ -160,22 +155,29 @@ async def crawl_site(
     logger.info("[Crawler] Iniciando crawl: %s (max %d páginas)", start_url, max_pages)
 
     from backend.src.config.settings import get_settings
+
     settings = get_settings()
 
     is_public = True
     hostname = urlparse(start_url).hostname or ""
-    if hostname.lower() in ("localhost", "127.0.0.1", "0.0.0.0") or hostname.endswith(".test") or hostname.endswith(".local"):
+    if (
+        hostname.lower() in ("localhost", "127.0.0.1", "0.0.0.0")
+        or hostname.endswith(".test")
+        or hostname.endswith(".local")
+    ):
         is_public = False
 
     firecrawl_key = getattr(settings, "firecrawl_api_key", None)
     if firecrawl_key and is_public:
         logger.info("[Crawler] Usando Firecrawl /v2/map para descoberta de links de %s", start_url)
         import asyncio
+
         links = await asyncio.to_thread(_discover_site_links_firecrawl, start_url, firecrawl_key, max_pages)
         if links:
             logger.info("[Crawler] Firecrawl encontrou %d links: %s", len(links), links)
             results: list[CrawlPageResult] = []
             from backend.src.services.browser import fetch_rendered_html
+
             for link in links:
                 try:
                     html = await fetch_rendered_html(link, cookies=cookies, auth_headers=auth_headers)

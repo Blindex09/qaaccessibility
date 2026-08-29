@@ -86,7 +86,6 @@ Return ONLY valid JSON array. No markdown. Empty array [] if all false positives
 """.strip()
 
 
-
 async def run_a11y_expert_reviewer(
     issues: list[AccessibilityIssue],
     known_false_positive_patterns: list[dict] | None = None,
@@ -128,7 +127,9 @@ async def run_a11y_expert_reviewer(
     # Batch processing: quando muitos issues, divide em lotes de 20
     BATCH_SIZE = 20
     if len(issues) > BATCH_SIZE:
-        return await _review_in_batches(issues, batch_size=BATCH_SIZE, known_false_positive_patterns=known_false_positive_patterns)
+        return await _review_in_batches(
+            issues, batch_size=BATCH_SIZE, known_false_positive_patterns=known_false_positive_patterns
+        )
 
     return await _review_single_batch(issues, known_false_positive_patterns=known_false_positive_patterns)
 
@@ -223,13 +224,11 @@ async def _review_in_batches(
         batch_size,
     )
 
-    batches = [
-        issues[i : i + batch_size]
-        for i in range(0, len(issues), batch_size)
-    ]
+    batches = [issues[i : i + batch_size] for i in range(0, len(issues), batch_size)]
 
     # Processa lotes em paralelo (max 3 concorrentes)
     import asyncio
+
     semaphore = asyncio.Semaphore(3)
 
     async def _process_batch(batch: list[AccessibilityIssue], idx: int) -> AgentResult:
@@ -237,9 +236,7 @@ async def _review_in_batches(
             logger.info("[A11yExpertReviewer] Processando lote %d/%d (%d issues)", idx + 1, len(batches), len(batch))
             return await _review_single_batch(batch, known_false_positive_patterns=known_false_positive_patterns)
 
-    results = await asyncio.gather(
-        *[_process_batch(batch, i) for i, batch in enumerate(batches)]
-    )
+    results = await asyncio.gather(*[_process_batch(batch, i) for i, batch in enumerate(batches)])
 
     # Merge: mantem so os issues que passaram na revisao de cada lote
     all_reviewed: list[dict] = []

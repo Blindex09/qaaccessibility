@@ -91,7 +91,9 @@ async def run_agentic_ai_ui_agent(html_content: str) -> AgentResult:
     """
     logger.info("[AgenticAIUIAgent] Iniciando analise de interfaces agenticas...")
     try:
-        user_prompt = f"Audit the following HTML/JS content for Agentic AI UI accessibility failures:\n\n{html_content[:15000]}"
+        user_prompt = (
+            f"Audit the following HTML/JS content for Agentic AI UI accessibility failures:\n\n{html_content[:15000]}"
+        )
         issues = await call_llm_structured(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=user_prompt,

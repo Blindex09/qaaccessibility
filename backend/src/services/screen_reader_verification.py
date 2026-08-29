@@ -26,11 +26,27 @@ logger = logging.getLogger(__name__)
 # anuncia literalmente essas palavras, que nao ajudam o usuario a decidir se
 # deve ativar o controle. Bilingue (PT/EN) porque a arvore real reflete o
 # idioma real da pagina auditada.
-_GENERIC_NAMES = frozenset({
-    "button", "link", "click here", "clique aqui", "clique", "saiba mais",
-    "read more", "here", "aqui", "more", "mais", "ok", "submit", "enviar",
-    "menu", "icon", "icone",
-})
+_GENERIC_NAMES = frozenset(
+    {
+        "button",
+        "link",
+        "click here",
+        "clique aqui",
+        "clique",
+        "saiba mais",
+        "read more",
+        "here",
+        "aqui",
+        "more",
+        "mais",
+        "ok",
+        "submit",
+        "enviar",
+        "menu",
+        "icon",
+        "icone",
+    }
+)
 
 # Maximo de achados lidos em voz alta por chamada -- ler dezenas de achados em
 # sequencia real via NVDA nao ajuda confirmacao humana, so satura a fala.
@@ -128,7 +144,11 @@ async def verify_screen_reader_announcements(
 
     logger.info(
         "[ScreenReaderVerification] %s: %d nos interativos, %d achados, NVDA rodando=%s, lidos=%d",
-        url, interactive_count, len(findings), nvda_running, spoken_findings,
+        url,
+        interactive_count,
+        len(findings),
+        nvda_running,
+        spoken_findings,
     )
     return ScreenReaderVerificationResult(
         url=url,

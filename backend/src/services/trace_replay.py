@@ -76,7 +76,9 @@ def save_trace(trace: Trace, directory: str = DEFAULT_TRACE_DIR) -> str:
         json.dump(trace.to_dict(), f, ensure_ascii=False, indent=2, default=str)
     logger.info(
         "[TraceReplay] Trace '%s' salvo com %d passos em %s",
-        trace.trace_id, len(trace.steps), path,
+        trace.trace_id,
+        len(trace.steps),
+        path,
     )
     return path
 
@@ -106,8 +108,7 @@ class TraceReplayer:
     def next(self) -> TraceStep:
         if not self.has_next():
             raise StopIteration(
-                f"Trace '{self._trace.trace_id}' esgotado -- nao ha mais "
-                "passos gravados para reproduzir."
+                f"Trace '{self._trace.trace_id}' esgotado -- nao ha mais passos gravados para reproduzir."
             )
         step = self._trace.steps[self._cursor]
         self._cursor += 1

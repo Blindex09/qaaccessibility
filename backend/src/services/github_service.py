@@ -76,10 +76,7 @@ def create_github_issue(
                 "title": title,
             }
         else:
-            logger.error(
-                "[github_service] Erro ao criar Issue (HTTP %d): %s",
-                response.status_code, response.text
-            )
+            logger.error("[github_service] Erro ao criar Issue (HTTP %d): %s", response.status_code, response.text)
             return {"status": "error", "error": response.text, "status_code": response.status_code}
     except Exception as exc:
         logger.error("[github_service] Exceção ao conectar ao GitHub: %s", exc)

@@ -61,6 +61,7 @@ def export_xlsx(issues_json: str) -> str:
     codificado em base64.
     """
     import base64
+
     logger.info("Ferramenta export_xlsx chamada.")
     try:
         data = json.loads(issues_json)
@@ -69,7 +70,6 @@ def export_xlsx(issues_json: str) -> str:
     except Exception as exc:
         logger.error("Erro em export_xlsx: %s", exc)
         return f"Erro ao exportar planilha XLSX: {str(exc)}"
-
 
 
 @mcp.tool()
@@ -104,13 +104,17 @@ async def analyze_page_full(url: str = "", html: str = "") -> str:
             by_severity[sev] = by_severity.get(sev, 0) + 1
         score = max(0, 100 - sum(_severity_deduction.get(sev, 0) * count for sev, count in by_severity.items()))
 
-        return json.dumps({
-            "url": url or "(html inline)",
-            "score": score,
-            "total_issues": len(issues),
-            "issues_by_severity": by_severity,
-            "top_issues": issues[:10],
-        }, ensure_ascii=False, default=str)
+        return json.dumps(
+            {
+                "url": url or "(html inline)",
+                "score": score,
+                "total_issues": len(issues),
+                "issues_by_severity": by_severity,
+                "top_issues": issues[:10],
+            },
+            ensure_ascii=False,
+            default=str,
+        )
     except Exception as exc:
         logger.error("[MCP] analyze_page_full erro: %s", exc)
         return json.dumps({"error": str(exc)}, ensure_ascii=False)
@@ -126,6 +130,7 @@ async def analyze_site_full(url: str, max_pages: int = 10) -> str:
     logger.info("[MCP] analyze_site_full: url=%s max_pages=%d", url, max_pages)
     try:
         from backend.src.services.chat_tools import _run_site_crawl_and_analyze
+
         max_pages = min(max(1, max_pages), 50)
         result = await _run_site_crawl_and_analyze(url=url, urls=None, max_pages=max_pages)
         return json.dumps(result, ensure_ascii=False, default=str)
@@ -161,7 +166,8 @@ if __name__ == "__main__":
     if _transport_env not in _VALID_TRANSPORTS:
         logger.warning(
             "[MCP] MCP_TRANSPORT=%s inválido (esperado um de %s); usando 'stdio'.",
-            _transport_env, _VALID_TRANSPORTS,
+            _transport_env,
+            _VALID_TRANSPORTS,
         )
         _transport_env = "stdio"
     logger.info("Iniciando servidor MCP 'QA-Accessibility-Tools' (transport=%s)...", _transport_env)

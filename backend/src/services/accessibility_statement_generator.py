@@ -14,6 +14,7 @@ encontrou (issues, critérios WCAG, severidades) e usa placeholders visíveis
 ("[Nome da Organização]" etc.) quando a organização não informa esses dados
 -- nunca inventa um nome de empresa, e-mail ou telefone.
 """
+
 import logging
 from html import escape
 from typing import Any
@@ -79,7 +80,8 @@ def _group_by_criterion(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
         criterion = str(issue.get("criterion") or "Critério não identificado")
         sev = _severity_of(issue)
         group = groups.setdefault(
-            criterion, {"criterion": criterion, "count": 0, "severity": sev, "description": issue.get("description") or ""}
+            criterion,
+            {"criterion": criterion, "count": 0, "severity": sev, "description": issue.get("description") or ""},
         )
         group["count"] += 1
         is_ranked_pair = sev in _SEVERITY_ORDER and group["severity"] in _SEVERITY_ORDER
@@ -87,7 +89,9 @@ def _group_by_criterion(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
             group["severity"] = sev
     return sorted(
         groups.values(),
-        key=lambda g: _SEVERITY_ORDER.index(g["severity"]) if g["severity"] in _SEVERITY_ORDER else len(_SEVERITY_ORDER),
+        key=lambda g: (
+            _SEVERITY_ORDER.index(g["severity"]) if g["severity"] in _SEVERITY_ORDER else len(_SEVERITY_ORDER)
+        ),
     )
 
 
@@ -145,8 +149,8 @@ def render_accessibility_statement_html(statement: dict[str, Any]) -> str:
                 f'<li style="border-left-color:{color}">'
                 f'<span class="severity" style="color:{color}">{escape(label)}</span> '
                 f'<span class="criterion">{escape(item["criterion"])}</span> '
-                f'({item["count"]} ocorrência(s))'
-                + (f'<div>{escape(item["description"][:240])}</div>' if item["description"] else "")
+                f"({item['count']} ocorrência(s))"
+                + (f"<div>{escape(item['description'][:240])}</div>" if item["description"] else "")
                 + "</li>"
             )
         limitations_html = f"<h2>Limitações conhecidas</h2><ul>{''.join(rows)}</ul>"

@@ -42,7 +42,8 @@ async def design_review(body: DesignReviewRequest) -> AgentResult:
 
     logger.info(
         "[Route] POST /analyze/design-review -- %d chars, component_type=%s",
-        len(body.requirement_text), body.component_type or "não informado",
+        len(body.requirement_text),
+        body.component_type or "não informado",
     )
     result = await run_design_review(body.requirement_text, body.component_type)
 

@@ -249,6 +249,7 @@ def cosine_similarity(left: list[float], right: list[float]) -> float:
 # Index
 # --------------------------------------------------------------------------- #
 
+
 def _corpus_fingerprint(chunks: list[KnowledgeChunk]) -> str:
     digest = hashlib.sha256()
     # O espaço vetorial faz parte da identidade do índice: trocar o modelo de
@@ -297,7 +298,8 @@ def build_index(chunks: list[KnowledgeChunk] | None = None) -> sqlite3.Connectio
     if embeddings is not None and len(embeddings) != len(corpus):
         logger.error(
             "[a11y_knowledge] Provider devolveu %d embeddings para %d chunks; busca semântica desativada.",
-            len(embeddings), len(corpus),
+            len(embeddings),
+            len(corpus),
         )
         embeddings = None
 
@@ -314,7 +316,9 @@ def build_index(chunks: list[KnowledgeChunk] | None = None) -> sqlite3.Connectio
     connection.commit()
     logger.info(
         "[a11y_knowledge] Índice construído com %d chunks (embeddings: %s) em %s",
-        len(corpus), "sim" if embeddings is not None else "não", path,
+        len(corpus),
+        "sim" if embeddings is not None else "não",
+        path,
     )
     return connection
 
@@ -335,11 +339,7 @@ def _fts_query(question: str) -> str:
     User messages carry quotes, asterisks and parentheses, all of which are FTS5
     operators -- passing them raw raises `sqlite3.OperationalError`.
     """
-    tokens = [
-        token.lower()
-        for token in _TOKEN_RE.findall(question)
-        if len(token) >= _MIN_TOKEN_LEN
-    ]
+    tokens = [token.lower() for token in _TOKEN_RE.findall(question) if len(token) >= _MIN_TOKEN_LEN]
     return " OR ".join(f'"{token}"' for token in dict.fromkeys(tokens))
 
 
@@ -357,9 +357,7 @@ def search_keyword(connection: sqlite3.Connection, question: str, limit: int = _
 
 def search_semantic(connection: sqlite3.Connection, question: str, limit: int = _CANDIDATE_K) -> list[str]:
     """Cosine ranking over the stored embeddings. Empty when unavailable."""
-    rows = connection.execute(
-        "SELECT chunk_id, embedding FROM chunks WHERE embedding IS NOT NULL"
-    ).fetchall()
+    rows = connection.execute("SELECT chunk_id, embedding FROM chunks WHERE embedding IS NOT NULL").fetchall()
     if not rows:
         return []
 
@@ -470,9 +468,7 @@ def _parse_rerank_order(raw: str, candidate_count: int) -> list[int]:
     return ordered
 
 
-async def rerank_chunks(
-    question: str, candidates: list[KnowledgeChunk], top_k: int = _TOP_K
-) -> list[KnowledgeChunk]:
+async def rerank_chunks(question: str, candidates: list[KnowledgeChunk], top_k: int = _TOP_K) -> list[KnowledgeChunk]:
     """Reorder fused candidates by LLM-judged relevance, then cut to `top_k`.
 
     Mirrors the structured-decision pattern already used by `evaluate_research`.
@@ -484,9 +480,7 @@ async def rerank_chunks(
 
     from backend.src.services.llm_client import call_llm
 
-    listing = "\n\n".join(
-        f"[{index}] {chunk.title}\n{chunk.text[:600]}" for index, chunk in enumerate(candidates)
-    )
+    listing = "\n\n".join(f"[{index}] {chunk.title}\n{chunk.text[:600]}" for index, chunk in enumerate(candidates))
     try:
         raw = await call_llm(
             system_prompt=_RERANK_SYSTEM_PROMPT,

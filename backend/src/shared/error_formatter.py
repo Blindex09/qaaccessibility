@@ -20,7 +20,16 @@ def format_human_friendly_error(raw_error: object) -> str:
     err_lower = err_str.lower()
 
     # 402 / Quota / Balance Empty / Payment Required
-    if any(k in err_lower for k in ("402", "extra usage balance is empty", "insufficient_quota", "payment required", "credit_balance_too_low")):
+    if any(
+        k in err_lower
+        for k in (
+            "402",
+            "extra usage balance is empty",
+            "insufficient_quota",
+            "payment required",
+            "credit_balance_too_low",
+        )
+    ):
         msg = (
             "O saldo de créditos do provedor de IA atual se esgotou.\n\n"
             "Como resolver:\n"
@@ -32,7 +41,17 @@ def format_human_friendly_error(raw_error: object) -> str:
         return msg
 
     # 401 / Invalid API Key / Unauthorized / Authentication
-    if any(k in err_lower for k in ("401", "invalid api key", "unauthorized", "authentication_error", "invalid_api_key", "incorrect api key")):
+    if any(
+        k in err_lower
+        for k in (
+            "401",
+            "invalid api key",
+            "unauthorized",
+            "authentication_error",
+            "invalid_api_key",
+            "incorrect api key",
+        )
+    ):
         return (
             "A chave de API (API Key) do provedor selecionado é inválida ou expirou.\n\n"
             "Como resolver:\n"
@@ -91,7 +110,20 @@ def format_human_friendly_error(raw_error: object) -> str:
         )
 
     # 500 / 502 / 503 / 504 / 529 / Service Unavailable / Overloaded
-    if any(k in err_lower for k in ("500", "502", "503", "504", "529", "overloaded", "service unavailable", "internal server error", "bad gateway")):
+    if any(
+        k in err_lower
+        for k in (
+            "500",
+            "502",
+            "503",
+            "504",
+            "529",
+            "overloaded",
+            "service unavailable",
+            "internal server error",
+            "bad gateway",
+        )
+    ):
         return (
             "O serviço do provedor de IA está temporariamente sobrecarregado ou indisponível.\n\n"
             "Como resolver:\n"
@@ -100,7 +132,20 @@ def format_human_friendly_error(raw_error: object) -> str:
         )
 
     # Rede / Timeout / Connection Refused
-    if any(k in err_lower for k in ("connection refused", "connecterror", "connecttimeout", "readtimeout", "networkerror", "failed to connect", "socket", "timed out", "timeout")):
+    if any(
+        k in err_lower
+        for k in (
+            "connection refused",
+            "connecterror",
+            "connecttimeout",
+            "readtimeout",
+            "networkerror",
+            "failed to connect",
+            "socket",
+            "timed out",
+            "timeout",
+        )
+    ):
         return (
             "Não foi possível se conectar ao provedor de IA.\n\n"
             "Como resolver:\n"
@@ -111,4 +156,3 @@ def format_human_friendly_error(raw_error: object) -> str:
 
     # Fallback padrão amigável para outros erros
     return f"Não foi possível obter resposta do provedor de IA no momento.\nDetalhe técnico: {err_str}"
-

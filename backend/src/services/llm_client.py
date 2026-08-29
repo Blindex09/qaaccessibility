@@ -200,7 +200,7 @@ def _extract_partial_json_array(text: str) -> list | None:
             return None
 
         # Pega tudo ate o ultimo '}' + fecha o array
-        partial = cleaned[:last_brace + 1]
+        partial = cleaned[: last_brace + 1]
         # Se termina com '},' ou '}' sem array, fecha com ']'
         if partial.rstrip().endswith(","):
             partial = partial.rstrip()[:-1]  # remove trailing comma
@@ -350,11 +350,14 @@ async def call_llm(
         effort_tradeoff = 9
     else:
         from backend.src.services.complexity_router import get_current_tradeoff
+
         effort_tradeoff = get_current_tradeoff()
     initial_reasoning_effort = _reasoning_effort_for_tradeoff(effort_tradeoff)
     logger.info(
         "[Effort] agent_label=%s tradeoff=%d -> reasoning_effort=%s",
-        label_lower or "leaf", effort_tradeoff, initial_reasoning_effort,
+        label_lower or "leaf",
+        effort_tradeoff,
+        initial_reasoning_effort,
     )
 
     provider, model = resolve_model_and_provider(
@@ -408,11 +411,14 @@ async def call_llm(
             # chamadas que de fato bateram no provider (nunca cache hit nem o
             # sentinel "[]" do batch collector, tratados antes deste ponto).
             from backend.src.services.model_reliability import record_call_outcome
+
             duration_ms = (time.monotonic() - call_start) * 1000
             record_call_outcome(cand_provider, cand_model, success, duration_ms)
             # Hooks plugáveis (agent_hooks.py) -- observadores externos (telemetria
             # custom, auditoria, testes) podem se registrar sem tocar neste arquivo.
-            agent_hooks.fire(agent_hooks.POST_LLM_CALL, cand_provider, cand_model, cand_task_id, label, success, duration_ms)
+            agent_hooks.fire(
+                agent_hooks.POST_LLM_CALL, cand_provider, cand_model, cand_task_id, label, success, duration_ms
+            )
             if not success:
                 agent_hooks.fire(agent_hooks.ON_ERROR, cand_provider, cand_model, cand_task_id, label, error)
 
@@ -428,11 +434,14 @@ async def call_llm(
             bool(fallback_model),
         )
 
-        async def _run(apply_temperature: bool, reasoning_effort: str | None, cur_system_prompt: str, cur_user_prompt: str) -> dict:
+        async def _run(
+            apply_temperature: bool, reasoning_effort: str | None, cur_system_prompt: str, cur_user_prompt: str
+        ) -> dict:
             eff_sys = cur_system_prompt
             eff_schema = response_schema
             if cand_provider in ("ollama-cloud", "ollama_cloud"):
                 from backend.src.services.ollama_cloud_adapter import adapt_ollama_cloud_request
+
                 eff_sys, eff_schema = adapt_ollama_cloud_request(cur_system_prompt, response_schema)
 
             request_overrides: dict[str, Any] = {}
@@ -476,9 +485,7 @@ async def call_llm(
             error = res.get("error") or ""
             if apply_temperature and _provider_rejected_temperature(error):
                 apply_temperature = False
-                logger.info(
-                    "[AIAgent]%s provider recusou 'temperature'; refazendo sem ela", log_ctx
-                )
+                logger.info("[AIAgent]%s provider recusou 'temperature'; refazendo sem ela", log_ctx)
                 res = await _run(apply_temperature, reasoning_effort, cur_system_prompt, cur_user_prompt)
                 continue
             if reasoning_effort is not None and _provider_rejected_parameter(error, "reasoning_effort"):
@@ -507,14 +514,12 @@ async def call_llm(
             original_system_prompt = cur_system_prompt
             original_user_prompt = cur_user_prompt
             cur_system_prompt = (
-                original_system_prompt
-                + "\n\nRECOVERY MODE: Your previous answer had no visible content. "
+                original_system_prompt + "\n\nRECOVERY MODE: Your previous answer had no visible content. "
                 "Return ONLY the requested JSON payload. Do not include reasoning, "
                 "markdown, comments, or prose. If there are no findings, return [] exactly."
             )
             cur_user_prompt = (
-                original_user_prompt
-                + "\n\nReturn the final answer now as valid JSON only. "
+                original_user_prompt + "\n\nReturn the final answer now as valid JSON only. "
                 "If the expected result is a list, return a JSON array."
             )
             apply_temperature = True
@@ -602,7 +607,10 @@ async def call_llm(
                 logger.warning(
                     "[AIAgent]%s modelo verificado %s/%s da cadeia de structured output falhou (%s); "
                     "tentando o proximo da cadeia.",
-                    log_ctx, cand_provider, cand_model, exc,
+                    log_ctx,
+                    cand_provider,
+                    cand_model,
+                    exc,
                 )
                 continue
             raise
@@ -678,15 +686,13 @@ async def call_llm_structured(
                     current_max_tokens,
                 )
                 prompt = (
-                    user_prompt
-                    + "\n\nIMPORTANT: Your previous response was cut off by the output limit. "
+                    user_prompt + "\n\nIMPORTANT: Your previous response was cut off by the output limit. "
                     "Continue the JSON array exactly where you left off. Do NOT restart. "
                     "Finish the array and close it properly with ']'"
                 )
             else:
                 prompt = (
-                    user_prompt
-                    + "\n\nIMPORTANT: Your previous response was not valid JSON for the "
+                    user_prompt + "\n\nIMPORTANT: Your previous response was not valid JSON for the "
                     "required schema. Return ONLY the JSON, no markdown fences, no prose, "
                     "and include every required field exactly as specified."
                 )

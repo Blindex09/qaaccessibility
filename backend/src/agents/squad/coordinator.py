@@ -23,7 +23,13 @@ def build_squad_plan(objective: str, *, include_implementation: bool = True) -> 
             title="Executar análise especializada de acessibilidade",
             role=SquadRole.A11Y_SPECIALIST,
             depends_on=["product-scope"],
-            specialist_agents=["orchestrator", "delegation_coordinator", "wcag_semantics", "aria_specialist", "screen_reader"],
+            specialist_agents=[
+                "orchestrator",
+                "delegation_coordinator",
+                "wcag_semantics",
+                "aria_specialist",
+                "screen_reader",
+            ],
             acceptance_criteria=["achados deduplicados", "evidências por elemento", "severidade e critério WCAG"],
             artifacts=["analysis_report"],
         ),
@@ -36,7 +42,11 @@ def build_squad_plan(objective: str, *, include_implementation: bool = True) -> 
                 role=SquadRole.DEVELOPER,
                 depends_on=["a11y-analysis"],
                 specialist_agents=["fixer"],
-                acceptance_criteria=["somente mudanças aprovadas", "checkpoint reversível criado", "HTML/artefato corrigido renderiza"],
+                acceptance_criteria=[
+                    "somente mudanças aprovadas",
+                    "checkpoint reversível criado",
+                    "HTML/artefato corrigido renderiza",
+                ],
                 artifacts=["fixed_artifact", "change_summary"],
             )
         )
@@ -58,7 +68,11 @@ def build_squad_plan(objective: str, *, include_implementation: bool = True) -> 
                 role=SquadRole.DOCUMENTATION,
                 depends_on=["qa-validation"],
                 specialist_agents=["checklist", "vpat_reporter"],
-                acceptance_criteria=["relatório reproduzível", "limitações registradas", "artefatos prontos para entrega"],
+                acceptance_criteria=[
+                    "relatório reproduzível",
+                    "limitações registradas",
+                    "artefatos prontos para entrega",
+                ],
                 artifacts=["checklist", "report", "release_evidence"],
             ),
         ]

@@ -44,9 +44,7 @@ def _verify_github_signature(payload_body: bytes, signature_header: str | None) 
         return True  # Sem segredo configurado, aceita todos os pedidos
     if not signature_header:
         return False
-    expected = "sha256=" + hmac.new(
-        secret.encode(), payload_body, hashlib.sha256
-    ).hexdigest()
+    expected = "sha256=" + hmac.new(secret.encode(), payload_body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature_header)
 
 
@@ -63,6 +61,7 @@ async def _run_analysis_job(job_id: str, payload: AnalyzePayload) -> None:
 
         if url and not html:
             from backend.src.services.browser import fetch_rendered_html_screenshot_and_focus_states
+
             html, _screenshot, _focus_screenshots = await fetch_rendered_html_screenshot_and_focus_states(url)
 
         if not html:

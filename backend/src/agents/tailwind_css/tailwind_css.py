@@ -82,7 +82,7 @@ async def run_tailwind_css(html_content: str) -> AgentResult:
     try:
         issues = await call_llm_structured(
             system_prompt=SYSTEM_PROMPT,
-            user_prompt=("Analyze Tailwind CSS-specific accessibility issues " f"in this HTML:\n\n{html_content}"),
+            user_prompt=(f"Analyze Tailwind CSS-specific accessibility issues in this HTML:\n\n{html_content}"),
             build=lambda raw: [AccessibilityIssue(**i) for i in extract_json_array(raw)],
             response_schema=ISSUES_RESPONSE_SCHEMA,
             temperature=0.1,

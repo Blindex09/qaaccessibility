@@ -14,6 +14,7 @@ router = APIRouter(
     tags=["settings"],
 )
 
+
 def _reject_newlines(value: str, field_name: str) -> str:
     """Rejects embedded newlines/carriage returns before a value is written into a
     `KEY=value` line of the .env file. Without this, a value like
@@ -92,10 +93,7 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
     if body.chat_llm_base_url is not None:
         _reject_newlines(body.chat_llm_base_url, "chat_llm_base_url")
 
-    logger.info(
-        "[Settings] Atualizando configs do LLM. Provider=%s, Model=%s",
-        body.llm_provider, body.llm_model
-    )
+    logger.info("[Settings] Atualizando configs do LLM. Provider=%s, Model=%s", body.llm_provider, body.llm_model)
 
     # Ler linhas existentes
     env_lines = []
@@ -178,8 +176,11 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
                 written_keys.add(key_strip)
             else:
                 deletable_keys = {
-                    "LLM_API_KEY", "CHAT_LLM_PROVIDER", "CHAT_LLM_API_KEY",
-                    "CHAT_LLM_MODEL", "CHAT_LLM_BASE_URL",
+                    "LLM_API_KEY",
+                    "CHAT_LLM_PROVIDER",
+                    "CHAT_LLM_API_KEY",
+                    "CHAT_LLM_MODEL",
+                    "CHAT_LLM_BASE_URL",
                 }
                 if key_strip in deletable_keys and key_strip not in env_vars:
                     continue
@@ -283,4 +284,3 @@ async def update_service_key_route(body: ServiceKeyUpdateBody) -> dict:
 
     logger.info("[Settings] Chave de serviço %s atualizada em tempo de execução.", target_env_var)
     return {"status": "ok", "service": body.service_name, "env_var": target_env_var}
-

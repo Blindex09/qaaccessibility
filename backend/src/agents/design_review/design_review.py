@@ -64,7 +64,8 @@ async def run_design_review(requirement_text: str, component_type: str | None = 
     data={"risk_flags": [...]}."""
     logger.info(
         "[DesignReviewAgent] Revisando requisito (%d chars, component_type=%s)",
-        len(requirement_text), component_type or "não informado",
+        len(requirement_text),
+        component_type or "não informado",
     )
 
     truncated = requirement_text[:_MAX_REQUIREMENT_CHARS]

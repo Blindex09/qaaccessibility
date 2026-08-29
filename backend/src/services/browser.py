@@ -37,9 +37,7 @@ _NETWORK_IDLE_TIMEOUT = 20_000
 _NAV_TIMEOUT = 30_000
 # User-agent moderno para evitar bloqueios de bot
 _USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/120.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 
 _INJECT_GEOMETRY_JS = """() => {
@@ -81,6 +79,7 @@ _INJECT_GEOMETRY_JS = """() => {
 def _inject_base_tag(html: str, url: str) -> str:
     """Injeta a tag <base href="..."> no head do HTML para resolver recursos relativos."""
     from bs4 import BeautifulSoup
+
     try:
         soup = BeautifulSoup(html, "html.parser")
         if soup.head:
@@ -102,14 +101,8 @@ def _scrape_with_firecrawl(url: str, api_key: str) -> str:
     """
     logger.info("[Browser] Executando scrape do Firecrawl para: %s", url)
     req_url = "https://api.firecrawl.dev/v2/scrape"
-    payload = {
-        "url": url,
-        "formats": ["html"]
-    }
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
+    payload = {"url": url, "formats": ["html"]}
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(req_url, data=data, headers=headers, method="POST")
@@ -201,7 +194,7 @@ async def _fetch_via_direct_browser(
                     await page.keyboard.press("Tab")
                     await page.wait_for_timeout(50)
 
-                    active_info = await page.evaluate('''() => {
+                    active_info = await page.evaluate("""() => {
                         const el = document.activeElement;
                         if (!el || el === document.body || el === document.documentElement) return null;
                         const rect = el.getBoundingClientRect();
@@ -212,7 +205,7 @@ async def _fetch_via_direct_browser(
                             className: el.className || "",
                             rect: {x: rect.x, y: rect.y, width: rect.width, height: rect.height}
                         };
-                    }''')
+                    }""")
 
                     if not active_info:
                         continue
@@ -237,8 +230,7 @@ async def _fetch_via_direct_browser(
 
                             if w > 0 and h > 0:
                                 crop_bytes = await page.screenshot(
-                                    clip={"x": x, "y": y, "width": w, "height": h},
-                                    type="png"
+                                    clip={"x": x, "y": y, "width": w, "height": h}, type="png"
                                 )
                                 crop_b64 = base64.b64encode(crop_bytes).decode("utf-8")
                                 focus_screenshots.append(crop_b64)
@@ -351,11 +343,25 @@ async def fetch_accessibility_tree_snapshot(url: str) -> str:
 # poder agir sobre eles. Fonte: W3C WAI-ARIA APG (mesma lista de referência
 # usada por `widgets_a11y`/`aria_specialist`), restrita aos papéis que
 # `page.accessibility.snapshot()` de fato emite no Chromium.
-_INTERACTIVE_AT_ROLES = frozenset({
-    "button", "link", "checkbox", "radio", "switch", "textbox", "combobox",
-    "listbox", "slider", "spinbutton", "tab", "menuitem", "menuitemcheckbox",
-    "menuitemradio", "searchbox",
-})
+_INTERACTIVE_AT_ROLES = frozenset(
+    {
+        "button",
+        "link",
+        "checkbox",
+        "radio",
+        "switch",
+        "textbox",
+        "combobox",
+        "listbox",
+        "slider",
+        "spinbutton",
+        "tab",
+        "menuitem",
+        "menuitemcheckbox",
+        "menuitemradio",
+        "searchbox",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -370,17 +376,11 @@ class AccessibilityTreeNode:
     is_interactive: bool
 
 
-def _flatten_accessibility_node(
-    node: dict[str, Any], ancestors: str, nodes: list[AccessibilityTreeNode]
-) -> None:
+def _flatten_accessibility_node(node: dict[str, Any], ancestors: str, nodes: list[AccessibilityTreeNode]) -> None:
     role = str(node.get("role", ""))
     name = str(node.get("name", ""))
     path = f"{ancestors} > {role}" if ancestors else role
-    nodes.append(
-        AccessibilityTreeNode(
-            role=role, name=name, path=path, is_interactive=role in _INTERACTIVE_AT_ROLES
-        )
-    )
+    nodes.append(AccessibilityTreeNode(role=role, name=name, path=path, is_interactive=role in _INTERACTIVE_AT_ROLES))
     for child in node.get("children") or []:
         _flatten_accessibility_node(child, path, nodes)
 
@@ -565,7 +565,7 @@ async def fetch_rendered_html_screenshot_and_focus_states(
                 await page.keyboard.press("Tab")
                 await page.wait_for_timeout(50)
 
-                active_info = await page.evaluate('''() => {
+                active_info = await page.evaluate("""() => {
                     const el = document.activeElement;
                     if (!el || el === document.body || el === document.documentElement) return null;
                     const rect = el.getBoundingClientRect();
@@ -576,7 +576,7 @@ async def fetch_rendered_html_screenshot_and_focus_states(
                         className: el.className || "",
                         rect: {x: rect.x, y: rect.y, width: rect.width, height: rect.height}
                     };
-                }''')
+                }""")
 
                 if not active_info:
                     continue
@@ -601,8 +601,7 @@ async def fetch_rendered_html_screenshot_and_focus_states(
 
                         if w > 0 and h > 0:
                             crop_bytes = await page.screenshot(
-                                clip={"x": x, "y": y, "width": w, "height": h},
-                                type="png"
+                                clip={"x": x, "y": y, "width": w, "height": h}, type="png"
                             )
                             crop_b64 = base64.b64encode(crop_bytes).decode("utf-8")
                             focus_screenshots.append(crop_b64)
@@ -672,8 +671,7 @@ async def run_axe_core_audit(url: str) -> dict[str, Any]:
             # axe.run() e assincrono (retorna Promise) -- page.evaluate aguarda
             # a resolucao antes de devolver o objeto pro Python.
             axe_results = await page.evaluate(
-                "async () => { return await window.axe.run(document, "
-                "{ resultTypes: ['violations', 'incomplete'] }); }"
+                "async () => { return await window.axe.run(document, { resultTypes: ['violations', 'incomplete'] }); }"
             )
             return axe_results
         finally:

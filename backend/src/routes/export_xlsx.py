@@ -59,6 +59,7 @@ async def export_last_xlsx() -> StreamingResponse:
     Exporta os últimos issues de acessibilidade salvos em cache para XLSX acessível.
     """
     from backend.src.services.last_analysis_store import get_last_analysis
+
     issues, url = get_last_analysis()
 
     if not issues:
@@ -119,6 +120,7 @@ async def export_last_checklist_pdf() -> StreamingResponse:
         raise HTTPException(status_code=500, detail="Falha ao gerar o checklist.")
 
     from backend.src.shared.models import ChecklistItem
+
     items = [ChecklistItem(**i) for i in result.data.get("checklist", [])]
     if not items:
         raise HTTPException(status_code=500, detail="Checklist gerado veio vazio.")
@@ -220,6 +222,7 @@ async def export_sarif(payload: dict) -> dict:
     Retorna: Objeto JSON SARIF 2.1.0
     """
     from backend.src.shared.models import AccessibilityIssue
+
     issues_raw = payload.get("issues", [])
     url = payload.get("url", "http://localhost")
 
@@ -241,6 +244,7 @@ async def export_last_sarif() -> dict:
     """
     from backend.src.services.last_analysis_store import get_last_analysis
     from backend.src.shared.models import AccessibilityIssue
+
     issues_raw, url = get_last_analysis()
 
     if not issues_raw:
@@ -255,5 +259,3 @@ async def export_last_sarif() -> dict:
     except Exception as exc:
         logger.error("[Export] Falha ao gerar SARIF do cache: %s", exc)
         raise HTTPException(status_code=500, detail="Falha ao gerar relatorio SARIF do cache.") from exc
-
-

@@ -69,17 +69,21 @@ def _submit_openai_batch(requests: list[BatchRequest], api_key: str, base_url: s
     client = OpenAI(api_key=api_key, base_url=base_url or None)
     lines = []
     for r in requests:
-        lines.append(json.dumps({
-            "custom_id": r.custom_id,
-            "method": "POST",
-            "url": "/v1/responses",
-            "body": {
-                "model": r.model,
-                "input": [{"role": "user", "content": r.user_prompt}],
-                "instructions": r.system_prompt,
-                "max_output_tokens": r.max_tokens,
-            },
-        }))
+        lines.append(
+            json.dumps(
+                {
+                    "custom_id": r.custom_id,
+                    "method": "POST",
+                    "url": "/v1/responses",
+                    "body": {
+                        "model": r.model,
+                        "input": [{"role": "user", "content": r.user_prompt}],
+                        "instructions": r.system_prompt,
+                        "max_output_tokens": r.max_tokens,
+                    },
+                }
+            )
+        )
     jsonl_bytes = ("\n".join(lines) + "\n").encode("utf-8")
     uploaded = client.files.create(file=("batch_input.jsonl", jsonl_bytes), purpose="batch")
     batch = client.batches.create(
@@ -231,9 +235,12 @@ def _poll_gemini_batch(batch_id: str, api_key: str) -> BatchStatus:
     if state in ("JobState.JOB_STATE_SUCCEEDED", "JOB_STATE_SUCCEEDED"):
         return BatchStatus.COMPLETED
     if state in (
-        "JobState.JOB_STATE_FAILED", "JOB_STATE_FAILED",
-        "JobState.JOB_STATE_CANCELLED", "JOB_STATE_CANCELLED",
-        "JobState.JOB_STATE_EXPIRED", "JOB_STATE_EXPIRED",
+        "JobState.JOB_STATE_FAILED",
+        "JOB_STATE_FAILED",
+        "JobState.JOB_STATE_CANCELLED",
+        "JOB_STATE_CANCELLED",
+        "JobState.JOB_STATE_EXPIRED",
+        "JOB_STATE_EXPIRED",
     ):
         return BatchStatus.FAILED
     if state in ("JobState.JOB_STATE_QUEUED", "JOB_STATE_QUEUED", "JobState.JOB_STATE_PENDING", "JOB_STATE_PENDING"):
@@ -263,9 +270,7 @@ def _fetch_gemini_batch_results(batch_id: str, api_key: str) -> dict[str, str]:
 # ── API pública (dispatcher por provider) ────────────────────────────────────
 
 
-def submit_batch(
-    requests: list[BatchRequest], provider: str, api_key: str, base_url: str | None = None
-) -> str:
+def submit_batch(requests: list[BatchRequest], provider: str, api_key: str, base_url: str | None = None) -> str:
     """Submete todas as requests como UM job de batch. Devolve o batch_id.
     Levanta `BatchNotSupportedError` se o provider nao tiver Batch API."""
     _require_supported(provider)
@@ -289,9 +294,7 @@ def poll_batch(batch_id: str, provider: str, api_key: str, base_url: str | None 
     return _poll_gemini_batch(batch_id, api_key)
 
 
-def fetch_batch_results(
-    batch_id: str, provider: str, api_key: str, base_url: str | None = None
-) -> dict[str, str]:
+def fetch_batch_results(batch_id: str, provider: str, api_key: str, base_url: str | None = None) -> dict[str, str]:
     """Devolve {custom_id: texto_da_resposta} para um batch já COMPLETED.
     Chamar antes disso devolve resultado parcial/vazio dependendo do provider
     -- o chamador deve checar `poll_batch` primeiro."""

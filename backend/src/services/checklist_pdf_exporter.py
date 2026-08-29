@@ -233,11 +233,18 @@ def _slugify(text: str) -> str:
     """Converte um texto em um identificador âncora semântico e legível."""
     text_lower = text.lower()
     replacements = {
-        "á": "a", "à": "a", "ã": "a", "â": "a",
-        "é": "e", "ê": "e",
+        "á": "a",
+        "à": "a",
+        "ã": "a",
+        "â": "a",
+        "é": "e",
+        "ê": "e",
         "í": "i",
-        "ó": "o", "ô": "o", "õ": "o",
-        "ú": "u", "ü": "u",
+        "ó": "o",
+        "ô": "o",
+        "õ": "o",
+        "ú": "u",
+        "ü": "u",
         "ç": "c",
     }
     for orig, repl in replacements.items():
@@ -304,7 +311,9 @@ _STATUS_HUMAN = {
     "not_applicable": "Não Aplicável ao Contexto",
 }
 
-_ENVIRONMENT_TESTED = "Chromium (renderização remota via Browserless CDP) + axe-core real + especialistas de IA em WCAG 2.2"
+_ENVIRONMENT_TESTED = (
+    "Chromium (renderização remota via Browserless CDP) + axe-core real + especialistas de IA em WCAG 2.2"
+)
 _SCREEN_READER_TESTED = "NVDA 2026 / JAWS / VoiceOver (Árvore de Acessibilidade e Sintetizador de Voz)"
 _TESTED_SCOPE = "Auditoria Completa de Acessibilidade Digital — Interface Web, Componentes Interativos, Contraste de Cores, Navegação por Teclado e Tecnologias Assistivas"
 
@@ -666,9 +675,7 @@ def _format_rich_text_to_html(text: str) -> str:
         return ""
 
     # Verifica se as linhas são uma lista numerada passo a passo (ex: 1. ..., 2. ...)
-    is_ordered = len(raw_lines) >= 2 and all(
-        re.match(r"^(\d+[.)]|\d+\s*-)\s+", line_item) for line_item in raw_lines
-    )
+    is_ordered = len(raw_lines) >= 2 and all(re.match(r"^(\d+[.)]|\d+\s*-)\s+", line_item) for line_item in raw_lines)
     if is_ordered:
         items = []
         for line_item in raw_lines:
@@ -677,9 +684,7 @@ def _format_rich_text_to_html(text: str) -> str:
         return f'<ol class="steps-list">{"".join(items)}</ol>'
 
     # Verifica se as linhas são uma lista de marcadores (ex: - ..., * ..., • ...)
-    is_bullet = len(raw_lines) >= 2 and all(
-        re.match(r"^[-*•]\s+", line_item) for line_item in raw_lines
-    )
+    is_bullet = len(raw_lines) >= 2 and all(re.match(r"^[-*•]\s+", line_item) for line_item in raw_lines)
     if is_bullet:
         items = []
         for line_item in raw_lines:
@@ -754,7 +759,10 @@ def _extract_location_and_action(item: ChecklistItem, code: str) -> tuple[str, s
             location_text = "Janela Modal de Login / Caixa de Diálogo Interativa"
 
         # Se notes contiver passos de solução
-        if any(kw in notes_clean.lower() for kw in ("1.", "adicione", "utilize", "substitua", "declare", "ajuste", "corrija")):
+        if any(
+            kw in notes_clean.lower()
+            for kw in ("1.", "adicione", "utilize", "substitua", "declare", "ajuste", "corrija")
+        ):
             problem_text = default_problem
             remediation_text = notes_clean
         else:
@@ -899,7 +907,7 @@ def _build_chapter_content_html(chap: dict[str, Any], cap_number: int) -> str:
 <div class="item-badges">
   <span class="badge {badge_class}">{html.escape(status_label)}</span>
   <span class="badge badge-level">Criticidade: Nível {html.escape(level)}</span>
-  <span class="badge badge-priority">{html.escape(priority_label.split('—')[0].strip())}</span>
+  <span class="badge badge-priority">{html.escape(priority_label.split("—")[0].strip())}</span>
 </div>
 
 <div class="section-block">
@@ -953,7 +961,7 @@ def _build_chapter_content_html(chap: dict[str, Any], cap_number: int) -> str:
     return f"""<section id="{chap_id}" aria-labelledby="title-{chap_id}">
 <h2 id="title-{chap_id}">Capítulo {cap_number}: {html.escape(chap_title)}</h2>
 <p>{html.escape(chap_desc)}</p>
-{''.join(cards)}
+{"".join(cards)}
 </section>"""
 
 
@@ -1058,7 +1066,7 @@ def render_checklist_html(items: list[ChecklistItem], url: str) -> str:
 
   {toc_html}
 
-  {''.join(chapter_blocks)}
+  {"".join(chapter_blocks)}
 </main>
 
 </body>

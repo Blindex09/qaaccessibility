@@ -166,10 +166,9 @@ async def run_vpat_reporter(
     today = date.today().isoformat()
     logger.info("[VPATReporter] Gerando VPAT WCAG 2.2 -- %d issues, alvo: %s", len(issues), target or "desconhecido")
 
-    all_criteria = (
-        [{"id": c[0], "name": c[1], "level": "A"} for c in _WCAG_22_CRITERIA["A"]]
-        + [{"id": c[0], "name": c[1], "level": "AA"} for c in _WCAG_22_CRITERIA["AA"]]
-    )
+    all_criteria = [{"id": c[0], "name": c[1], "level": "A"} for c in _WCAG_22_CRITERIA["A"]] + [
+        {"id": c[0], "name": c[1], "level": "AA"} for c in _WCAG_22_CRITERIA["AA"]
+    ]
 
     issues_summary = json.dumps(
         [

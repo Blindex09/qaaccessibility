@@ -76,10 +76,7 @@ _cache = ResponseCache()
 
 def make_cache_key(*parts: object) -> str:
     """Hash estável das partes que definem uma resposta determinística."""
-    str_parts = [
-        json.dumps(p, sort_keys=True) if not isinstance(p, str) else p
-        for p in parts
-    ]
+    str_parts = [json.dumps(p, sort_keys=True) if not isinstance(p, str) else p for p in parts]
     joined = "\x1f".join(str_parts)
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
 

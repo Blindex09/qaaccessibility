@@ -235,8 +235,10 @@ def _sanitize_preview_html(
             attr_lower = attr.lower()
             value = tag.attrs.get(attr)
             value_str = value if isinstance(value, str) else " ".join(value or [])
-            if attr_lower.startswith("on") or attr_lower in ("href", "src", "action") and value_str.strip().lower().startswith(
-                ("javascript:", "data:text/html")
+            if (
+                attr_lower.startswith("on")
+                or attr_lower in ("href", "src", "action")
+                and value_str.strip().lower().startswith(("javascript:", "data:text/html"))
             ):
                 del tag.attrs[attr]
 
@@ -262,6 +264,7 @@ def register_preview_session(pages: list[dict[str, Any]]) -> str:
     into the same in-process _preview_store, so a session opened by either path is
     renderable by GET /preview/render/{session_id}/{page_index}."""
     import uuid
+
     session_id = str(uuid.uuid4())[:8]
     _preview_store[session_id] = {"pages": pages}
     logger.info("[Preview] Sessão de Live Preview criada: id=%s (total de %d páginas)", session_id, len(pages))

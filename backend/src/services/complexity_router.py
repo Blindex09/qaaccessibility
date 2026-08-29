@@ -32,9 +32,7 @@ logger = logging.getLogger(__name__)
 # custo/velocidade ao máximo. Mesma escala já usada em rank_ollama_cloud_candidates.
 DEFAULT_TRADEOFF = 3  # comportamento historico do "Alto": favorece qualidade
 
-_current_tradeoff: contextvars.ContextVar[int] = contextvars.ContextVar(
-    "complexity_tradeoff", default=DEFAULT_TRADEOFF
-)
+_current_tradeoff: contextvars.ContextVar[int] = contextvars.ContextVar("complexity_tradeoff", default=DEFAULT_TRADEOFF)
 
 SYSTEM_PROMPT = """
 You are a task-complexity classifier for an accessibility-auditing pipeline.
@@ -107,14 +105,13 @@ async def classify_and_set_tradeoff(content: str) -> int:
         tradeoff = int(data.get("tradeoff", DEFAULT_TRADEOFF))
         tradeoff = max(0, min(10, tradeoff))
         set_current_tradeoff(tradeoff)
-        logger.info(
-            "[ComplexityRouter] tradeoff=%d (%s)", tradeoff, data.get("reasoning", "")
-        )
+        logger.info("[ComplexityRouter] tradeoff=%d (%s)", tradeoff, data.get("reasoning", ""))
         return tradeoff
     except Exception as exc:
         logger.warning(
             "[ComplexityRouter] Falha na classificação (%s) -- mantendo tradeoff default=%d",
-            exc, DEFAULT_TRADEOFF,
+            exc,
+            DEFAULT_TRADEOFF,
         )
         set_current_tradeoff(DEFAULT_TRADEOFF)
         return DEFAULT_TRADEOFF

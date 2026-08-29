@@ -89,6 +89,7 @@ async def subscribe_task_stream(task_id: str) -> StreamingResponse:
     """
     Streaming SSE em tempo real dos eventos de progresso da tarefa A2A.
     """
+
     async def event_generator():
         while True:
             status_data = get_a2a_task_status(task_id)

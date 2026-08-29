@@ -20,6 +20,7 @@ class Confidence(str, Enum):
     eixo distinto de Severity (impacto SE for real). Um issue critical com
     confidence low significa "se isso for real, e grave, mas nao tenho
     certeza que e" -- informacao que severity sozinha nao carrega."""
+
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
@@ -131,7 +132,10 @@ class ReportOutput(BaseModel):
 
 class AnalyzeUrlRequest(BaseModel):
     url: str = Field(..., description="URL externa para analisar")
-    only_agents: list[str] | None = Field(default=None, description="Lista opcional de agentes a executar. Se omitido, o orquestrador seleciona automaticamente os agentes relevantes.")
+    only_agents: list[str] | None = Field(
+        default=None,
+        description="Lista opcional de agentes a executar. Se omitido, o orquestrador seleciona automaticamente os agentes relevantes.",
+    )
     cookies: list[dict] | None = Field(default=None, description="Cookies de sessao para autenticacao")
     auth_headers: dict[str, str] | None = Field(default=None, description="Cabecalhos HTTP extras para a requisicao")
     actions: list[dict] | None = Field(default=None, description="Ações Playwright interativas sequenciais")
@@ -205,8 +209,10 @@ class AgentResult(BaseModel):
 # ── Test Generator models ─────────────────────────────────────────────────────
 # Derivados de: playwright-expert.toml + accessibility-tester.md + tdd-orchestrator.toml
 
+
 class AccessibilityTest(BaseModel):
     """Teste gerado para uma violação de acessibilidade específica."""
+
     test_id: str
     criterion: str
     severity: Severity
@@ -218,6 +224,7 @@ class AccessibilityTest(BaseModel):
 
 class TestSuite(BaseModel):
     """Suite de testes gerada a partir dos issues encontrados."""
+
     target: str = Field(..., description="URL ou nome do arquivo analisado")
     total_tests: int
     tests: list[AccessibilityTest]
@@ -238,6 +245,7 @@ class TestGeneratorRequest(BaseModel):
 # ── VPAT Reporter models ──────────────────────────────────────────────────────
 # Derivados de: compliance-auditor.md
 
+
 class ConformanceLevel(str, Enum):
     SUPPORTS = "Supports"
     PARTIALLY_SUPPORTS = "Partially Supports"
@@ -248,6 +256,7 @@ class ConformanceLevel(str, Enum):
 
 class VPATCriterion(BaseModel):
     """Conformidade declarada para um criterio WCAG 2.2."""
+
     criterion_id: str = Field(..., description="Ex: 1.1.1")
     criterion_name: str = Field(..., description="Ex: Non-text Content")
     wcag_level: str = Field(..., description="A | AA | AAA")
@@ -258,6 +267,7 @@ class VPATCriterion(BaseModel):
 
 class VPATReport(BaseModel):
     """VPAT - Voluntary Product Accessibility Template (WCAG 2.2 Edition)."""
+
     product_name: str
     target: str
     wcag_version: str = "WCAG 2.2"
@@ -287,6 +297,7 @@ class VPATRequest(BaseModel):
 # Cruza a arvore de acessibilidade REAL do Chromium (mesma API que NVDA/JAWS/
 # Narrator consultam) contra regras deterministicas de nome acessivel ausente
 # ou generico -- ver services/screen_reader_verification.py.
+
 
 class ScreenReaderVerificationRequest(BaseModel):
     url: str = Field(..., description="URL da pagina a verificar")
@@ -318,6 +329,7 @@ class ScreenReaderVerificationResponse(BaseModel):
 # existe), DesignRiskFlag e um risco ANTECIPADO a partir de um requisito, user
 # story ou descricao de componente -- antes de qualquer linha de codigo. Ver
 # agents/design_review/design_review.py.
+
 
 class DesignRiskFlag(BaseModel):
     id: str

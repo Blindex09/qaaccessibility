@@ -98,6 +98,7 @@ def resolve_alto_model(
 
     if provider.lower() in ("agentic", "auto"):
         import os
+
         for p in ["openai", "anthropic", "gemini", "xai", "ollama-cloud", "ollama"]:
             env_var = f"{p.upper().replace('-', '_')}_API_KEY"
             if os.getenv(env_var) or os.getenv(f"{p.upper()}_API_KEY"):
@@ -115,13 +116,19 @@ def resolve_alto_model(
             discover_ollama_cloud_descriptors,
             rank_ollama_cloud_candidates,
         )
+
         descriptors = discover_ollama_cloud_descriptors()
-        ranked = rank_ollama_cloud_candidates(descriptors, tradeoff=tradeoff, needs_tools=True, needs_vision=needs_vision)
+        ranked = rank_ollama_cloud_candidates(
+            descriptors, tradeoff=tradeoff, needs_tools=True, needs_vision=needs_vision
+        )
         if ranked:
             best = ranked[0].id
             logger.info(
                 "[Alto] provider=ollama-cloud -> %s (ranking multi-objetivo agêntico entre %d candidatos, needs_vision=%s, tradeoff=%d)",
-                best, len(ranked), needs_vision, tradeoff,
+                best,
+                len(ranked),
+                needs_vision,
+                tradeoff,
             )
             return best
         if needs_vision:
@@ -161,9 +168,7 @@ def resolve_alto_model(
         context = int(getattr(info, "context_window", 0) or 0)
         # Custo entra NEGATIVO: entre modelos igualmente capazes, prefere o mais
         # barato (max() escolhe o maior, entao -custo favorece o menor custo).
-        cost = float(getattr(info, "cost_input", 0.0) or 0.0) + float(
-            getattr(info, "cost_output", 0.0) or 0.0
-        )
+        cost = float(getattr(info, "cost_input", 0.0) or 0.0) + float(getattr(info, "cost_output", 0.0) or 0.0)
         return (reasoning, context, -cost)
 
     best = max(candidates, key=_rank)
@@ -184,6 +189,7 @@ def resolve_fast_model(provider: str, allow_extra_usage: bool = False) -> str:
 
     if provider.lower() in ("agentic", "auto"):
         import os
+
         for p in ["openai", "anthropic", "gemini", "xai", "ollama-cloud", "ollama"]:
             env_var = f"{p.upper().replace('-', '_')}_API_KEY"
             if os.getenv(env_var) or os.getenv(f"{p.upper()}_API_KEY"):
@@ -201,8 +207,11 @@ def resolve_fast_model(provider: str, allow_extra_usage: bool = False) -> str:
             discover_ollama_cloud_descriptors,
             rank_ollama_cloud_candidates,
         )
+
         descriptors = discover_ollama_cloud_descriptors()
-        ranked = rank_ollama_cloud_candidates(descriptors, tradeoff=9, needs_tools=False)  # tradeoff=9: foco em velocidade/custo (Fast)
+        ranked = rank_ollama_cloud_candidates(
+            descriptors, tradeoff=9, needs_tools=False
+        )  # tradeoff=9: foco em velocidade/custo (Fast)
         if ranked:
             best = ranked[0].id
             logger.info("[Fast] provider=ollama-cloud -> %s (ranking multi-objetivo agêntico)", best)
@@ -236,7 +245,9 @@ def resolve_fast_model(provider: str, allow_extra_usage: bool = False) -> str:
             info = None
 
         lower_id = model_id.lower()
-        is_fast_name = 1 if any(w in lower_id for w in ["nano", "flash", "lite", "mini", "small", "3b", "8b", "haiku"]) else 0
+        is_fast_name = (
+            1 if any(w in lower_id for w in ["nano", "flash", "lite", "mini", "small", "3b", "8b", "haiku"]) else 0
+        )
 
         if info is None:
             return (0.0, is_fast_name, 0)
@@ -274,6 +285,7 @@ def resolve_code_model(
 
     if provider.lower() in ("agentic", "auto"):
         import os
+
         for p in ["openai", "anthropic", "gemini", "xai", "ollama-cloud", "ollama"]:
             env_var = f"{p.upper().replace('-', '_')}_API_KEY"
             if os.getenv(env_var) or os.getenv(f"{p.upper()}_API_KEY"):
@@ -291,22 +303,29 @@ def resolve_code_model(
             discover_ollama_cloud_descriptors,
             rank_ollama_cloud_candidates,
         )
+
         descriptors = discover_ollama_cloud_descriptors()
-        ranked = rank_ollama_cloud_candidates(descriptors, tradeoff=tradeoff, needs_tools=True, needs_vision=needs_vision)
+        ranked = rank_ollama_cloud_candidates(
+            descriptors, tradeoff=tradeoff, needs_tools=True, needs_vision=needs_vision
+        )
         # Preferencia por nomes que evidenciam modelo de codigo
         code_pref = [d for d in ranked if any(w in d.id.lower() for w in ("code", "codex", "coder"))]
         if code_pref:
             best = code_pref[0].id
             logger.info(
                 "[Code] provider=ollama-cloud -> %s (ranking com preferencia por codigo, needs_vision=%s, tradeoff=%d)",
-                best, needs_vision, tradeoff,
+                best,
+                needs_vision,
+                tradeoff,
             )
             return best
         if ranked:
             best = ranked[0].id
             logger.info(
                 "[Code] provider=ollama-cloud -> %s (fallback alto, nenhum modelo de codigo identificado, needs_vision=%s, tradeoff=%d)",
-                best, needs_vision, tradeoff,
+                best,
+                needs_vision,
+                tradeoff,
             )
             return best
         if needs_vision:
@@ -334,9 +353,7 @@ def resolve_code_model(
         return ""
 
     if not candidates:
-        logger.info(
-            "[Code] provider=%s -> nenhum modelo de codigo identificado; fallback para alto", provider
-        )
+        logger.info("[Code] provider=%s -> nenhum modelo de codigo identificado; fallback para alto", provider)
         return resolve_alto_model(provider, allow_extra_usage, needs_vision, tradeoff)
 
     def _rank(model_id: str) -> tuple[int, int, float]:
@@ -350,15 +367,11 @@ def resolve_code_model(
             return (0, 0, 0.0)
         reasoning = 1 if getattr(info, "reasoning", False) else 0
         context = int(getattr(info, "context_window", 0) or 0)
-        cost = float(getattr(info, "cost_input", 0.0) or 0.0) + float(
-            getattr(info, "cost_output", 0.0) or 0.0
-        )
+        cost = float(getattr(info, "cost_input", 0.0) or 0.0) + float(getattr(info, "cost_output", 0.0) or 0.0)
         return (reasoning, context, -cost)
 
     best = max(candidates, key=_rank)
-    logger.info(
-        "[Code] provider=%s -> %s (entre %d modelos de codigo)", provider, best, len(candidates)
-    )
+    logger.info("[Code] provider=%s -> %s (entre %d modelos de codigo)", provider, best, len(candidates))
     return best
 
 
@@ -366,6 +379,7 @@ def _available_auto_providers() -> list[str]:
     """Providers com API key presente no ambiente, na ordem de prioridade
     histórica (usada só como desempate quando o preço não decide sozinho)."""
     import os
+
     available = []
     for p in _AUTO_PROVIDER_PRIORITY:
         env_var = f"{p.upper().replace('-', '_')}_API_KEY"
@@ -461,12 +475,14 @@ def _resolve_agentic_auto(
         # _SUBSCRIPTION_BASED_PROVIDERS) -- custo marginal por chamada tratado
         # como ~$0, não a placeholder genérica do catálogo.
         cost = 0.0 if p in _SUBSCRIPTION_BASED_PROVIDERS else (_blended_cost(info) if info else None)
-        candidates.append({
-            "provider": p,
-            "model": model,
-            "cost": cost,
-            "reasoning": bool(info and getattr(info, "reasoning", False)),
-        })
+        candidates.append(
+            {
+                "provider": p,
+                "model": model,
+                "cost": cost,
+                "reasoning": bool(info and getattr(info, "reasoning", False)),
+            }
+        )
 
     if not candidates:
         return "", ""
@@ -493,8 +509,11 @@ def _resolve_agentic_auto(
     chosen = min(pool, key=_sort_key)
     logger.info(
         "[Alto] provider=agentic/auto -> %s/%s (roteamento de custo entre %d provider(s) disponíveis %s, tradeoff=%d)",
-        chosen["provider"], chosen["model"], len(candidates),
-        [c["provider"] for c in candidates], effective_tradeoff,
+        chosen["provider"],
+        chosen["model"],
+        len(candidates),
+        [c["provider"] for c in candidates],
+        effective_tradeoff,
     )
     return chosen["provider"], chosen["model"]
 
@@ -555,9 +574,9 @@ def resolve_model(
     label_lower = (agent_label or "").lower().strip()
 
     if tier == "code" or label_lower in ("fixer", "coder"):
-        return resolve_code_model(concrete_provider, allow_extra_usage, needs_vision, tradeoff or 3) or resolve_alto_model(
+        return resolve_code_model(
             concrete_provider, allow_extra_usage, needs_vision, tradeoff or 3
-        )
+        ) or resolve_alto_model(concrete_provider, allow_extra_usage, needs_vision, tradeoff or 3)
 
     if tier == "fast" or label_lower == "classifier":
         return resolve_fast_model(concrete_provider, allow_extra_usage) or resolve_alto_model(
@@ -566,6 +585,7 @@ def resolve_model(
 
     if tradeoff is None:
         from backend.src.services.complexity_router import get_current_tradeoff
+
         tradeoff = get_current_tradeoff()
     return resolve_alto_model(concrete_provider, allow_extra_usage, needs_vision, tradeoff)
 
@@ -594,6 +614,7 @@ def resolve_model_and_provider(
         eff_tradeoff = tradeoff
         if eff_tradeoff is None:
             from backend.src.services.complexity_router import get_current_tradeoff
+
             eff_tradeoff = get_current_tradeoff()
         return _resolve_agentic_auto(tier, agent_label, allow_extra_usage, needs_vision, eff_tradeoff)
 
@@ -604,14 +625,9 @@ def resolve_model_and_provider(
     # parsing: roteamos para o endpoint Responses do OpenCode Go, que publica
     # GPT 5.6 Luna. Ollama local permanece no caminho nativo, pois suporta
     # `format`/structured outputs localmente.
-    if (
-        concrete_provider in ("ollama-cloud", "ollama_cloud")
-        and needs_structured_outputs
-        and _opencode_go_enabled()
-    ):
+    if concrete_provider in ("ollama-cloud", "ollama_cloud") and needs_structured_outputs and _opencode_go_enabled():
         logger.info(
-            "[ModelRouter] Structured Outputs indisponível no Ollama Cloud; "
-            "roteando para %s/%s",
+            "[ModelRouter] Structured Outputs indisponível no Ollama Cloud; roteando para %s/%s",
             OPENCODE_GO_PROVIDER,
             OPENCODE_GO_MODEL,
         )
@@ -652,6 +668,7 @@ def clear_cache() -> None:
     resolve_code_model.cache_clear()
     try:
         from backend.src.services.ollama_cloud_adapter import clear_ollama_cloud_cache
+
         clear_ollama_cloud_cache()
     except Exception as exc:
         logger.debug("[ModelRouter] clear_ollama_cloud_cache falhou: %s", exc)

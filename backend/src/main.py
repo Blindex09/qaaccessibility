@@ -30,9 +30,7 @@ from backend.src.services.telemetry import configure_telemetry
 
 settings = get_settings()
 if settings.backend_host not in {"127.0.0.1", "localhost", "::1"} and not settings.qa_api_token:
-    raise RuntimeError(
-        "QA_API_TOKEN é obrigatório quando BACKEND_HOST não está restrito ao loopback."
-    )
+    raise RuntimeError("QA_API_TOKEN é obrigatório quando BACKEND_HOST não está restrito ao loopback.")
 configure_logging(debug=settings.debug)
 configure_telemetry()
 
@@ -76,6 +74,7 @@ async def require_api_token(request: Request, call_next):
         if not hmac.compare_digest(supplied, expected):
             return JSONResponse(status_code=401, content={"detail": "Token de sessão inválido."})
     return await call_next(request)
+
 
 app.include_router(analyze_router)
 app.include_router(fix_router)

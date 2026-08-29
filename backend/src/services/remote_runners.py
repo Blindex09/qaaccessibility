@@ -89,7 +89,9 @@ def _summarize_axe_results(axe_results: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _try_run_local_selenium(
-    url: str, timeout_seconds: float = 60.0, allow_driver_auto_install: bool = False,
+    url: str,
+    timeout_seconds: float = 60.0,
+    allow_driver_auto_install: bool = False,
 ) -> dict[str, Any] | None:
     """
     Roda o Selenium WebDriver DE VERDADE (Chrome local + axe-core injetado).
@@ -141,7 +143,9 @@ async def _try_run_local_selenium(
     try:
         logger.info(
             "[RemoteRunner] Rodando Selenium local de verdade (chromedriver=%s, auto_install=%s) para %s",
-            chromedriver_path, allow_driver_auto_install, url,
+            chromedriver_path,
+            allow_driver_auto_install,
+            url,
         )
         return await asyncio.wait_for(asyncio.to_thread(_run_sync), timeout=effective_timeout)
     except TimeoutError:
@@ -170,12 +174,15 @@ async def run_remote_selenium(url: str, location: str | None = None) -> dict[str
     browserless_url = os.getenv("BROWSERLESS_WS_URL", "").strip()
     logger.info(
         "[RemoteRunner] Executando auditoria de acessibilidade (rótulo selenium, location=%s) para %s (Browserless Configured=%s)",
-        location, url, bool(browserless_url),
+        location,
+        url,
+        bool(browserless_url),
     )
     try:
         if location in ("local", "install_local"):
             local_results = await _try_run_local_selenium(
-                url, allow_driver_auto_install=(location == "install_local"),
+                url,
+                allow_driver_auto_install=(location == "install_local"),
             )
             if local_results is None:
                 if location == "install_local":
@@ -201,6 +208,7 @@ async def run_remote_selenium(url: str, location: str | None = None) -> dict[str
             return summary
 
         from backend.src.services.browser import run_axe_core_audit
+
         axe_results = await run_axe_core_audit(url)
         summary = _summarize_axe_results(axe_results)
         summary.update({"status": "ok", "runner": "selenium_remote", "url": url})
@@ -219,29 +227,33 @@ def _build_generated_a11y_contract_collection(api_url: str) -> dict[str, Any]:
             "name": "QA Accessibility - Verificação de Contrato de API",
             "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
         },
-        "item": [{
-            "name": "Verifica contrato de acessibilidade da API",
-            "request": {"method": "GET", "url": api_url},
-            "event": [{
-                "listen": "test",
-                "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                        "pm.test('Status code e 200 OK', function () {",
-                        "  pm.response.to.have.status(200);",
-                        "});",
-                        "pm.test('Resposta e um JSON valido', function () {",
-                        "  pm.response.to.be.json;",
-                        "});",
-                        "pm.test('Contrato contem atributos de acessibilidade', function () {",
-                        "  const body = pm.response.json();",
-                        "  const keys = ['alt', 'aria', 'label', 'title', 'description', 'score', 'issues'];",
-                        "  pm.expect(keys.some((k) => Object.prototype.hasOwnProperty.call(body, k))).to.be.true;",
-                        "});",
-                    ],
-                },
-            }],
-        }],
+        "item": [
+            {
+                "name": "Verifica contrato de acessibilidade da API",
+                "request": {"method": "GET", "url": api_url},
+                "event": [
+                    {
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('Status code e 200 OK', function () {",
+                                "  pm.response.to.have.status(200);",
+                                "});",
+                                "pm.test('Resposta e um JSON valido', function () {",
+                                "  pm.response.to.be.json;",
+                                "});",
+                                "pm.test('Contrato contem atributos de acessibilidade', function () {",
+                                "  const body = pm.response.json();",
+                                "  const keys = ['alt', 'aria', 'label', 'title', 'description', 'score', 'issues'];",
+                                "  pm.expect(keys.some((k) => Object.prototype.hasOwnProperty.call(body, k))).to.be.true;",
+                                "});",
+                            ],
+                        },
+                    }
+                ],
+            }
+        ],
     }
 
 
@@ -262,7 +274,8 @@ async def _fetch_real_postman_collection(postman_key: str) -> dict[str, Any] | N
             return res.json().get("collection")
         logger.warning(
             "[RemoteRunner] Postman Cloud devolveu %s ao buscar a collection %s",
-            res.status_code, collection_id,
+            res.status_code,
+            collection_id,
         )
     except Exception as exc:
         logger.warning("[RemoteRunner] Falha ao buscar collection real do Postman: %s", exc)
@@ -295,8 +308,15 @@ async def _run_newman(collection: dict[str, Any], timeout_seconds: float = 90.0)
         collection_path.write_text(json.dumps(collection), encoding="utf-8")
 
         cmd = [
-            npx_path, "--yes", "newman", "run", str(collection_path),
-            "--reporters", "json", "--reporter-json-export", str(report_path),
+            npx_path,
+            "--yes",
+            "newman",
+            "run",
+            str(collection_path),
+            "--reporters",
+            "json",
+            "--reporter-json-export",
+            str(report_path),
         ]
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -343,10 +363,12 @@ def _summarize_newman_report(report: dict[str, Any]) -> dict[str, Any]:
         if http_status is None:
             http_status = response.get("code")
         for assertion in execution.get("assertions", []):
-            tests.append({
-                "name": assertion.get("assertion", ""),
-                "passed": not assertion.get("error"),
-            })
+            tests.append(
+                {
+                    "name": assertion.get("assertion", ""),
+                    "passed": not assertion.get("error"),
+                }
+            )
 
     return {
         "engine": "newman",
@@ -405,12 +427,14 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
         report = await _run_newman(collection)
         if report is not None:
             summary = _summarize_newman_report(report)
-            summary.update({
-                "status": "ok",
-                "runner": "postman_remote",
-                "postman_cloud_synced": postman_cloud_synced,
-                "api_url": api_url,
-            })
+            summary.update(
+                {
+                    "status": "ok",
+                    "runner": "postman_remote",
+                    "postman_cloud_synced": postman_cloud_synced,
+                    "api_url": api_url,
+                }
+            )
             return summary
 
         # Fallback honesto: newman indisponível/timeout -- mesmo check leve de
@@ -423,7 +447,11 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
             data = {}
 
         is_json = isinstance(data, dict)
-        has_a11y_fields = any(k in data for k in ("alt", "aria", "label", "title", "description", "score", "issues")) if is_json else False
+        has_a11y_fields = (
+            any(k in data for k in ("alt", "aria", "label", "title", "description", "score", "issues"))
+            if is_json
+            else False
+        )
 
         tests = [
             {"name": "Status code é 200 OK", "passed": status_code == 200},
@@ -448,7 +476,6 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
     except Exception as exc:
         logger.error("[RemoteRunner] Erro na validação Postman remota: %s", exc)
         return {"status": "error", "error": str(exc)}
-
 
 
 _CYPRESS_SPEC_TEMPLATE = """// spec gerado automaticamente pelo QA Accessibility para auditoria real via cypress-axe
@@ -512,8 +539,21 @@ class CypressProjectOutOfScopeError(Exception):
 # call de chat). Nomes de pasta escolhidos por convenção real de devs, não
 # uma lista exaustiva -- é um "norte" (ver pedido do usuário), não garantia.
 _LOCAL_PROJECT_SEARCH_SUBDIRS = (
-    "", "projects", "Projects", "dev", "Dev", "code", "Code", "workspace",
-    "Workspace", "repos", "Repos", "src", "git", "Documents", "Desktop",
+    "",
+    "projects",
+    "Projects",
+    "dev",
+    "Dev",
+    "code",
+    "Code",
+    "workspace",
+    "Workspace",
+    "repos",
+    "Repos",
+    "src",
+    "git",
+    "Documents",
+    "Desktop",
 )
 _LOCAL_CYPRESS_SEARCH_MAX_DIRS = 400
 _LOCAL_CYPRESS_SEARCH_TIMEOUT_SECONDS = 8.0
@@ -570,7 +610,10 @@ def _search_for_local_cypress_installations() -> list[str]:
         except OSError:
             continue
         for candidate in candidates:
-            if time.monotonic() - start > _LOCAL_CYPRESS_SEARCH_TIMEOUT_SECONDS or visited > _LOCAL_CYPRESS_SEARCH_MAX_DIRS:
+            if (
+                time.monotonic() - start > _LOCAL_CYPRESS_SEARCH_TIMEOUT_SECONDS
+                or visited > _LOCAL_CYPRESS_SEARCH_MAX_DIRS
+            ):
                 logger.info("[RemoteRunner] Busca por Cypress local encerrada por limite de tempo/diretórios.")
                 return found
             visited += 1
@@ -586,7 +629,9 @@ def _search_for_local_cypress_installations() -> list[str]:
 
 
 async def _try_run_local_cypress(
-    url: str, scope_selector: str = "", timeout_seconds: float = 120.0,
+    url: str,
+    scope_selector: str = "",
+    timeout_seconds: float = 120.0,
     project_dir_override: str | None = None,
 ) -> dict[str, Any] | None:
     """
@@ -625,6 +670,7 @@ async def _try_run_local_cypress(
         project_dir = found[0]
         with contextlib.suppress(Exception):
             from backend.src.security.secret_store import save_secret
+
             save_secret("CYPRESS_LOCAL_PROJECT_DIR", project_dir)
         os.environ["CYPRESS_LOCAL_PROJECT_DIR"] = project_dir
 
@@ -637,6 +683,7 @@ async def _try_run_local_cypress(
     # nos, nao um projeto do usuario.
     if Path(project_dir) != _default_local_cypress_dir():
         from backend.src.services.local_project_guard import is_accessibility_project_dir
+
         if not is_accessibility_project_dir(project_dir):
             logger.warning(
                 "[RemoteRunner] Cypress local recusado: '%s' nao parece um projeto de acessibilidade.",
@@ -667,9 +714,13 @@ async def _try_run_local_cypress(
     # dentro do projeto, isso FALHA rápido em vez de baixar o binário.
     try:
         probe = await asyncio.create_subprocess_exec(
-            npx_path, "--no-install", "cypress", "version",
+            npx_path,
+            "--no-install",
+            "cypress",
+            "version",
             cwd=project_dir,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
         await asyncio.wait_for(probe.communicate(), timeout=15)
         if probe.returncode != 0:
@@ -705,8 +756,10 @@ async def _try_run_local_cypress(
     logger.info("[RemoteRunner] Rodando Cypress local de verdade em %s para %s", project_dir, url)
     try:
         proc = await asyncio.create_subprocess_exec(
-            *cmd, cwd=project_dir,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            *cmd,
+            cwd=project_dir,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
         await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
     except TimeoutError:
@@ -725,7 +778,9 @@ async def _try_run_local_cypress(
     # de verdade nunca escreve o arquivo, e isso é um resultado válido (zero
     # violações), não uma falha de execução.
     if not report_path.exists():
-        logger.info("[RemoteRunner] Cypress local rodou sem violações encontradas (nenhum arquivo de relatório gerado).")
+        logger.info(
+            "[RemoteRunner] Cypress local rodou sem violações encontradas (nenhum arquivo de relatório gerado)."
+        )
         return {"violations": [], "incomplete": [], "testEngine": {"name": "axe-core"}}
     try:
         report_text = report_path.read_text(encoding="utf-8")
@@ -788,13 +843,20 @@ async def _install_local_cypress(timeout_seconds: float = 300.0) -> str | None:
     logger.info("[RemoteRunner] Instalando Cypress + cypress-axe de verdade em %s (pode levar minutos)...", project_dir)
     try:
         proc = await asyncio.create_subprocess_exec(
-            npm_path, "install", "--no-save", "cypress", "cypress-axe",
+            npm_path,
+            "install",
+            "--no-save",
+            "cypress",
+            "cypress-axe",
             cwd=str(project_dir),
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
         _stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
         if proc.returncode != 0:
-            logger.warning("[RemoteRunner] Instalação do Cypress falhou: %s", stderr.decode("utf-8", errors="ignore")[:500])
+            logger.warning(
+                "[RemoteRunner] Instalação do Cypress falhou: %s", stderr.decode("utf-8", errors="ignore")[:500]
+            )
             return None
     except TimeoutError:
         proc.kill()
@@ -809,6 +871,7 @@ async def _install_local_cypress(timeout_seconds: float = 300.0) -> str | None:
     # aqui guardando um caminho local, não um segredo.
     with contextlib.suppress(Exception):
         from backend.src.security.secret_store import save_secret
+
         save_secret("CYPRESS_LOCAL_PROJECT_DIR", str(project_dir))
     os.environ["CYPRESS_LOCAL_PROJECT_DIR"] = str(project_dir)
     logger.info("[RemoteRunner] Cypress instalado com sucesso em %s", project_dir)
@@ -816,7 +879,9 @@ async def _install_local_cypress(timeout_seconds: float = 300.0) -> str | None:
 
 
 async def run_remote_cypress_simulation(
-    url: str, scope_selector: str = "", location: str | None = None,
+    url: str,
+    scope_selector: str = "",
+    location: str | None = None,
     project_dir_override: str | None = None,
 ) -> dict[str, Any]:
     """
@@ -845,7 +910,9 @@ async def run_remote_cypress_simulation(
     """
     logger.info(
         "[RemoteRunner] Executando auditoria de acessibilidade (rótulo cypress, location=%s) para %s (escopo='%s')",
-        location, url, scope_selector,
+        location,
+        url,
+        scope_selector,
     )
     project_id = os.getenv("CYPRESS_PROJECT_ID", "").strip()
     record_key = os.getenv("CYPRESS_RECORD_KEY", "").strip()
@@ -867,7 +934,9 @@ async def run_remote_cypress_simulation(
 
         if location == "local":
             local_report = await _try_run_local_cypress(
-                url, scope_selector, project_dir_override=project_dir_override,
+                url,
+                scope_selector,
+                project_dir_override=project_dir_override,
             )
             if local_report is None:
                 return {
@@ -879,38 +948,45 @@ async def run_remote_cypress_simulation(
                     ),
                 }
             summary = _summarize_axe_results(local_report)
-            summary.update({
-                "status": "ok",
-                "runner": "cypress_local",
-                "cypress_cloud_synced": cypress_cloud_synced,
-                "cypress_project_id": project_id,
-                "url": url,
-                "scope": scope_selector or "global",
-            })
+            summary.update(
+                {
+                    "status": "ok",
+                    "runner": "cypress_local",
+                    "cypress_cloud_synced": cypress_cloud_synced,
+                    "cypress_project_id": project_id,
+                    "url": url,
+                    "scope": scope_selector or "global",
+                }
+            )
             return summary
 
         from backend.src.services.browser import run_axe_core_audit
+
         axe_results = await run_axe_core_audit(url)
 
         if scope_selector:
             axe_results = dict(axe_results)
             axe_results["violations"] = [
-                v for v in (axe_results.get("violations") or [])
+                v
+                for v in (axe_results.get("violations") or [])
                 if any(scope_selector in "".join(n.get("target", [])) for n in v.get("nodes", []))
             ]
 
         summary = _summarize_axe_results(axe_results)
-        summary.update({
-            "status": "ok",
-            "runner": "cypress_remote",
-            "cypress_cloud_synced": cypress_cloud_synced,
-            "cypress_project_id": project_id,
-            "url": url,
-            "scope": scope_selector or "global",
-        })
+        summary.update(
+            {
+                "status": "ok",
+                "runner": "cypress_remote",
+                "cypress_cloud_synced": cypress_cloud_synced,
+                "cypress_project_id": project_id,
+                "url": url,
+                "scope": scope_selector or "global",
+            }
+        )
         return summary
     except CypressProjectOutOfScopeError as exc:
         from backend.src.services.local_project_guard import accessibility_scope_denial_message
+
         return {"status": "error", "error": accessibility_scope_denial_message(exc.project_dir)}
     except CypressMultipleInstallationsFoundError as exc:
         candidates_list = "\n".join(f"  {i + 1}. {c}" for i, c in enumerate(exc.candidates))

@@ -321,7 +321,7 @@ def _extract_semantic_html(raw_html: str, accessibility_tree: str | None = None)
             if _as_str(meta.get("name")).lower() == "viewport":
                 meta_viewport = _as_str(meta.get("content"))
 
-        page_context = f'<html lang="{page_lang}">\n' f"<title>{page_title}</title>\n"
+        page_context = f'<html lang="{page_lang}">\n<title>{page_title}</title>\n'
         if meta_charset:
             page_context += f'<meta charset="{meta_charset}">\n'
         if meta_viewport:
@@ -554,6 +554,7 @@ async def analyze_url(body: AnalyzeUrlRequest) -> AgentResult:
     if is_success:
         issues = result.get("data", {}).get("issues", []) if isinstance(result, dict) else result.data.get("issues", [])
         from backend.src.services.last_analysis_store import set_last_analysis
+
         set_last_analysis(issues, body.url)
     return result
 
@@ -575,12 +576,14 @@ async def analyze_file(file: UploadFile = File(...)) -> AgentResult:  # noqa: B0
     if is_success:
         issues = result.get("data", {}).get("issues", []) if isinstance(result, dict) else result.data.get("issues", [])
         from backend.src.services.last_analysis_store import set_last_analysis
+
         set_last_analysis(issues, f"Arquivo: {file.filename}")
     return result
 
 
 def _get_cache_path() -> str:
     return os.path.join(tempfile.gettempdir(), "qa_accessibility_cache.json")
+
 
 def _load_cache() -> dict:
     path = _get_cache_path()
@@ -592,6 +595,7 @@ def _load_cache() -> dict:
             logger.debug("[Cache] Falha ao carregar cache de %s: %s", path, exc)
     return {}
 
+
 def _save_cache(cache: dict) -> None:
     path = _get_cache_path()
     try:
@@ -599,6 +603,7 @@ def _save_cache(cache: dict) -> None:
             json.dump(cache, f, ensure_ascii=False, indent=2)
     except Exception as exc:
         logger.debug("[Cache] Falha ao salvar cache em %s: %s", path, exc)
+
 
 def _md5(text: str) -> str:
     # Uso nao-criptografico (chave de cache), nunca para senha/token/assinatura.
@@ -608,6 +613,7 @@ def _md5(text: str) -> str:
 def _map_issues_to_files(issues: list[dict], accepted_files: list[tuple[str, str]]) -> None:
     """Tenta mapear cada issue de volta para o arquivo de origem correspondente no projeto."""
     import re
+
     for issue in issues:
         element = issue.get("element", "")
         if not element:
@@ -624,7 +630,7 @@ def _map_issues_to_files(issues: list[dict], accepted_files: list[tuple[str, str
                     found_file = filename
                     break
                 # Se não achou exato, busca a tag crua (ex: <button class="...">)
-                tag_match = re.search(r'<[a-zA-Z0-9]+[^>]*>', clean_el)
+                tag_match = re.search(r"<[a-zA-Z0-9]+[^>]*>", clean_el)
                 if tag_match and tag_match.group(0) in content:
                     found_file = filename
                     break
@@ -686,10 +692,13 @@ async def analyze_project(
         else:
             to_analyze.append((name, text))
 
-    logger.info("[Route] POST /analyze/project Cache hit: %d. Cache miss: %d", len(accepted) - len(to_analyze), len(to_analyze))
+    logger.info(
+        "[Route] POST /analyze/project Cache hit: %d. Cache miss: %d", len(accepted) - len(to_analyze), len(to_analyze)
+    )
 
     if not to_analyze:
         from backend.src.services.last_analysis_store import set_last_analysis
+
         set_last_analysis(cached_issues, f"Projeto (Cache): {len(accepted)} arquivos")
         return AgentResult(agent="project_analyzer_cache", success=True, data={"issues": cached_issues}, error=None)
 
@@ -698,16 +707,15 @@ async def analyze_project(
     is_success = result.get("success") if isinstance(result, dict) else result.success
 
     if is_success:
-        new_issues = result.get("data", {}).get("issues", []) if isinstance(result, dict) else result.data.get("issues", [])
+        new_issues = (
+            result.get("data", {}).get("issues", []) if isinstance(result, dict) else result.data.get("issues", [])
+        )
         _map_issues_to_files(new_issues, to_analyze)
 
         # Atualiza o cache
         for name, _ in to_analyze:
             file_issues = [issue for issue in new_issues if issue.get("url") == name]
-            cache[name] = {
-                "hash": file_hashes[name],
-                "issues": file_issues
-            }
+            cache[name] = {"hash": file_hashes[name], "issues": file_issues}
         _save_cache(cache)
 
         all_issues = cached_issues + new_issues
@@ -717,6 +725,7 @@ async def analyze_project(
             result.data["issues"] = all_issues
 
         from backend.src.services.last_analysis_store import set_last_analysis
+
         set_last_analysis(all_issues, f"Projeto (Misto): {len(accepted)} arquivos")
 
     return result
@@ -810,6 +819,7 @@ async def analyze_crawl(body: CrawlRequest) -> CrawlResult:
     )
 
     from backend.src.services.last_analysis_store import set_last_analysis
+
     set_last_analysis([i.model_dump() for i in all_issues], f"Crawl: {body.url}")
 
     return CrawlResult(
@@ -879,7 +889,10 @@ async def analyze_crawl_batch_submit(body: CrawlRequest) -> CrawlBatchSubmitResp
 
     logger.info("[Route] POST /analyze/crawl/batch url=%s max_pages=%d provider=%s", body.url, body.max_pages, provider)
     page_results = await crawl_site(
-        body.url, max_pages=body.max_pages, cookies=body.cookies, auth_headers=body.auth_headers,
+        body.url,
+        max_pages=body.max_pages,
+        cookies=body.cookies,
+        auth_headers=body.auth_headers,
     )
     if not page_results:
         raise HTTPException(status_code=400, detail="Nenhuma página foi acessada com sucesso.")
@@ -913,7 +926,10 @@ async def analyze_crawl_batch_submit(body: CrawlRequest) -> CrawlBatchSubmitResp
 
     batch_requests = [
         BatchRequest(
-            custom_id=r.cache_key, system_prompt=r.system_prompt, user_prompt=r.user_prompt, model=r.model,
+            custom_id=r.cache_key,
+            system_prompt=r.system_prompt,
+            user_prompt=r.user_prompt,
+            model=r.model,
         )
         for r in pending
     ]
@@ -924,18 +940,23 @@ async def analyze_crawl_batch_submit(body: CrawlRequest) -> CrawlBatchSubmitResp
 
     # Falhas de crawl já são conhecidas aqui -- persistidas junto do job pra
     # reaparecerem no resultado final sem precisar re-crawlear.
-    batch_job_store.save(batch_job_store.BatchJob(
-        batch_id=batch_id,
-        provider=provider,
-        model=model,
-        root_url=body.url,
-        page_htmls=page_htmls,
-        failed_pages=failed_pages,
-    ))
+    batch_job_store.save(
+        batch_job_store.BatchJob(
+            batch_id=batch_id,
+            provider=provider,
+            model=model,
+            root_url=body.url,
+            page_htmls=page_htmls,
+            failed_pages=failed_pages,
+        )
+    )
 
     logger.info(
         "[Route] Batch submetido: batch_id=%s provider=%s %d páginas, %d chamadas coletadas",
-        batch_id, provider, len(page_htmls), len(pending),
+        batch_id,
+        provider,
+        len(page_htmls),
+        len(pending),
     )
     return CrawlBatchSubmitResponse(
         batch_id=batch_id,
@@ -981,9 +1002,14 @@ async def analyze_crawl_batch_status(batch_id: str) -> CrawlBatchStatusResponse:
     # Páginas que já tinham falhado no crawl (antes do batch existir) --
     # reaparecem aqui sem precisar re-crawlear.
     for failed in job.failed_pages:
-        pages_detail.append(CrawlPageIssues(
-            url=failed.get("url", ""), issues=[], success=False, error=failed.get("error") or None,
-        ))
+        pages_detail.append(
+            CrawlPageIssues(
+                url=failed.get("url", ""),
+                issues=[],
+                success=False,
+                error=failed.get("error") or None,
+            )
+        )
 
     pages_ok = sum(1 for p in pages_detail if p.success)
     pages_failed = len(pages_detail) - pages_ok
@@ -993,11 +1019,16 @@ async def analyze_crawl_batch_status(batch_id: str) -> CrawlBatchStatusResponse:
     score = max(0, 100 - total_deduction)
 
     from backend.src.services.last_analysis_store import set_last_analysis
+
     set_last_analysis([i.model_dump() for i in all_issues], f"Crawl (batch): {job.root_url}")
 
     logger.info(
         "[Route] Batch %s concluído: %d páginas OK, %d falhas, %d issues, score=%d",
-        batch_id, pages_ok, pages_failed, len(all_issues), score,
+        batch_id,
+        pages_ok,
+        pages_failed,
+        len(all_issues),
+        score,
     )
     batch_job_store.delete(batch_id)
 
@@ -1025,6 +1056,7 @@ async def analyze_project_zip(
     """
     import io
     import zipfile
+
     logger.info("[Route] POST /analyze/project/zip filename=%s", file.filename)
     try:
         content = await file.read()
@@ -1073,11 +1105,16 @@ async def analyze_project_zip(
             else:
                 to_analyze.append((name, text))
 
-        logger.info("[Route] Cache hit: %d arquivos. Cache miss (para analisar): %d arquivos", len(accepted) - len(to_analyze), len(to_analyze))
+        logger.info(
+            "[Route] Cache hit: %d arquivos. Cache miss (para analisar): %d arquivos",
+            len(accepted) - len(to_analyze),
+            len(to_analyze),
+        )
 
         if not to_analyze:
             # Todos os arquivos estão em cache! Retorna diretamente.
             from backend.src.services.last_analysis_store import set_last_analysis
+
             set_last_analysis(cached_issues, f"Projeto ZIP (Cache): {len(accepted)} arquivos")
             return AgentResult(agent="project_analyzer_cache", success=True, data={"issues": cached_issues}, error=None)
 
@@ -1086,16 +1123,15 @@ async def analyze_project_zip(
         is_success = result.get("success") if isinstance(result, dict) else result.success
 
         if is_success:
-            new_issues = result.get("data", {}).get("issues", []) if isinstance(result, dict) else result.data.get("issues", [])
+            new_issues = (
+                result.get("data", {}).get("issues", []) if isinstance(result, dict) else result.data.get("issues", [])
+            )
             _map_issues_to_files(new_issues, to_analyze)
 
             # Atualiza o cache para os arquivos recém-analisados
             for name, _ in to_analyze:
                 file_issues = [issue for issue in new_issues if issue.get("url") == name]
-                cache[name] = {
-                    "hash": file_hashes[name],
-                    "issues": file_issues
-                }
+                cache[name] = {"hash": file_hashes[name], "issues": file_issues}
             _save_cache(cache)
 
             # Mescla questões novas e antigas
@@ -1108,6 +1144,7 @@ async def analyze_project_zip(
                 result.data["issues"] = all_issues
 
             from backend.src.services.last_analysis_store import set_last_analysis
+
             set_last_analysis(all_issues, f"Projeto ZIP (Misto): {len(accepted)} arquivos")
 
         return result

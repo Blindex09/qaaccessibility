@@ -49,10 +49,14 @@ class Settings(BaseSettings):
     llm_model: str | None = Field(default=None, description="ID do modelo para o provedor")
 
     # Firecrawl
-    firecrawl_api_key: str | None = Field(default=None, description="Chave de API do Firecrawl para crawl de sites online")
+    firecrawl_api_key: str | None = Field(
+        default=None, description="Chave de API do Firecrawl para crawl de sites online"
+    )
 
     # Browserless
-    browserless_ws_url: str | None = Field(default=None, description="URL do WebSocket do Browserless para rendering/screenshots na nuvem")
+    browserless_ws_url: str | None = Field(
+        default=None, description="URL do WebSocket do Browserless para rendering/screenshots na nuvem"
+    )
 
     # Busca web (chat)
     tavily_api_key: str | None = Field(default=None, description="Chave de API do Tavily para busca web no chat")

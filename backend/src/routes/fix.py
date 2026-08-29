@@ -30,6 +30,7 @@ async def fix_html(body: FixRequest) -> AgentResult:
     try:
         if body.self_healing:
             from backend.src.services.self_healing import run_self_healing_loop
+
             try:
                 fixed_html, changes_summary, enriched_issues = await asyncio.wait_for(
                     run_self_healing_loop(
@@ -126,7 +127,7 @@ async def fix_project_zip(
     try:
         # Descompacta arquivos na memória
         zip_content = await file.read()
-        accepted_files = {} # path -> bytes
+        accepted_files = {}  # path -> bytes
         ignored_patterns = {"node_modules/", ".git/", "dist/", "build/", ".next/", "__pycache__/"}
 
         with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
@@ -142,8 +143,10 @@ async def fix_project_zip(
         for name, file_bytes in list(accepted_files.items()):
             # Filtra issues deste arquivo específico
             file_issues = [
-                issue for issue in issues_parsed
-                if issue.url == name or (issue.url and issue.url.replace("\\", "/").rstrip("/") == name.replace("\\", "/").rstrip("/"))
+                issue
+                for issue in issues_parsed
+                if issue.url == name
+                or (issue.url and issue.url.replace("\\", "/").rstrip("/") == name.replace("\\", "/").rstrip("/"))
             ]
             if not file_issues:
                 continue
@@ -158,6 +161,7 @@ async def fix_project_zip(
             try:
                 if ext == ".docx":
                     from backend.src.services.chat_tools import _fix_docx_document, _read_docx_text
+
                     content_str = _read_docx_text(io.BytesIO(file_bytes))
                     fixed_bytes = await _fix_docx_document(name, content_str, custom_instruction)
                     accepted_files[name] = fixed_bytes
@@ -165,6 +169,7 @@ async def fix_project_zip(
                     fixed_count += 1
                 elif ext == ".pdf":
                     from backend.src.services.chat_tools import _fix_pdf_document_to_html, _read_pdf_text
+
                     content_str = _read_pdf_text(io.BytesIO(file_bytes))
                     fixed_html = await _fix_pdf_document_to_html(name, content_str, custom_instruction)
                     html_name = os.path.splitext(name)[0] + ".html"
@@ -177,21 +182,23 @@ async def fix_project_zip(
                     content_str = file_bytes.decode("utf-8", errors="replace")
                     if self_healing:
                         from backend.src.services.self_healing import run_self_healing_loop
+
                         fixed_str, changes, _ = await run_self_healing_loop(
                             content_str,
                             file_issues,
                             approved_issue_ids=approved_ids,
-                            custom_instruction=custom_instruction
+                            custom_instruction=custom_instruction,
                         )
                         changes_summary_all.extend([f"[{name}] {c}" for c in changes])
                     else:
                         from backend.src.agents.fixer.fixer import run_fixer
+
                         fix_res = await run_fixer(
                             content_str,
                             file_issues,
                             request_id=request_id,
                             approved_issue_ids=approved_ids,
-                            custom_instruction=custom_instruction
+                            custom_instruction=custom_instruction,
                         )
                         if fix_res.success:
                             fixed_str = fix_res.data.get("fixed_html", content_str)
@@ -227,7 +234,7 @@ async def fix_project_zip(
                 "zip_filename": zip_filename,
                 "changes_summary": changes_summary_all,
                 "fixed_count": fixed_count,
-            }
+            },
         )
     except zipfile.BadZipFile as exc:
         raise HTTPException(status_code=400, detail="Arquivo ZIP inválido ou corrompido.") from exc

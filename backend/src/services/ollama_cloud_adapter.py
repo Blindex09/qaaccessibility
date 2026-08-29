@@ -53,11 +53,7 @@ _catalog_cache: dict[str, Any] = {
 def _get_api_key(api_key: str | None = None) -> str:
     if api_key:
         return api_key
-    return (
-        os.getenv("OLLAMA_CLOUD_API_KEY")
-        or os.getenv("OLLAMA_API_KEY")
-        or ""
-    )
+    return os.getenv("OLLAMA_CLOUD_API_KEY") or os.getenv("OLLAMA_API_KEY") or ""
 
 
 def fetch_ollama_cloud_tags(api_key: str | None = None) -> list[dict[str, Any]]:
@@ -98,7 +94,9 @@ def inspect_ollama_cloud_model(model_id: str, api_key: str | None = None) -> dic
         return {}
 
 
-def discover_ollama_cloud_descriptors(api_key: str | None = None, force_refresh: bool = False) -> list[OllamaCloudModelDescriptor]:
+def discover_ollama_cloud_descriptors(
+    api_key: str | None = None, force_refresh: bool = False
+) -> list[OllamaCloudModelDescriptor]:
     """Descoberta dinâmica de modelos Ollama Cloud com cache por TTL."""
     now = time.time()
     if not force_refresh and (now - _catalog_cache["timestamp"]) < CACHE_TTL_SECONDS and _catalog_cache["descriptors"]:
@@ -133,7 +131,9 @@ def discover_ollama_cloud_descriptors(api_key: str | None = None, force_refresh:
 
         # Identificação de suporte a ferramentas, raciocínio e visão por capacidades ou nome
         name_lower = model_name.lower()
-        has_tools = "tools" in caps or any(w in name_lower for w in ["qwen", "llama", "deepseek", "mistral", "gemma", "gpt-oss"])
+        has_tools = "tools" in caps or any(
+            w in name_lower for w in ["qwen", "llama", "deepseek", "mistral", "gemma", "gpt-oss"]
+        )
         has_vision = "vision" in caps or any(w in name_lower for w in ["vl", "vision"])
         is_reasoning = "thinking" in caps or any(w in name_lower for w in ["deepseek", "think", "r1", "reasoner"])
 
@@ -228,12 +228,7 @@ def score_ollama_cloud_model(
     cost_weight = 0.05 + 0.40 * ratio
     quality_weight = 0.80 - 0.40 * ratio
 
-    return (
-        quality_weight * quality
-        + cost_weight * cost_score
-        + 0.10 * latency_score
-        + 0.05 * reliability_score
-    )
+    return quality_weight * quality + cost_weight * cost_score + 0.10 * latency_score + 0.05 * reliability_score
 
 
 def rank_ollama_cloud_candidates(

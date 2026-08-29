@@ -42,12 +42,14 @@ async def list_models() -> dict:
             if provider_id in ("ollama-cloud", "ollama_cloud"):
                 try:
                     from backend.src.services.ollama_cloud_adapter import discover_ollama_cloud_descriptors
+
                     descriptors = discover_ollama_cloud_descriptors()
                     models = [d.id for d in descriptors]
                 except Exception:
                     models = []
             else:
                 from agent.models_dev import get_model_info, list_agentic_models
+
                 models = list_agentic_models(provider_id)
                 filtered = []
                 for m in models:
@@ -82,11 +84,13 @@ async def list_models() -> dict:
                 }
             except UnboundLocalError:
                 model_capabilities = {}
-        providers.append({
-            "id": provider_id,
-            "label": label,
-            "models": ["alto"] + models,
-            "model_capabilities": model_capabilities,
-        })
+        providers.append(
+            {
+                "id": provider_id,
+                "label": label,
+                "models": ["alto"] + models,
+                "model_capabilities": model_capabilities,
+            }
+        )
 
     return {"providers": providers}

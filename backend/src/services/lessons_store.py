@@ -90,12 +90,15 @@ def record_false_positive_removal(criterion: str, element: str, example_descript
     signature = _element_signature(element)
     key = _pattern_key(criterion, signature)
     store = _load_store()
-    entry = store.get(key, {
-        "criterion": criterion,
-        "element_signature": signature,
-        "count": 0,
-        "example_description": example_description,
-    })
+    entry = store.get(
+        key,
+        {
+            "criterion": criterion,
+            "element_signature": signature,
+            "count": 0,
+            "example_description": example_description,
+        },
+    )
     entry["count"] = int(entry.get("count", 0)) + 1
     entry["last_seen"] = time.time()
     if example_description:

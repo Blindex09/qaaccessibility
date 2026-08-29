@@ -32,7 +32,9 @@ def set_last_analyzed_content(html: str, url: str, session_id: str | None = None
     _sessions[session] = (html, url)
     logger.info(
         "[LastAnalyzedContentStore] Cache atualizado (%d chars, sessão %s): %s",
-        len(html), session, url or "(sem URL)",
+        len(html),
+        session,
+        url or "(sem URL)",
     )
 
 

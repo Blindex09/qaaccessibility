@@ -88,7 +88,12 @@ def record(cache_key: str, provider: str, model: str, system_prompt: str, user_p
     pending = _pending.get()
     if pending is None:
         return
-    pending.append(CollectedRequest(
-        cache_key=cache_key, provider=provider, model=model,
-        system_prompt=system_prompt, user_prompt=user_prompt,
-    ))
+    pending.append(
+        CollectedRequest(
+            cache_key=cache_key,
+            provider=provider,
+            model=model,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+        )
+    )

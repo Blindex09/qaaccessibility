@@ -49,11 +49,8 @@ def _init_nvda_dll() -> None:
             try:
                 _dll_instance = ctypes.windll.LoadLibrary(abs_path)
                 res = _dll_instance.nvdaController_testIfRunning()
-                _is_available = (res == 0)
-                logger.info(
-                    "[NVDA Service] DLL carregada com sucesso (%s). NVDA rodando: %s",
-                    abs_path, _is_available
-                )
+                _is_available = res == 0
+                logger.info("[NVDA Service] DLL carregada com sucesso (%s). NVDA rodando: %s", abs_path, _is_available)
                 return
             except Exception as exc:
                 logger.warning("[NVDA Service] Falha ao carregar DLL em %s: %s", abs_path, exc)

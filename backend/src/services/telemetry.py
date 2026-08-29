@@ -114,7 +114,7 @@ _DEFAULT_RUBRIC = (
     "1. Factual accuracy: as afirmações são precisas e fundamentadas?\n"
     "2. Completeness: todos os aspectos pedidos foram cobertos?\n"
     "3. Tool efficiency: as ferramentas certas foram usadas um número razoável de vezes?\n"
-    "Devolva um JSON: {\"score\": <0.0-1.0>, \"pass\": <bool>, \"reason\": \"<texto curto>\"}"
+    'Devolva um JSON: {"score": <0.0-1.0>, "pass": <bool>, "reason": "<texto curto>"}'
 )
 
 
@@ -143,6 +143,7 @@ async def score_trace(
 
     try:
         from backend.src.config.settings import get_settings
+
         settings = get_settings()
         prov = provider or getattr(settings, "llm_provider", "") or ""
         if not prov:
@@ -154,11 +155,7 @@ async def score_trace(
         if criteria:
             rubric = rubric + "\nCritérios adicionais:\n" + criteria
 
-        prompt = (
-            f"{rubric}\n\n"
-            f"--- TRACE DO TURNO ---\n{trace_text[:8000]}\n--- FIM ---\n\n"
-            "Devolva somente o JSON."
-        )
+        prompt = f"{rubric}\n\n--- TRACE DO TURNO ---\n{trace_text[:8000]}\n--- FIM ---\n\nDevolva somente o JSON."
         # call_llm devolve str (output cru do modelo); o AIAgent resolve provider/modelo.
         text = await call_llm(
             system_prompt="Você é um juiz de qualidade de traces de IA. Devolva somente JSON válido.",

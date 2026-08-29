@@ -51,16 +51,8 @@ def apca_contrast(txt_y: float, bg_y: float) -> float:
     bg_y = max(0.0, min(1.1, bg_y))
 
     # Softtoe: compressão de pretos para compensar luz difusa/flare
-    txt_y_clamped = (
-        txt_y
-        if txt_y > BLK_THRS
-        else txt_y + (BLK_THRS - txt_y) ** BLK_CLMP
-    )
-    bg_y_clamped = (
-        bg_y
-        if bg_y > BLK_THRS
-        else bg_y + (BLK_THRS - bg_y) ** BLK_CLMP
-    )
+    txt_y_clamped = txt_y if txt_y > BLK_THRS else txt_y + (BLK_THRS - txt_y) ** BLK_CLMP
+    bg_y_clamped = bg_y if bg_y > BLK_THRS else bg_y + (BLK_THRS - bg_y) ** BLK_CLMP
 
     # Retorna 0 early para diferenças imperceptíveis
     if abs(bg_y_clamped - txt_y_clamped) < DELTA_Y_MIN:
@@ -68,11 +60,11 @@ def apca_contrast(txt_y: float, bg_y: float) -> float:
 
     if bg_y_clamped > txt_y_clamped:
         # Polaridade Normal (BoW)
-        sapc = ((bg_y_clamped ** NORM_BG) - (txt_y_clamped ** NORM_TXT)) * SCALE_BOW
+        sapc = ((bg_y_clamped**NORM_BG) - (txt_y_clamped**NORM_TXT)) * SCALE_BOW
         output_contrast = 0.0 if sapc < LO_CLIP else sapc - LO_BOW_OFFSET
     else:
         # Polaridade Inversa (WoB)
-        sapc = ((bg_y_clamped ** REV_BG) - (txt_y_clamped ** REV_TXT)) * SCALE_WOB
+        sapc = ((bg_y_clamped**REV_BG) - (txt_y_clamped**REV_TXT)) * SCALE_WOB
         output_contrast = 0.0 if sapc > -LO_CLIP else sapc + LO_WOB_OFFSET
 
     return output_contrast * 100.0

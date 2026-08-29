@@ -118,14 +118,20 @@ def set_last_analysis(
             last_url = f"{last_url}, {url}" if last_url else url
         logger.info(
             "[LastAnalysisStore] Cache incrementado com %d de %d issues para URL: %s (Total: %d, sessão: %s)",
-            added_count, len(issues), url, len(last_issues), session,
+            added_count,
+            len(issues),
+            url,
+            len(last_issues),
+            session,
         )
     else:
         last_issues = [dict(i) for i in issues]
         last_url = url
         logger.info(
             "[LastAnalysisStore] Cache atualizado com %d issues para URL: %s (sessão: %s)",
-            len(issues), url, session,
+            len(issues),
+            url,
+            session,
         )
 
     _sessions[session] = (last_issues, last_url)

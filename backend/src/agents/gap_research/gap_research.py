@@ -30,10 +30,7 @@ MAX_GAP_RESEARCH_ISSUES = 3
 
 
 def _build_gap_research_question(issues: list[AccessibilityIssue]) -> str:
-    lines = [
-        f"- Criterion {i.criterion} on element `{i.element[:150]}`: {i.description[:200]}"
-        for i in issues
-    ]
+    lines = [f"- Criterion {i.criterion} on element `{i.element[:150]}`: {i.description[:200]}" for i in issues]
     return (
         "An automated accessibility audit agent flagged the following findings "
         "but reported LOW confidence in each one (uncertain whether it's a genuine "
@@ -63,7 +60,9 @@ async def run_gap_research_check(issues: list[AccessibilityIssue]) -> AgentResul
         research = await run_deep_research(question)
         if research.get("status") != "ok" or not research.get("answer"):
             return AgentResult(
-                agent="gap_research", success=False, data={"answer": "", "issue_ids": []},
+                agent="gap_research",
+                success=False,
+                data={"answer": "", "issue_ids": []},
                 error=research.get("error") or "deep_research não retornou resposta utilizável",
             )
         logger.info(

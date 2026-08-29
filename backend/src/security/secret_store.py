@@ -44,9 +44,7 @@ def _fallback_key_path() -> Path:
 
 def _as_blob(data: bytes) -> tuple[_DataBlob, ctypes.Array[ctypes.c_char]]:
     buffer = ctypes.create_string_buffer(data)
-    return _DataBlob(
-        len(data), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_ubyte))
-    ), buffer
+    return _DataBlob(len(data), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_ubyte))), buffer
 
 
 def _dpapi(data: bytes, *, protect: bool) -> bytes:
@@ -112,9 +110,7 @@ def load_secrets() -> dict[str, str]:
             plaintext = _unprotect(str(envelope["protected"]))
             payload = json.loads(plaintext.decode("utf-8"))
         except (OSError, ValueError, KeyError, InvalidToken) as error:
-            raise SecretStoreUnreadableError(
-                f"Não foi possível ler o cofre local em {path}: {error}"
-            ) from error
+            raise SecretStoreUnreadableError(f"Não foi possível ler o cofre local em {path}: {error}") from error
         if not isinstance(payload, dict):
             raise SecretStoreUnreadableError("O cofre local não contém um objeto válido.")
         return {str(key): str(value) for key, value in payload.items()}
@@ -143,9 +139,7 @@ def _save_all(values: dict[str, str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     protected = _protect(json.dumps(values, ensure_ascii=False).encode("utf-8"))
     envelope = json.dumps({"version": 1, "protected": protected}, ensure_ascii=False)
-    handle, temporary_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", text=True
-    )
+    handle, temporary_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", text=True)
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as temporary:
             temporary.write(envelope)

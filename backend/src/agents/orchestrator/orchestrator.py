@@ -194,6 +194,7 @@ def _get_agent_timeout() -> float:
     try:
         from backend.src.services.complexity_router import get_current_tradeoff
         from backend.src.services.llm_client import _reasoning_effort_for_tradeoff
+
         effort = _reasoning_effort_for_tradeoff(get_current_tradeoff())
         return max(base, _EFFORT_TIMEOUT_SECONDS.get(effort, base))
     except Exception:
@@ -238,6 +239,7 @@ async def _timed(name: str, coro_factory) -> tuple[AgentResult, float]:
             # de qualidade por uma chance real de terminar dentro do timeout,
             # em vez de garantidamente falhar de novo com o mesmo esforco.
             from backend.src.services.complexity_router import get_current_tradeoff, set_current_tradeoff
+
             retry_token = set_current_tradeoff(get_current_tradeoff() + 3)
         try:
             result = await asyncio.wait_for(coro_factory(), timeout=timeout)
@@ -246,7 +248,8 @@ async def _timed(name: str, coro_factory) -> tuple[AgentResult, float]:
             if attempt == 0:
                 logger.warning(
                     "[Orchestrator] Agente '%s' estourou o timeout (%.0fs) na 1a tentativa; refazendo uma vez com esforço reduzido.",
-                    name, timeout,
+                    name,
+                    timeout,
                 )
                 continue
             result = AgentResult(agent=name, success=False, data={}, error=f"Timeout after {timeout}s (2 tentativas)")
@@ -256,17 +259,20 @@ async def _timed(name: str, coro_factory) -> tuple[AgentResult, float]:
         finally:
             if retry_token is not None:
                 from backend.src.services.complexity_router import reset_current_tradeoff
+
                 reset_current_tradeoff(retry_token)
 
     assert result is not None
     duration_ms = (loop.time() - start) * 1000
-    chat_progress.emit({
-        "type": "agent",
-        "phase": "done",
-        "agent": name,
-        "ok": result.success,
-        "issues": len(result.data.get("issues", [])) if result.success else 0,
-    })
+    chat_progress.emit(
+        {
+            "type": "agent",
+            "phase": "done",
+            "agent": name,
+            "ok": result.success,
+            "issues": len(result.data.get("issues", [])) if result.success else 0,
+        }
+    )
     return result, duration_ms
 
 
@@ -362,7 +368,9 @@ async def _run_delegation_round(
 
         logger.info(
             "[Orchestrator] Delegacao dinamica (rodada %d/%d): %d agente(s) pulado(s) acionado(s): %s",
-            round_num, MAX_DELEGATION_ROUNDS, len(delegations),
+            round_num,
+            MAX_DELEGATION_ROUNDS,
+            len(delegations),
             ", ".join(d["target_agent"] for d in delegations),
         )
 
@@ -385,16 +393,21 @@ async def _run_delegation_round(
                 )
             )
             delegated_issues.extend(_extract_issues(result))
-            delegation_edges.append({
-                "from": "delegation_coordinator",
-                "to": target,
-                "round": str(round_num),
-                "reason": delegation["reason"],
-            })
+            delegation_edges.append(
+                {
+                    "from": "delegation_coordinator",
+                    "to": target,
+                    "round": str(round_num),
+                    "reason": delegation["reason"],
+                }
+            )
             remaining_skipped.pop(target, None)
             logger.info(
                 "[Orchestrator] Agente delegado '%s' concluido (rodada %d) -- %d issues novos (motivo: %s)",
-                target, round_num, issues_found, delegation["reason"],
+                target,
+                round_num,
+                issues_found,
+                delegation["reason"],
             )
 
         unique = _deduplicate_issues(unique + delegated_issues)
@@ -402,7 +415,9 @@ async def _run_delegation_round(
         if remaining_skipped:
             logger.info(
                 "[Orchestrator] Loop de delegacao parou no limite de %d rodadas (backstop) -- %d agente(s) ainda pulado(s): %s",
-                MAX_DELEGATION_ROUNDS, len(remaining_skipped), list(remaining_skipped),
+                MAX_DELEGATION_ROUNDS,
+                len(remaining_skipped),
+                list(remaining_skipped),
             )
 
     return unique, metrics, delegation_edges
@@ -421,25 +436,27 @@ def _build_pipeline_graph(
     no codigo -- permite inspecionar/depurar a topologia real de uma analise
     especifica sem ler logs."""
     delegated_targets = {edge["to"] for edge in delegation_edges}
-    nodes = [
-        {"agent": name, "state": "selected", "reason": reason}
-        for name, reason in routing_reasons.items()
-    ] + [
-        {"agent": name, "state": "delegated" if name in delegated_targets else "skipped", "reason": reason}
-        for name, reason in skipped_reasons.items()
-        if name not in delegated_targets
-    ] + [
-        {"agent": name, "state": "delegated", "reason": "acionado pelo delegation_coordinator"}
-        for name in delegated_targets
-    ]
+    nodes = (
+        [{"agent": name, "state": "selected", "reason": reason} for name, reason in routing_reasons.items()]
+        + [
+            {"agent": name, "state": "delegated" if name in delegated_targets else "skipped", "reason": reason}
+            for name, reason in skipped_reasons.items()
+            if name not in delegated_targets
+        ]
+        + [
+            {"agent": name, "state": "delegated", "reason": "acionado pelo delegation_coordinator"}
+            for name in delegated_targets
+        ]
+    )
     edges = [
-        {"from": "classifier", "to": name, "reason": reason}
-        for name, reason in routing_reasons.items()
+        {"from": "classifier", "to": name, "reason": reason} for name, reason in routing_reasons.items()
     ] + delegation_edges
     return {"nodes": nodes, "edges": edges}
 
 
-async def _run_gap_research_step(unique: list[AccessibilityIssue]) -> tuple[list[AccessibilityIssue], AgentMetrics | None]:
+async def _run_gap_research_step(
+    unique: list[AccessibilityIssue],
+) -> tuple[list[AccessibilityIssue], AgentMetrics | None]:
     """Verificacao automatica de lacuna: quando um sub-agente reportou baixa
     confianca (confidence=low) num achado, delega pro agente real de Deep
     Research (pesquisa normativa na web) pra confirmar/refutar contra a fonte
@@ -489,6 +506,7 @@ async def _run_analysis_pipeline(
     """
     # Comprime o HTML para economizar tokens nos sub-agentes
     from backend.src.services.context_compressor import compress as compress_html
+
     html_content = compress_html(html_content)
 
     # Catalogo de agentes possiveis (lambdas adiam a criacao das coroutines)
@@ -521,7 +539,9 @@ async def _run_analysis_pipeline(
         "tailwind_css": lambda: run_tailwind_css(html_content),
     }
     if screenshot_base64:
-        all_available_agents["visual_a11y"] = lambda: run_visual_a11y(html_content, screenshot_base64, focus_screenshots)
+        all_available_agents["visual_a11y"] = lambda: run_visual_a11y(
+            html_content, screenshot_base64, focus_screenshots
+        )
 
     classifier_success = True
     duration_classifier = 0.0
@@ -533,13 +553,11 @@ async def _run_analysis_pipeline(
         # Pula a classificação inteiramente para maior velocidade e evita restrições automáticas
         only_lower = {a.lower().replace("_", "").replace("-", "") for a in only_agents}
         agents = [
-            (name, func) for name, func in all_available_agents.items()
+            (name, func)
+            for name, func in all_available_agents.items()
             if name.lower().replace("_", "").replace("-", "") in only_lower
         ]
-        routing_reasons = {
-            name: "selecionado explicitamente via only_agents"
-            for name, _ in agents
-        }
+        routing_reasons = {name: "selecionado explicitamente via only_agents" for name, _ in agents}
         logger.info("[Orchestrator] Executando apenas os agentes selecionados via only_agents: %s", only_agents)
     else:
         # Fluxo normal: executa o classificador de frameworks E o classificador
@@ -596,11 +614,7 @@ async def _run_analysis_pipeline(
             if name not in routing_reasons and name not in skipped_reasons:
                 skipped_reasons[name] = "sem evidencia estrutural suficiente para este agente condicional"
 
-        agents = [
-            (name, all_available_agents[name])
-            for name in all_available_agents
-            if name in routing_reasons
-        ]
+        agents = [(name, all_available_agents[name]) for name in all_available_agents if name in routing_reasons]
 
     logger.info(
         "[Orchestrator] Roteamento seletivo: lang=%s selecionados=%d [%s]",
@@ -614,7 +628,11 @@ async def _run_analysis_pipeline(
         logger.info("[Orchestrator] Agente pulado: %s -- %s", name, reason)
 
     max_concurrent = get_settings().a11y_max_concurrent_agents
-    logger.info("[Orchestrator] Disparando sub-agentes em paralelo (max_concurrent=%d, timeout=%.0fs)", max_concurrent, _get_agent_timeout())
+    logger.info(
+        "[Orchestrator] Disparando sub-agentes em paralelo (max_concurrent=%d, timeout=%.0fs)",
+        max_concurrent,
+        _get_agent_timeout(),
+    )
     chat_progress.emit({"type": "phase", "text": "Analisando a página com especialistas em acessibilidade..."})
 
     semaphore = asyncio.Semaphore(max_concurrent)
@@ -627,15 +645,11 @@ async def _run_analysis_pipeline(
     if batch_collect:
         collect_token = batch_collector.enable()
         try:
-            tuples = await asyncio.gather(
-                *[_run_with_semaphore(name, func) for name, func in agents]
-            )
+            tuples = await asyncio.gather(*[_run_with_semaphore(name, func) for name, func in agents])
         finally:
             batch_collector.disable(collect_token)
     else:
-        tuples = await asyncio.gather(
-            *[_run_with_semaphore(name, func) for name, func in agents]
-        )
+        tuples = await asyncio.gather(*[_run_with_semaphore(name, func) for name, func in agents])
 
     all_issues: list[AccessibilityIssue] = []
     metrics: list[AgentMetrics] = []
@@ -688,7 +702,9 @@ async def _run_analysis_pipeline(
     # avaliar.
     delegation_edges: list[dict[str, str]] = []
     if not only_agents and skipped_reasons and unique:
-        unique, delegation_metrics, delegation_edges = await _run_delegation_round(unique, skipped_reasons, all_available_agents)
+        unique, delegation_metrics, delegation_edges = await _run_delegation_round(
+            unique, skipped_reasons, all_available_agents
+        )
         metrics.extend(delegation_metrics)
 
     pipeline_graph = _build_pipeline_graph(routing_reasons, skipped_reasons, delegation_edges)
@@ -713,7 +729,9 @@ async def _run_analysis_pipeline(
 
     # Expert Review
     if unique:
-        chat_progress.emit({"type": "phase", "text": "Revisão especializada: removendo falsos positivos e repontuando..."})
+        chat_progress.emit(
+            {"type": "phase", "text": "Revisão especializada: removendo falsos positivos e repontuando..."}
+        )
         known_patterns = get_known_false_positive_patterns()
         pre_review = unique
         expert_result = await run_a11y_expert_reviewer(unique, known_false_positive_patterns=known_patterns)
@@ -736,7 +754,9 @@ async def _run_analysis_pipeline(
                 for removed_issue in pre_review:
                     if removed_issue.id not in reviewed_ids:
                         record_false_positive_removal(
-                            removed_issue.criterion, removed_issue.element, removed_issue.description,
+                            removed_issue.criterion,
+                            removed_issue.element,
+                            removed_issue.description,
                         )
             unique = reviewed
             metrics.append(

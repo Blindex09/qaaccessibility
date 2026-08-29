@@ -42,9 +42,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # Opt out of FLoC / Topics tracking, and lock down sensor/device APIs this
         # app never uses.
-        response.headers["Permissions-Policy"] = (
-            "interest-cohort=(), camera=(), microphone=(), geolocation=()"
-        )
+        response.headers["Permissions-Policy"] = "interest-cohort=(), camera=(), microphone=(), geolocation=()"
 
         # Force HTTPS on repeat visits (no-op over plain HTTP, e.g. local dev).
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"

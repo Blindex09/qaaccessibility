@@ -108,9 +108,7 @@ async def run_multi_trial(
         except Exception as exc:
             trial_results.append(False)
             trial_errors.append(f"trial {i}: {exc}")
-            logger.warning(
-                "[MultiRunEval] Tentativa %d/%d levantou excecao: %s", i + 1, n_runs, exc
-            )
+            logger.warning("[MultiRunEval] Tentativa %d/%d levantou excecao: %s", i + 1, n_runs, exc)
 
     successes = sum(1 for r in trial_results if r)
     result = MultiRunEvalResult(
@@ -127,6 +125,8 @@ async def run_multi_trial(
         logger.warning(
             "[MultiRunEval] Resultado flaky: %d/%d sucessos (taxa=%.0f%%) -- "
             "comportamento nao-determinístico detectado entre execucoes identicas.",
-            successes, n_runs, result.success_rate * 100,
+            successes,
+            n_runs,
+            result.success_rate * 100,
         )
     return result

@@ -42,9 +42,7 @@ class PIIRedactionMiddleware(BaseHTTPMiddleware):
             logger.warning("[PIIMiddleware] PII detected in response — redacting")
             try:
                 data = json.loads(body_text)
-                redacted_text = json.dumps(
-                    _redact_recursive(data), ensure_ascii=False
-                )
+                redacted_text = json.dumps(_redact_recursive(data), ensure_ascii=False)
                 body_bytes = redacted_text.encode("utf-8")
             except (json.JSONDecodeError, TypeError):
                 # Fallback: redact the raw text

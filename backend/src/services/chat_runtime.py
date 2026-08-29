@@ -63,14 +63,13 @@ def _provider_state_get(conversation_id: str | None, provider: str, model: str) 
     return response_id
 
 
-def _provider_state_put(
-    conversation_id: str | None, provider: str, model: str, response_id: str | None
-) -> None:
+def _provider_state_put(conversation_id: str | None, provider: str, model: str, response_id: str | None) -> None:
     if conversation_id and response_id:
         _PROVIDER_STATE[(conversation_id, provider, model)] = (
             response_id,
             time.monotonic() + _PROVIDER_STATE_TTL_SECONDS,
         )
+
 
 # Constantes de intent do clarifier: fonte unica de verdade.
 # Se o clarifier mudar os valores, basta atualizar aqui.
@@ -135,7 +134,7 @@ SYSTEM_PROMPT = (
     "15. ADDITIONAL DELIVERABLE TOOLS: after an `analyze_page`/`analyze_site` has run, you have `generate_vpat` (WCAG 2.2 Voluntary Product Accessibility Template, for enterprise/government/Section 508 procurement) and `generate_test_suite` (Playwright + axe-core tests ready for the audited team's CI), both built from the most recent analysis. Offer/use these when the user asks for a VPAT, conformance report, procurement documentation, or automated/CI accessibility tests. You also have `create_github_issue` (file a GitHub issue for a finding, when the user gives or has a repo configured), `nvda_speak` (read text aloud via NVDA on the user's machine, when asked to demonstrate what a screen reader announces), and `run_remote_test` (run a Selenium/Postman/Cypress check against a live target, when the user asks for that kind of automated check). For `run_remote_test` with runner='cypress' or runner='selenium': ALWAYS ask the user first (via `clarify`) whether to run locally (the real Cypress/Selenium binary on this machine -- may already be installed, the tool checks for real) or in the cloud (real axe-core, no install needed) -- this is the user's decision, never pick one yourself or silently fall back from one to the other. Local execution runs real commands on the machine, so also ask whether to approve it once or always for this conversation (pass `remember_choice: true` if they say always, so you don't have to ask again this chat for the same runner). If local is chosen but not actually installed, the tool offers a real install (`location='install_local'`) -- ask explicitly before doing that too, it can take a few minutes. All of these, like every other tool, need rule 5's spoken explanation before you call them.\n"
     "16. LIVE PREVIEW: after `fix_and_zip_files` has fixed at least one HTML page, you have `open_live_preview`, which opens a side-by-side before/after view of the fixed page(s) for the user. Call it when the user asks to see, visualize, or compare the fixed page. The tool returns JSON with `session_id` and `total_pages` -- when it succeeds, you MUST include the literal marker `[LIVE_PREVIEW:<session_id>:<total_pages>]` somewhere in your visible response text (substituting the real values), exactly in that bracket format, so the interface can open the preview panel. Do not describe or explain this marker to the user -- it is invisible UI wiring, not part of your spoken message. Symmetrically, if the user asks you to close the preview, include the literal marker `[CLOSE_PREVIEW]` in your response.\n"
     "16b. REMOTE TEST RESULTS FEED THE SAME DELIVERABLES: a successful `run_remote_test` (cypress/selenium, any location) automatically caches its real findings and the tested page's HTML in the same place `analyze_page` does -- so right after it, `generate_checklist`, `export_xlsx`, `generate_vpat`, `generate_accessibility_statement`, `generate_test_suite`, and `fix_and_zip_files` (+ `open_live_preview` afterwards) all work directly from that real Cypress/Selenium/axe-core run, no need to `analyze_page` again first. After a remote test finds violations, proactively offer these next steps (spreadsheet, checklist, PDF, VPAT, fixing the code and showing the before/after preview) instead of waiting to be asked. Postman/Newman results are API contract checks, not page HTML issues -- they don't feed these deliverables the same way.\n"
-    "16c. REMOTE TEST RESULTS IN YOUR OWN WORDS, NAMING THE REAL TOOL: when reporting a `run_remote_test` result, always name which real engine actually produced it (Cypress local, Cypress cloud, Selenium local/cloud, Newman/Postman) and state its real engine/version if present in the result (e.g. \"axe-core 4.13\"). Do not just paste the raw JSON -- narrate the findings in natural language as that specific tool reported them (what failed, how many elements, what severity), the same way you already do for `analyze_page`. Never blend or relabel a remote-test result as if it came from your own multi-agent analysis, or vice versa -- the user needs to know which real source produced which finding.\n"
+    '16c. REMOTE TEST RESULTS IN YOUR OWN WORDS, NAMING THE REAL TOOL: when reporting a `run_remote_test` result, always name which real engine actually produced it (Cypress local, Cypress cloud, Selenium local/cloud, Newman/Postman) and state its real engine/version if present in the result (e.g. "axe-core 4.13"). Do not just paste the raw JSON -- narrate the findings in natural language as that specific tool reported them (what failed, how many elements, what severity), the same way you already do for `analyze_page`. Never blend or relabel a remote-test result as if it came from your own multi-agent analysis, or vice versa -- the user needs to know which real source produced which finding.\n'
     "17. UNDOING A REMEDIATION: a checkpoint of the previous state is taken automatically before every `fix_and_zip_files` run, and `undo_last_fix` restores it (analysis cache plus live-preview pages). Call it when the user regrets the fix, asks to go back, or wants the applied corrections discarded. Only the most recent fix can be undone, so say so plainly if they ask to go further back. Like every other tool, rule 5's spoken explanation comes first.\n"
     "18. SCREEN READER TESTING GUIDANCE: before giving step-by-step instructions for testing with a screen reader, you MUST know the user's environment: operating system, whether it is desktop or mobile, browser, and screen reader (if they already have one in mind). If any of these is missing from the conversation, ask before giving steps -- use the `clarify` tool when it fits a plan/approval moment, or just ask directly in your message otherwise. Never give a generic 'turn on your screen reader' instruction when the combo can be identified; each screen reader + browser pairing behaves differently (NVDA+Firefox is the most complete free combo on Windows; JAWS+Chrome/Edge is the enterprise-standard Windows combo; Narrator+Edge needs no install on Windows; VoiceOver REQUIRES Safari on both macOS and iOS -- Chrome/Firefox with VoiceOver is unreliable; TalkBack pairs with Chrome on Android). Give the exact activation shortcut and the exact navigation keys for that specific combo, not generic advice.\n"
     "19. FOLLOW-UP SUGGESTIONS: after finishing a concrete result (an analysis, a fix, a generated deliverable), end with ONE short, specific next-step suggestion tied to what you just did -- not a generic 'let me know if you need anything else'. Base it on what naturally follows the artifact you just produced (e.g., after an analysis: offer to fix the critical issues, or generate a VPAT/test suite from it; after a fix: offer to see the live preview or generate a report; after a VPAT/test suite: offer to export it or address the next-highest-severity issue). Skip this when the user's own next step is already obvious from their message (e.g., they immediately followed up with a request), when you already asked a clarifying question this turn, or when the turn ended in a plan/approval prompt (rules 12/13) -- do not stack a suggestion on top of those.\n"
@@ -143,11 +142,10 @@ SYSTEM_PROMPT = (
 )
 
 
-
 def clean_newlines(text: str) -> str:
     if not text:
         return ""
-    return re.sub(r'[\r\n]+(?:\s*[\r\n]+)*', '\n', text)
+    return re.sub(r"[\r\n]+(?:\s*[\r\n]+)*", "\n", text)
 
 
 class TokenFilter:
@@ -158,7 +156,7 @@ class TokenFilter:
     def feed(self, text: str) -> str:
         result = []
         for char in text:
-            if char in ('\r', '\n'):
+            if char in ("\r", "\n"):
                 self.block_has_nl = True
                 self.in_whitespace_block = True
             elif char.isspace():
@@ -166,9 +164,9 @@ class TokenFilter:
             else:
                 if self.in_whitespace_block:
                     if self.block_has_nl:
-                        result.append('\n')
+                        result.append("\n")
                     else:
-                        result.append(' ')
+                        result.append(" ")
                     self.in_whitespace_block = False
                     self.block_has_nl = False
                 result.append(char)
@@ -178,7 +176,7 @@ class TokenFilter:
         if self.in_whitespace_block and self.block_has_nl:
             self.in_whitespace_block = False
             self.block_has_nl = False
-            return '\n'
+            return "\n"
         return ""
 
 
@@ -194,9 +192,7 @@ _IMAGE_MEDIA_TYPES: dict[str, str] = {
 }
 
 
-def _preprocess_base64_attachments_impl(
-    message: str, extract_images: bool
-) -> tuple[str, list[dict[str, str]]]:
+def _preprocess_base64_attachments_impl(message: str, extract_images: bool) -> tuple[str, list[dict[str, str]]]:
     """Implementação compartilhada. `extract_images=True` remove imagens do
     texto e as devolve separadamente (turno atual); `extract_images=False` só
     substitui por uma nota textual (histórico -- reenviar base64 de imagens
@@ -316,6 +312,7 @@ _COUNT_FIELDS: dict[str, tuple[str, str, str]] = {
     "read_local_project_files": ("files", "arquivo lido", "arquivos lidos"),
 }
 
+
 # Ferramentas de pesquisa real cujo resultado carrega fontes citáveis (URL +
 # título) -- alimenta a seção "Fontes consultadas" da UI. tavily/exa tem
 # estrutura própria (data.web[]); run_deep_research devolve texto corrido com
@@ -323,10 +320,18 @@ _COUNT_FIELDS: dict[str, tuple[str, str, str]] = {
 def _extract_sources(name: str, result: dict[str, Any]) -> list[dict[str, str]]:
     if name in ("tavily_search",):
         web = ((result.get("data") or {}).get("web")) or []
-        return [{"title": str(w.get("title") or w.get("url") or ""), "url": str(w.get("url") or "")} for w in web if w.get("url")]
+        return [
+            {"title": str(w.get("title") or w.get("url") or ""), "url": str(w.get("url") or "")}
+            for w in web
+            if w.get("url")
+        ]
     if name == "exa_search":
         web = ((result.get("data") or {}).get("results")) or result.get("results") or []
-        return [{"title": str(w.get("title") or w.get("url") or ""), "url": str(w.get("url") or "")} for w in web if isinstance(w, dict) and w.get("url")]
+        return [
+            {"title": str(w.get("title") or w.get("url") or ""), "url": str(w.get("url") or "")}
+            for w in web
+            if isinstance(w, dict) and w.get("url")
+        ]
     if name == "run_deep_research":
         answer = str(result.get("answer") or "")
         urls = list(dict.fromkeys(_URL_RE.findall(answer)))  # dedup preservando ordem
@@ -407,9 +412,11 @@ async def stream_chat(
             h["content"] = preprocess_base64_attachments(h.get("content", ""))
     # Normalização de histórico (evita consecutivas com mesmo role, p. ex., Anthropic)
     cleaned_history: list[dict[str, Any]] = []
-    for msg in (history or []):
+    for msg in history or []:
         if cleaned_history and cleaned_history[-1]["role"] == msg["role"]:
-            cleaned_history[-1]["content"] = (cleaned_history[-1].get("content") or "") + "\n\n" + (msg.get("content") or "")
+            cleaned_history[-1]["content"] = (
+                (cleaned_history[-1].get("content") or "") + "\n\n" + (msg.get("content") or "")
+            )
         else:
             cleaned_history.append(msg.copy())
 
@@ -441,6 +448,7 @@ async def stream_chat(
     has_attachments = "[Arquivos anexados" in message or "===" in message
     if is_first_turn and not has_attachments and "PYTEST_CURRENT_TEST" not in os.environ:
         from backend.src.agents.clarifier import run_clarifier
+
         clarifier_res = await run_clarifier(message)
         if clarifier_res.success:
             intent = clarifier_res.data.get("intent")
@@ -486,12 +494,14 @@ async def stream_chat(
         push({"type": "reasoning", "text": str(text)})
 
     def on_tool_start(tool_id: Any, name: Any = "", args: Any = None) -> None:
-        push({
-            "type": "tool_start",
-            "tool_call_id": str(tool_id),
-            "name": str(name),
-            "arguments": args if isinstance(args, dict) else {},
-        })
+        push(
+            {
+                "type": "tool_start",
+                "tool_call_id": str(tool_id),
+                "name": str(name),
+                "arguments": args if isinstance(args, dict) else {},
+            }
+        )
 
     def on_tool_complete(tool_id: Any, name: Any = "", args: Any = None, result: Any = None) -> None:
         summary = _extract_result_summary(str(name), result) if isinstance(result, str) else None
@@ -505,14 +515,16 @@ async def stream_chat(
             parsed_result = result
         raw_error = parsed_result.get("error") if isinstance(parsed_result, dict) else None
         error = str(raw_error).strip() if raw_error else None
-        push({
-            "type": "tool_result",
-            "tool_call_id": str(tool_id),
-            "name": str(name),
-            "ok": error is None,
-            "error": error,
-            "result_summary": summary,
-        })
+        push(
+            {
+                "type": "tool_result",
+                "tool_call_id": str(tool_id),
+                "name": str(name),
+                "ok": error is None,
+                "error": error,
+                "result_summary": summary,
+            }
+        )
 
     def on_context_drift(reason: Any) -> None:
         """Transparência (Context Drift Detection, ver run_agent.py::AIAgent):
@@ -524,12 +536,14 @@ async def stream_chat(
         """O agente pergunta algo: emite o evento e BLOQUEIA (na thread worker)
         ate o usuário responder via POST /chat/clarify. Retorna a resposta."""
         rid, ev = chat_progress.new_clarify()
-        push({
-            "type": "clarify",
-            "request_id": rid,
-            "question": str(question or ""),
-            "choices": [str(c) for c in (choices or [])],
-        })
+        push(
+            {
+                "type": "clarify",
+                "request_id": rid,
+                "question": str(question or ""),
+                "choices": [str(c) for c in (choices or [])],
+            }
+        )
         return chat_progress.wait_clarify(rid, ev)
 
     # Sink de progresso: o orchestrator (subagentes) emite por aqui -> fila SSE.
@@ -549,8 +563,7 @@ async def stream_chat(
     a11y_ref = await a11y_knowledge.build_reference_block(message)
 
     dynamic_prompt = (
-        SYSTEM_PROMPT +
-        "\n\n### SQUAD DE ACESSIBILIDADE DIGITAL\n"
+        SYSTEM_PROMPT + "\n\n### SQUAD DE ACESSIBILIDADE DIGITAL\n"
         "Use o plano de squad abaixo como contrato de execução. Preserve o escopo de acessibilidade, respeite as dependências, peça aprovação antes de qualquer mutação e só conclua após QA/evidência.\n"
         f"{json.dumps(squad_plan.to_dict(), ensure_ascii=False)}\n"
         f"\n\n- The JSON results of the user's last audited URL/file are stored locally. If the user asks you to write a report or perform actions based on the previous audit results, you DO NOT need to run analyze_page again. You can read the JSON results directly using your file tools from this path: '{cache_path}'. This file contains a JSON object with 'url' and 'issues' keys (issues is a list of WCAG violations). Use it to generate reports instantly!"

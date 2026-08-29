@@ -11,6 +11,7 @@ chamada, é o freio estrutural que nunca pode ser pulado. Este store só evita
 o modelo repetir a PERGUNTA via `clarify` a cada turno quando o usuário já
 disse "sempre" nesta mesma conversa.
 """
+
 import logging
 
 from backend.src.services.session_context import resolve_session

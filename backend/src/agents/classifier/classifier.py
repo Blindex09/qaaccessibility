@@ -60,7 +60,9 @@ async def run_classifier(html_content: str) -> AgentResult:
         )
         techs = extract_json_array(raw)
         # Sanitiza e filtra apenas valores esperados (SUPPORTED_FRAMEWORKS: fonte unica de verdade)
-        detected = [t.strip().lower() for t in techs if isinstance(t, str) and t.strip().lower() in SUPPORTED_FRAMEWORKS]
+        detected = [
+            t.strip().lower() for t in techs if isinstance(t, str) and t.strip().lower() in SUPPORTED_FRAMEWORKS
+        ]
 
         logger.info("[ClassifierAgent] Tecnologias detectadas: %s", detected)
         return AgentResult(

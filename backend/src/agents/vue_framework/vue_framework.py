@@ -83,7 +83,19 @@ Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no iss
 async def run_vue_framework(html_content: str) -> AgentResult:
     logger.info("[VueFrameworkAgent] Analisando padrões Vue/framework")
     # Pre-filter: se o HTML não contem indicadores Vue, pula o LLM
-    vue_indicators = ["v-if", "v-show", "v-for", "v-bind", "v-model", "v-on", "@click", "Vue", "nuxt", "nuxt-link", "router-link"]
+    vue_indicators = [
+        "v-if",
+        "v-show",
+        "v-for",
+        "v-bind",
+        "v-model",
+        "v-on",
+        "@click",
+        "Vue",
+        "nuxt",
+        "nuxt-link",
+        "router-link",
+    ]
     if not any(ind in html_content for ind in vue_indicators):
         logger.info("[VueFrameworkAgent] Nenhum indicador Vue encontrado — pulando análise")
         return AgentResult(
@@ -94,7 +106,7 @@ async def run_vue_framework(html_content: str) -> AgentResult:
     try:
         issues = await call_llm_structured(
             system_prompt=SYSTEM_PROMPT,
-            user_prompt=("Analyze Vue-specific accessibility issues " f"in this HTML:\n\n{html_content}"),
+            user_prompt=(f"Analyze Vue-specific accessibility issues in this HTML:\n\n{html_content}"),
             build=lambda raw: [AccessibilityIssue(**i) for i in extract_json_array(raw)],
             response_schema=ISSUES_RESPONSE_SCHEMA,
             temperature=0.1,

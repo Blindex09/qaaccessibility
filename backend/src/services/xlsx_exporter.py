@@ -52,7 +52,9 @@ from backend.src.shared.i18n.criteria_pt import (
 )
 
 # Ambiente e tecnologias de teste declarados formalmente
-_ENVIRONMENT_TESTED = "Chromium (renderização remota via Browserless CDP) + axe-core real + especialistas de IA em WCAG 2.2"
+_ENVIRONMENT_TESTED = (
+    "Chromium (renderização remota via Browserless CDP) + axe-core real + especialistas de IA em WCAG 2.2"
+)
 _SCREEN_READER_TESTED = "NVDA 2026 / JAWS / VoiceOver (Árvore de Acessibilidade e Sintetizador de Voz)"
 
 _CRITERION_LEVELS: dict[str, str] = {
@@ -347,22 +349,22 @@ def export_issues_xlsx(issues: list[dict], url: str | None = None) -> bytes:
 
     # Colunas com largura otimizada
     col_widths = [
-        12,   # ID
-        28,   # Site / URL Testada
-        35,   # Onde Está o Problema
-        24,   # Princípio WCAG
-        26,   # Diretriz WCAG
-        34,   # Critério de Sucesso
-        24,   # Criticidade Normativa (Nível A, AA, AAA)
-        34,   # Prioridade de Atendimento
-        45,   # Diagnóstico
-        45,   # Por Que Afeta
-        50,   # Como Resolver
-        35,   # Navegador Usado
-        35,   # Leitor de Tela Testado
-        35,   # Código Original (HTML)
-        35,   # Código Corrigido (HTML)
-        14,   # Status
+        12,  # ID
+        28,  # Site / URL Testada
+        35,  # Onde Está o Problema
+        24,  # Princípio WCAG
+        26,  # Diretriz WCAG
+        34,  # Critério de Sucesso
+        24,  # Criticidade Normativa (Nível A, AA, AAA)
+        34,  # Prioridade de Atendimento
+        45,  # Diagnóstico
+        45,  # Por Que Afeta
+        50,  # Como Resolver
+        35,  # Navegador Usado
+        35,  # Leitor de Tela Testado
+        35,  # Código Original (HTML)
+        35,  # Código Corrigido (HTML)
+        14,  # Status
     ]
 
     for idx, width in enumerate(col_widths, 1):
@@ -399,21 +401,25 @@ def export_issues_xlsx(issues: list[dict], url: str | None = None) -> bytes:
         impact = (
             issue.get("why_simple")
             or issue.get("why_technical")
-            or _CRITERION_DEFAULT_IMPACTS.get(code, "Gera barreiras de navegação para usuários de tecnologias assistivas.")
+            or _CRITERION_DEFAULT_IMPACTS.get(
+                code, "Gera barreiras de navegação para usuários de tecnologias assistivas."
+            )
         )
 
         # Como resolver
         solution = (
             issue.get("suggestion")
             or issue.get("suggestion_technical")
-            or _CRITERION_DEFAULT_REMEDIATIONS.get(code, "Consulte a especificação técnica do WCAG para aplicar a remediação semântica.")
+            or _CRITERION_DEFAULT_REMEDIATIONS.get(
+                code, "Consulte a especificação técnica do WCAG para aplicar a remediação semântica."
+            )
         )
 
         site_tested = issue.get("url") or url or "Interface Local / URL não informada"
         where_problem = issue.get("element") or "Interface Web / Componente Geral"
 
         values = [
-            issue.get("id") or f"ISS-{row_idx-1}",
+            issue.get("id") or f"ISS-{row_idx - 1}",
             site_tested,
             where_problem,
             principle_name,

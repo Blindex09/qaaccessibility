@@ -32,7 +32,8 @@ def set_last_fix(pages: list[dict[str, Any]], session_id: str | None = None) -> 
     _sessions[session] = [dict(p) for p in pages if p.get("fixed_html")]
     logger.info(
         "[LastFixStore] Cache atualizado com %d pagina(s) HTML corrigida(s) (sessão %s).",
-        len(_sessions[session]), session,
+        len(_sessions[session]),
+        session,
     )
 
 

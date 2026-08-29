@@ -76,6 +76,7 @@ async def run_deep_research(
         model = model or cfg.get("model", "")
         api_key = api_key or cfg.get("api_key", "")
     from backend.src.services.model_router import resolve_model_and_provider
+
     provider, model = resolve_model_and_provider(provider or "", model, tier="alto")
 
     logger.info("[deep_research] Investigando: %s", question[:120])

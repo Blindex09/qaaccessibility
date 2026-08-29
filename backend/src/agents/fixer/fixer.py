@@ -162,6 +162,7 @@ Return ONLY valid JSON. No markdown, no preamble.
 # Guardrail: limite de caracteres do HTML de input para evitar context overflow
 _MAX_HTML_CHARS = 80_000
 
+
 async def run_fixer(
     html_content: str,
     issues: list[AccessibilityIssue],
@@ -174,7 +175,7 @@ async def run_fixer(
 
     # Normaliza a lista para objetos AccessibilityIssue (caso venham como dicionários)
     issues_objs: list[AccessibilityIssue] = []
-    for i in (issues or []):
+    for i in issues or []:
         if isinstance(i, dict):
             issues_objs.append(AccessibilityIssue(**i))
         else:
@@ -204,7 +205,7 @@ async def run_fixer(
         )
 
     issues_json = json.dumps([i.model_dump() for i in issues_objs], indent=2)
-    user_prompt = f"Fix the following HTML:\n\n{truncated}\n\n" f"Issues to fix:\n{issues_json}"
+    user_prompt = f"Fix the following HTML:\n\n{truncated}\n\nIssues to fix:\n{issues_json}"
     if custom_instruction:
         user_prompt += f"\n\nCRITICAL CUSTOM INSTRUCTIONS FROM USER: {custom_instruction}\n(You MUST apply the fixes while strictly respecting these custom instructions!)"
 
@@ -226,7 +227,9 @@ async def run_fixer(
         # Reflexion (Self-Correction) Loop para garantir que o HTML gerado seja valido sintaticamente
         html_errors = _validate_html_tags(fix_response.fixed_html)
         if html_errors:
-            logger.warning("%s HTML gerado possui erros de sintaxe: %s. Iniciando auto-correcao...", log_prefix, html_errors)
+            logger.warning(
+                "%s HTML gerado possui erros de sintaxe: %s. Iniciando auto-correcao...", log_prefix, html_errors
+            )
             errors_text = "\n".join(html_errors)
             reflexion_prompt = (
                 f"The fixed HTML you returned in the previous step has the following HTML syntax/tag-balancing errors:\n"
@@ -250,7 +253,11 @@ async def run_fixer(
                         logger.info("%s Auto-correcao bem sucedida!", log_prefix)
                         fix_response = fix_response_corrected
                     else:
-                        logger.warning("%s Auto-correcao ainda retornou erros: %s. Usando mesmo assim para não travar.", log_prefix, html_errors_corrected)
+                        logger.warning(
+                            "%s Auto-correcao ainda retornou erros: %s. Usando mesmo assim para não travar.",
+                            log_prefix,
+                            html_errors_corrected,
+                        )
             except Exception as e_ref:
                 logger.error("%s Erro durante a execucao da auto-correcao: %s", log_prefix, e_ref)
 
@@ -328,8 +335,20 @@ class HTMLBalanceChecker(HTMLParser):
         self.stack = []
         self.errors = []
         self.void_elements = {
-            "area", "base", "br", "col", "embed", "hr", "img", "input",
-            "link", "meta", "param", "source", "track", "wbr"
+            "area",
+            "base",
+            "br",
+            "col",
+            "embed",
+            "hr",
+            "img",
+            "input",
+            "link",
+            "meta",
+            "param",
+            "source",
+            "track",
+            "wbr",
         }
 
     def handle_starttag(self, tag, attrs):
@@ -363,4 +382,3 @@ def _validate_html_tags(html: str) -> list[str]:
     except Exception as e:
         return [f"HTML parsing exception: {e}"]
     return checker.errors
-

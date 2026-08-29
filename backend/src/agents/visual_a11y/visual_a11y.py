@@ -85,11 +85,7 @@ async def run_visual_a11y(
 
     if not screenshot_base64:
         logger.warning("[VisualA11yAgent] Nenhum screenshot fornecido. Pulando análise visual.")
-        return AgentResult(
-            agent="visual_a11y",
-            success=True,
-            data={"issues": []}
-        )
+        return AgentResult(agent="visual_a11y", success=True, data={"issues": []})
 
     # Limita o HTML enviado junto com a imagem para evitar estourar o contexto
     truncated_html = html_content[:25000]
@@ -105,28 +101,15 @@ async def run_visual_a11y(
     )
 
     multimodal_prompt = [
-        {
-            "type": "text",
-            "text": text_prompt
-        },
-        {
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/png;base64,{screenshot_base64}"
-            }
-        }
+        {"type": "text", "text": text_prompt},
+        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{screenshot_base64}"}},
     ]
 
     # Adiciona os screenshots dos estados de foco
     if focus_screenshots:
         logger.info("[VisualA11yAgent] Incluindo %d screenshots de foco na análise", len(focus_screenshots))
         for crop_b64 in focus_screenshots:
-            multimodal_prompt.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/png;base64,{crop_b64}"
-                }
-            })
+            multimodal_prompt.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{crop_b64}"}})
 
     try:
         # Usa o modelo principal (Alto), que possui recursos de visão.
@@ -136,15 +119,11 @@ async def run_visual_a11y(
             user_prompt=multimodal_prompt,  # type: ignore[arg-type]  # call_llm repassa direto ao AIAgent
             temperature=0.1,
             agent_label="visual-a11y",
-            model_tier="alto"
+            model_tier="alto",
         )
         issues = [AccessibilityIssue(**i) for i in extract_json_array(raw)]
         logger.info("[VisualA11yAgent] %d problemas identificados visualmente", len(issues))
-        return AgentResult(
-            agent="visual_a11y",
-            success=True,
-            data={"issues": [i.model_dump() for i in issues]}
-        )
+        return AgentResult(agent="visual_a11y", success=True, data={"issues": [i.model_dump() for i in issues]})
     except Exception as exc:
         # "Nenhum modelo com suporte a imagem" (ver llm_client.call_llm) não é uma
         # falha do pipeline -- é uma limitação de capacidade do provider/modo
@@ -157,10 +136,4 @@ async def run_visual_a11y(
             logger.warning("[VisualA11yAgent] %s -- análise visual pulada.", exc)
             return AgentResult(agent="visual_a11y", success=True, data={"issues": []})
         logger.error("[VisualA11yAgent] Erro na análise visual: %s", exc)
-        return AgentResult(
-            agent="visual_a11y",
-            success=False,
-            data={},
-            error=str(exc)
-        )
-
+        return AgentResult(agent="visual_a11y", success=False, data={}, error=str(exc))

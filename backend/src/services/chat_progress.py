@@ -65,12 +65,14 @@ def emit_tool_progress(tool_call_id: str | None, name: str, message: str) -> Non
     ferramenta está `running`. Não deve ser usado como live region: o leitor de
     tela lê os logs quando o usuário navega até o card, sem anunciar
     automaticamente cada mensagem."""
-    emit({
-        "type": "tool_progress",
-        "tool_call_id": tool_call_id,
-        "name": name,
-        "message": message,
-    })
+    emit(
+        {
+            "type": "tool_progress",
+            "tool_call_id": tool_call_id,
+            "name": name,
+            "message": message,
+        }
+    )
 
 
 # ── Clarify: perguntas interativas do agente ──────────────────────────────

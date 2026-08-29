@@ -41,31 +41,27 @@ def export_to_sarif(issues: list[AccessibilityIssue], url: str = "http://localho
 
         sarif_level = level_map.get(issue.severity.lower(), "warning")
 
-        results.append({
-            "ruleId": rule_id,
-            "level": sarif_level,
-            "message": {
-                "text": f"{issue.description} - Element: {issue.element}"
-            },
-            "locations": [
-                {
-                    "physicalLocation": {
-                        "artifactLocation": {
-                            "uri": url,
-                        },
-                        "region": {
-                            "snippet": {
-                                "text": issue.element
-                            }
+        results.append(
+            {
+                "ruleId": rule_id,
+                "level": sarif_level,
+                "message": {"text": f"{issue.description} - Element: {issue.element}"},
+                "locations": [
+                    {
+                        "physicalLocation": {
+                            "artifactLocation": {
+                                "uri": url,
+                            },
+                            "region": {"snippet": {"text": issue.element}},
                         }
                     }
-                }
-            ],
-            "properties": {
-                "why_technical": issue.why_technical,
-                "suggestion_technical": issue.suggestion_technical,
+                ],
+                "properties": {
+                    "why_technical": issue.why_technical,
+                    "suggestion_technical": issue.suggestion_technical,
+                },
             }
-        })
+        )
 
     sarif_doc = {
         "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
@@ -82,7 +78,7 @@ def export_to_sarif(issues: list[AccessibilityIssue], url: str = "http://localho
                 },
                 "results": results,
             }
-        ]
+        ],
     }
 
     return sarif_doc

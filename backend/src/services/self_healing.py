@@ -44,8 +44,7 @@ async def node_plan(issues: list[AccessibilityIssue]) -> dict:
         from backend.src.services.llm_client import call_llm, extract_json_object
 
         issues_summary = "\n".join(
-            f"- id={i.id} criterion={i.criterion} severity={i.severity.value} element={i.element[:80]}"
-            for i in issues
+            f"- id={i.id} criterion={i.criterion} severity={i.severity.value} element={i.element[:80]}" for i in issues
         )
         raw = await call_llm(
             system_prompt=_PLANNER_SYSTEM_PROMPT,
@@ -58,7 +57,8 @@ async def node_plan(issues: list[AccessibilityIssue]) -> dict:
         plan = extract_json_object(raw)
         logger.info(
             "[SelfHealing Graph] Plano: %s (%d grupos)",
-            plan.get("strategy", "")[:120], len(plan.get("ordered_groups", [])),
+            plan.get("strategy", "")[:120],
+            len(plan.get("ordered_groups", [])),
         )
         return plan
     except Exception as exc:
@@ -74,6 +74,7 @@ def _plan_to_instruction(plan: dict) -> str:
         ids = ", ".join(group.get("issue_ids", []))
         lines.append(f"{idx}. Issues [{ids}]: {group.get('rationale', '')}")
     return "\n".join(lines)
+
 
 # Mapeamento de severidade do axe-core para o nosso enum Severity
 _SEVERITY_MAP = {
@@ -123,6 +124,7 @@ async def verify_html_with_axe(html_content: str) -> list[AccessibilityIssue]:
     e retorna a lista de violações.
     """
     from backend.src.config.settings import get_settings
+
     settings = get_settings()
     ws_url = getattr(settings, "browserless_ws_url", None)
     if not ws_url:
@@ -156,7 +158,6 @@ async def verify_html_with_axe(html_content: str) -> list[AccessibilityIssue]:
         finally:
             await context.close()
             await browser.close()
-
 
 
 # Numero de rodadas consecutivas com a MESMA assinatura de erro remanescente
@@ -221,19 +222,23 @@ async def node_fix(state: SelfHealingState) -> None:
     )
     if not retry_result.success:
         state.status = "failed"
-        logger.error("[SelfHealing Graph] Tentativa %d falhou ao chamar o fixer: %s", state.attempts, retry_result.error)
+        logger.error(
+            "[SelfHealing Graph] Tentativa %d falhou ao chamar o fixer: %s", state.attempts, retry_result.error
+        )
         return
 
     state.html = retry_result.data.get("fixed_html", state.html)
     changes = retry_result.data.get("changes_summary", [])
-    state.changes.extend([f"[Auto-cicatrizacao T{state.attempts-1}] {c}" for c in changes])
+    state.changes.extend([f"[Auto-cicatrizacao T{state.attempts - 1}] {c}" for c in changes])
     state.enriched_issues.extend(retry_result.data.get("enriched_issues", []))
     state.status = "fixed"
 
-    state.history.append({
-        "attempt": state.attempts,
-        "changes": list(changes),
-    })
+    state.history.append(
+        {
+            "attempt": state.attempts,
+            "changes": list(changes),
+        }
+    )
 
 
 async def node_audit(state: SelfHealingState) -> None:
@@ -254,8 +259,7 @@ async def node_audit(state: SelfHealingState) -> None:
         state.issues = remaining_violations
         if state.history:
             state.history[-1]["remaining_issues"] = [
-                f"Criterion: {i.criterion}, Element: {i.element}, Error: {i.description}"
-                for i in remaining_violations
+                f"Criterion: {i.criterion}, Element: {i.element}, Error: {i.description}" for i in remaining_violations
             ]
 
         if state.consecutive_repeats >= _LOOP_REPEAT_THRESHOLD:
@@ -300,7 +304,8 @@ async def run_self_healing_loop(
     plan = await node_plan(state.issues)
     plan_instruction = _plan_to_instruction(plan)
     combined_instruction = (
-        f"{custom_instruction}\n\n{plan_instruction}" if custom_instruction and plan_instruction
+        f"{custom_instruction}\n\n{plan_instruction}"
+        if custom_instruction and plan_instruction
         else plan_instruction or custom_instruction
     )
 
@@ -323,10 +328,12 @@ async def run_self_healing_loop(
     state.enriched_issues.extend(fix_result.data.get("enriched_issues", []))
     state.status = "fixed"
 
-    state.history.append({
-        "attempt": state.attempts,
-        "changes": list(changes),
-    })
+    state.history.append(
+        {
+            "attempt": state.attempts,
+            "changes": list(changes),
+        }
+    )
 
     # Transições cíclicas do grafo de estados
     while state.attempts < state.max_retries + 1:
@@ -340,6 +347,9 @@ async def run_self_healing_loop(
             break
 
     if state.status == "needs_fix":
-        logger.warning("[SelfHealing Graph] Loop finalizado pelo limite de tentativas (%d). Retornando última correção.", max_retries)
+        logger.warning(
+            "[SelfHealing Graph] Loop finalizado pelo limite de tentativas (%d). Retornando última correção.",
+            max_retries,
+        )
 
     return state.html, state.changes, state.enriched_issues

@@ -197,6 +197,7 @@ def analyze_page(args: dict[str, Any], **_kw: Any) -> str:
             issue["url"] = url or "Conteúdo enviado por arquivo"
 
     from backend.src.services.last_analysis_store import set_last_analysis
+
     set_last_analysis(issues, url or "Conteúdo enviado por arquivo", append=append)
 
     # Cacheia o HTML resolvido (bruto se `html` foi passado direto, extraído
@@ -204,6 +205,7 @@ def analyze_page(args: dict[str, Any], **_kw: Any) -> str:
     # subsequente na mesma conversa não tinha HTML disponível para repassar a
     # `fix_and_zip_files` e acabava reanalisando a página do zero (achado real).
     from backend.src.services.last_analyzed_content_store import set_last_analyzed_content
+
     set_last_analyzed_content(resolved_content, url)
 
     summary = _summarize_issues(issues)
@@ -215,6 +217,7 @@ def analyze_page(args: dict[str, Any], **_kw: Any) -> str:
     # no GitHub sozinho, só sinaliza pro modelo oferecer via create_github_issue.
     if url:
         from backend.src.services import url_scan_history_store
+
         previous = url_scan_history_store.get_previous_scan(url)
         if previous and previous.get("issues"):
             diff = url_scan_history_store.diff_scans(previous["issues"], issues)
@@ -275,9 +278,7 @@ _ANALYZE_PAGE_SCHEMA: dict[str, Any] = {
             },
             "only_agents": {
                 "type": "array",
-                "items": {
-                    "type": "string"
-                },
+                "items": {"type": "string"},
                 "description": "Optional list of specific accessibility specialist agent names to run (e.g., ['forms_a11y', 'css_analyzer', 'widgets_a11y', 'visual_a11y']). If omitted, the orchestrator automatically selects the relevant specialists.",
             },
         },
@@ -353,6 +354,7 @@ async def _run_site_crawl_and_analyze(
 
     chat_progress.emit_tool_progress(None, "analyze_site", "Coletando páginas para análise...")
     if urls:
+
         async def _render_one(u_clean: str) -> tuple[str, str] | None:
             async with render_sem:
                 try:
@@ -398,9 +400,7 @@ async def _run_site_crawl_and_analyze(
                 logger.error("[a11y_chat] Erro ao analisar página %s: %s", page_url, exc)
                 return (False, [])
 
-    analysis_results = await asyncio.gather(
-        *[_analyze_one(page_url, html) for page_url, html in target_pages]
-    )
+    analysis_results = await asyncio.gather(*[_analyze_one(page_url, html) for page_url, html in target_pages])
     for ok, page_issues in analysis_results:
         if ok:
             pages_ok += 1
@@ -412,6 +412,7 @@ async def _run_site_crawl_and_analyze(
 
     # Cache na store
     from backend.src.services.last_analysis_store import set_last_analysis
+
     set_last_analysis(all_issues, f"Crawl/Lista de URLs: {url or ', '.join(urls or [])}")
 
     summary = _summarize_issues(all_issues)
@@ -432,7 +433,9 @@ def analyze_site(args: dict[str, Any], **_kw: Any) -> str:
     max_pages = args.get("max_pages", 10)
 
     if not url and not urls:
-        return json.dumps({"error": "Forneca 'url' para crawl ou 'urls' para lista direta de páginas."}, ensure_ascii=True)
+        return json.dumps(
+            {"error": "Forneca 'url' para crawl ou 'urls' para lista direta de páginas."}, ensure_ascii=True
+        )
 
     try:
         max_pages = int(max_pages)
@@ -464,16 +467,17 @@ _UNZIP_AND_LIST_FILES_SCHEMA = {
             "zip_base64": {
                 "type": "string",
                 "description": "Base64 encoded string of the ZIP file.",
-            }
+            },
         },
         "required": ["pre_exec_msg", "zip_base64"],
-    }
+    },
 }
 
 
 def _read_docx_text(file_like) -> str:
     try:
         import docx
+
         doc = docx.Document(io.BytesIO(file_like.read()))
         lines = []
         for p in doc.paragraphs:
@@ -504,18 +508,15 @@ def _run_verapdf_audit(pdf_path: str) -> list[str]:
     try:
         # Executa o validador veraPDF no modo de validação PDF/UA (processor: rmd)
         res = subprocess.run(
-            ["verapdf", "--format", "xml", "--processor", "rmd", pdf_path],
-            capture_output=True,
-            text=True,
-            timeout=30
+            ["verapdf", "--format", "xml", "--processor", "rmd", pdf_path], capture_output=True, text=True, timeout=30
         )
         xml_content = res.stdout
         if not xml_content or "<report>" not in xml_content:
             return []
 
         # Limpa namespaces para facilitar o parsing com ET
-        xml_content = re.sub(r'\sxmlns="[^"]+"', '', xml_content, count=1)
-        xml_content = re.sub(r'\sxmlns:[^=]+="[^"]+"', '', xml_content)
+        xml_content = re.sub(r'\sxmlns="[^"]+"', "", xml_content, count=1)
+        xml_content = re.sub(r'\sxmlns:[^=]+="[^"]+"', "", xml_content)
 
         root = ET.fromstring(xml_content.encode("utf-8"))
         violations = []
@@ -566,7 +567,12 @@ def _read_pdf_text(file_like) -> str:
             if fields:
                 for field_name, field_value in fields.items():
                     field_type = field_value.get("/FT")
-                    ft_map = {"/Tx": "Campo de Texto", "/Btn": "Caixa de Selecao/Opcao", "/Ch": "Selecao (Dropdown)", "/Sig": "Assinatura"}
+                    ft_map = {
+                        "/Tx": "Campo de Texto",
+                        "/Btn": "Caixa de Selecao/Opcao",
+                        "/Ch": "Selecao (Dropdown)",
+                        "/Sig": "Assinatura",
+                    }
                     type_name = ft_map.get(field_type, "Campo")
                     form_info.append(f"- {field_name} ({type_name})")
         except Exception as fe:
@@ -595,7 +601,9 @@ def _read_pdf_text(file_like) -> str:
         if form_info:
             prefix += "[Campos de Formulário Interativos Nativos Detectados no PDF]\n" + "\n".join(form_info) + "\n\n"
         if verapdf_violations:
-            prefix += "[Violacoes de Conformidade PDF/UA Detectadas pelo veraPDF]\n" + "\n".join(verapdf_violations) + "\n\n"
+            prefix += (
+                "[Violacoes de Conformidade PDF/UA Detectadas pelo veraPDF]\n" + "\n".join(verapdf_violations) + "\n\n"
+            )
 
         return prefix + "\n".join(text_pages)
     except Exception as e:
@@ -636,7 +644,9 @@ def _read_xlsx_structure(file_like) -> str:
                 image_count = len(ws._images)  # type: ignore[attr-defined]
             except Exception:
                 image_count = 0
-            lines.append(f"Imagens/gráficos embutidos nesta aba: {image_count} (openpyxl não expõe o alt-text definido no Excel -- reporte isso como incerteza, não como ausência confirmada)")
+            lines.append(
+                f"Imagens/gráficos embutidos nesta aba: {image_count} (openpyxl não expõe o alt-text definido no Excel -- reporte isso como incerteza, não como ausência confirmada)"
+            )
             lines.append("")
 
         return "\n".join(lines)
@@ -698,15 +708,19 @@ def analyze_document(args: dict[str, Any], **_kw: Any) -> str:
 
     ext = os.path.splitext(filename.lower())[1]
     if ext not in (".pdf", ".xlsx"):
-        return json.dumps({"error": f"Extensão '{ext}' não suportada por analyze_document (use .pdf ou .xlsx)."}, ensure_ascii=True)
+        return json.dumps(
+            {"error": f"Extensão '{ext}' não suportada por analyze_document (use .pdf ou .xlsx)."}, ensure_ascii=True
+        )
 
     try:
         chat_progress.emit_tool_progress(None, "analyze_document", f"Analisando {filename}...")
         if ext == ".pdf":
             from backend.src.agents.pdf_accessibility.pdf_accessibility import run_pdf_accessibility
+
             result = _safe_async_run(run_pdf_accessibility(document_text))
         else:
             from backend.src.agents.excel_accessibility.excel_accessibility import run_excel_accessibility
+
             result = _safe_async_run(run_excel_accessibility(document_text))
     except Exception as exc:
         logger.error("[a11y_chat] analyze_document falhou: %s", exc)
@@ -717,9 +731,12 @@ def analyze_document(args: dict[str, Any], **_kw: Any) -> str:
 
     issues = result.data.get("issues", [])
     from backend.src.services.last_analysis_store import set_last_analysis
+
     set_last_analysis(issues, filename)
 
-    return json.dumps(_summarize_issues(issues) | {"filename": filename, "document_type": ext.lstrip(".")}, ensure_ascii=True)
+    return json.dumps(
+        _summarize_issues(issues) | {"filename": filename, "document_type": ext.lstrip(".")}, ensure_ascii=True
+    )
 
 
 def _read_epub_text(file_like) -> str:
@@ -809,6 +826,7 @@ def _read_epub_text(file_like) -> str:
 def _read_pptx_text(file_like) -> str:
     try:
         from pptx import Presentation
+
         prs = Presentation(io.BytesIO(file_like.read()))
         lines = []
         for idx, slide in enumerate(prs.slides):
@@ -829,7 +847,6 @@ def _read_pptx_text(file_like) -> str:
     except Exception as e:
         logger.error("[a11y_chat] Erro ao ler PPTX: %s", e)
         return f"[Erro ao extrair texto do PPTX: {e}]"
-
 
 
 async def _fix_docx_document(path: str, content_str: str, custom_instruction: str | None) -> bytes:
@@ -908,9 +925,9 @@ Return ONLY the JSON object. Do NOT output markdown formatting outside the JSON 
                         row = t.add_row()
                         trPr = row._tr.get_or_add_trPr()
                         # Repete o cabecalho no topo de cada página (tblHeader)
-                        trPr.append(parse_xml(r'<w:tblHeader {}/>'.format(nsdecls('w'))))
+                        trPr.append(parse_xml(r"<w:tblHeader {}/>".format(nsdecls("w"))))
                         # Impede que a linha do cabecalho se divida entre páginas (cantSplit)
-                        trPr.append(parse_xml(r'<w:cantSplit {}/>'.format(nsdecls('w'))))
+                        trPr.append(parse_xml(r"<w:cantSplit {}/>".format(nsdecls("w"))))
 
                         hdr_cells = row.cells
                         for idx, text in enumerate(headers):
@@ -920,7 +937,7 @@ Return ONLY the JSON object. Do NOT output markdown formatting outside the JSON 
                         row = t.add_row()
                         trPr = row._tr.get_or_add_trPr()
                         # Impede que as linhas de conteúdo se dividam entre páginas (cantSplit)
-                        trPr.append(parse_xml(r'<w:cantSplit {}/>'.format(nsdecls('w'))))
+                        trPr.append(parse_xml(r"<w:cantSplit {}/>".format(nsdecls("w"))))
 
                         row_cells = row.cells
                         for idx, text in enumerate(r):
@@ -993,6 +1010,7 @@ Return ONLY valid JSON.
             slides_data = []
 
         from pptx import Presentation
+
         prs = Presentation()
 
         if metadata:
@@ -1034,6 +1052,7 @@ Return ONLY valid JSON.
                 rows = table_data.get("rows", [])
                 if headers or rows:
                     from pptx.util import Inches
+
                     cols_count = max(len(headers), max((len(r) for r in rows), default=0))
                     rows_count = len(rows) + (1 if headers else 0)
 
@@ -1065,6 +1084,7 @@ Return ONLY valid JSON.
     except Exception as exc:
         logger.error("[a11y_chat] Erro ao corrigir PPTX %s: %s", path, exc)
         from pptx import Presentation
+
         prs = Presentation()
         slide = prs.slides.add_slide(prs.slide_layouts[1])
         if slide.shapes.title:
@@ -1074,7 +1094,6 @@ Return ONLY valid JSON.
         out_stream = io.BytesIO()
         prs.save(out_stream)
         return out_stream.getvalue()
-
 
 
 async def _fix_pdf_document_to_html(path: str, content_str: str, custom_instruction: str | None) -> str:
@@ -1128,16 +1147,8 @@ If the image contains text, transcribe the text. If the image is purely decorati
 Return ONLY the alt text string. No formatting, no quotes, no markdown.
 """
     multimodal_prompt = [
-        {
-            "type": "text",
-            "text": f"Generate alt text for this image named '{img_name}'."
-        },
-        {
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/png;base64,{img_b64}"
-            }
-        }
+        {"type": "text", "text": f"Generate alt text for this image named '{img_name}'."},
+        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
     ]
     try:
         raw = await call_llm(
@@ -1145,9 +1156,9 @@ Return ONLY the alt text string. No formatting, no quotes, no markdown.
             user_prompt=multimodal_prompt,  # type: ignore[arg-type]  # call_llm repassa direto ao AIAgent
             temperature=0.1,
             model_tier="alto",
-            agent_label="image_alt_generator"
+            agent_label="image_alt_generator",
         )
-        return raw.strip().replace('"', '')
+        return raw.strip().replace('"', "")
     except Exception as e:
         logger.error("[a11y_chat] Erro ao gerar alt text para imagem %s: %s", img_name, e)
         return "Descrição da imagem"
@@ -1168,8 +1179,23 @@ def unzip_and_list_files(args: dict[str, Any], **_kw: Any) -> str:
 
         # Extensões válidas de arquivos de código/texto e documentos (incluindo linguagens mobile Swift, Kotlin, Dart, Java)
         valid_extensions = {
-            ".html", ".htm", ".js", ".jsx", ".ts", ".tsx", ".css", ".json", ".md",
-            ".docx", ".pdf", ".pptx", ".epub", ".swift", ".kt", ".dart", ".java"
+            ".html",
+            ".htm",
+            ".js",
+            ".jsx",
+            ".ts",
+            ".tsx",
+            ".css",
+            ".json",
+            ".md",
+            ".docx",
+            ".pdf",
+            ".pptx",
+            ".epub",
+            ".swift",
+            ".kt",
+            ".dart",
+            ".java",
         }
         image_extensions = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 
@@ -1184,7 +1210,9 @@ def unzip_and_list_files(args: dict[str, Any], **_kw: Any) -> str:
                     logger.warning("[a11y_chat] Limite de %d arquivos atingido no unzip.", max_files)
                     break
 
-                chat_progress.emit_tool_progress(None, "unzip_and_list_files", f"Extraindo {name} ({idx + 1}/{len(namelist)})...")
+                chat_progress.emit_tool_progress(
+                    None, "unzip_and_list_files", f"Extraindo {name} ({idx + 1}/{len(namelist)})..."
+                )
                 try:
                     if ext in image_extensions:
                         img_bytes = z.read(name)
@@ -1195,28 +1223,28 @@ def unzip_and_list_files(args: dict[str, Any], **_kw: Any) -> str:
                     elif ext == ".docx":
                         content = _read_docx_text(z.open(name))
                         if total_chars + len(content) > max_chars:
-                            content = content[:(max_chars - total_chars)]
+                            content = content[: (max_chars - total_chars)]
                         total_chars += len(content)
                         if content:
                             extracted_files.append({"path": name, "content": content})
                     elif ext == ".pdf":
                         content = _read_pdf_text(z.open(name))
                         if total_chars + len(content) > max_chars:
-                            content = content[:(max_chars - total_chars)]
+                            content = content[: (max_chars - total_chars)]
                         total_chars += len(content)
                         if content:
                             extracted_files.append({"path": name, "content": content})
                     elif ext == ".pptx":
                         content = _read_pptx_text(z.open(name))
                         if total_chars + len(content) > max_chars:
-                            content = content[:(max_chars - total_chars)]
+                            content = content[: (max_chars - total_chars)]
                         total_chars += len(content)
                         if content:
                             extracted_files.append({"path": name, "content": content})
                     elif ext == ".epub":
                         content = _read_epub_text(z.open(name))
                         if total_chars + len(content) > max_chars:
-                            content = content[:(max_chars - total_chars)]
+                            content = content[: (max_chars - total_chars)]
                         total_chars += len(content)
                         if content:
                             extracted_files.append({"path": name, "content": content})
@@ -1225,8 +1253,12 @@ def unzip_and_list_files(args: dict[str, Any], **_kw: Any) -> str:
                             content = f.read().decode("utf-8", errors="ignore")
 
                         if total_chars + len(content) > max_chars:
-                            logger.warning("[a11y_chat] Limite de caracteres (%d) excedido no unzip. Cortando arquivo %s", max_chars, name)
-                            content = content[:(max_chars - total_chars)]
+                            logger.warning(
+                                "[a11y_chat] Limite de caracteres (%d) excedido no unzip. Cortando arquivo %s",
+                                max_chars,
+                                name,
+                            )
+                            content = content[: (max_chars - total_chars)]
                             if content:
                                 extracted_files.append({"path": name, "content": content})
                             break
@@ -1243,13 +1275,39 @@ def unzip_and_list_files(args: dict[str, Any], **_kw: Any) -> str:
 
 
 _LOCAL_PROJECT_JUNK_DIRS = {
-    ".git", "node_modules", "dist", "build", ".next", "__pycache__",
-    "venv", ".venv", "target", ".idea", ".vscode", ".turbo", "coverage",
-    ".cache", ".pytest_cache", "out",
+    ".git",
+    "node_modules",
+    "dist",
+    "build",
+    ".next",
+    "__pycache__",
+    "venv",
+    ".venv",
+    "target",
+    ".idea",
+    ".vscode",
+    ".turbo",
+    "coverage",
+    ".cache",
+    ".pytest_cache",
+    "out",
 }
 _LOCAL_PROJECT_VALID_EXTENSIONS = {
-    ".html", ".htm", ".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte",
-    ".css", ".json", ".md", ".swift", ".kt", ".dart", ".java",
+    ".html",
+    ".htm",
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".vue",
+    ".svelte",
+    ".css",
+    ".json",
+    ".md",
+    ".swift",
+    ".kt",
+    ".dart",
+    ".java",
 }
 _LOCAL_PROJECT_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 _LOCAL_PROJECT_MAX_FILES = 60
@@ -1282,7 +1340,9 @@ def _walk_local_project_files(project_dir: str) -> list[dict[str, Any]]:
         dirs[:] = [d for d in dirs if d not in _LOCAL_PROJECT_JUNK_DIRS and not d.startswith(".")]
         for filename in sorted(filenames):
             if len(extracted_files) >= _LOCAL_PROJECT_MAX_FILES:
-                logger.warning("[a11y_chat] Limite de %d arquivos atingido na leitura de projeto local.", _LOCAL_PROJECT_MAX_FILES)
+                logger.warning(
+                    "[a11y_chat] Limite de %d arquivos atingido na leitura de projeto local.", _LOCAL_PROJECT_MAX_FILES
+                )
                 return extracted_files
 
             ext = os.path.splitext(filename.lower())[1]
@@ -1299,11 +1359,13 @@ def _walk_local_project_files(project_dir: str) -> list[dict[str, Any]]:
                     with open(abs_path, "rb") as f:
                         img_bytes = f.read()
                     if len(img_bytes) <= 2 * 1024 * 1024:
-                        extracted_files.append({
-                            "path": rel_path,
-                            "content": base64.b64encode(img_bytes).decode("utf-8"),
-                            "is_image": True,
-                        })
+                        extracted_files.append(
+                            {
+                                "path": rel_path,
+                                "content": base64.b64encode(img_bytes).decode("utf-8"),
+                                "is_image": True,
+                            }
+                        )
                 else:
                     with open(abs_path, encoding="utf-8", errors="ignore") as f:
                         content = f.read()
@@ -1364,10 +1426,13 @@ def read_local_project_files(args: dict[str, Any], **_kw: Any) -> str:
         chat_progress.emit_tool_progress(None, "read_local_project_files", f"Lendo arquivos de {project_dir}...")
         files = _walk_local_project_files(project_dir)
         if not files:
-            return json.dumps({
-                "error": "Nenhum arquivo com extensão reconhecida foi encontrado nesse diretório.",
-                "project_dir": project_dir,
-            }, ensure_ascii=True)
+            return json.dumps(
+                {
+                    "error": "Nenhum arquivo com extensão reconhecida foi encontrado nesse diretório.",
+                    "project_dir": project_dir,
+                },
+                ensure_ascii=True,
+            )
         return json.dumps({"project_dir": project_dir, "files": files}, ensure_ascii=True)
     except Exception as exc:
         logger.error("[a11y_chat] read_local_project_files falhou: %s", exc)
@@ -1403,10 +1468,10 @@ _FIX_AND_ZIP_FILES_SCHEMA = {
             "custom_instruction": {
                 "type": "string",
                 "description": "Optional custom instructions or guidelines for the fixes.",
-            }
+            },
         },
         "required": ["pre_exec_msg"],
-    }
+    },
 }
 
 
@@ -1446,7 +1511,7 @@ Return ONLY valid JSON. No markdown, no preamble.
         res = extract_json_object(raw)
         return {
             "fixed_content": res.get("fixed_content") or content,
-            "changes_summary": res.get("changes_summary") or []
+            "changes_summary": res.get("changes_summary") or [],
         }
     except Exception as exc:
         logger.error("[a11y_chat] Erro ao corrigir código não-HTML %s: %s", path, exc)
@@ -1458,6 +1523,7 @@ async def _render_html_to_screenshot(html_content: str) -> str:
     from playwright.async_api import async_playwright
 
     from backend.src.config.settings import get_settings
+
     settings = get_settings()
     ws_url = getattr(settings, "browserless_ws_url", None)
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -1510,16 +1576,8 @@ Return ONLY valid JSON.
     )
 
     multimodal_prompt = [
-        {
-            "type": "text",
-            "text": text_prompt
-        },
-        {
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/png;base64,{screenshot_base64}"
-            }
-        }
+        {"type": "text", "text": text_prompt},
+        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{screenshot_base64}"}},
     ]
 
     try:
@@ -1528,13 +1586,10 @@ Return ONLY valid JSON.
             user_prompt=multimodal_prompt,  # type: ignore
             temperature=0.1,
             agent_label="layout_verifier",
-            model_tier="alto"
+            model_tier="alto",
         )
         res = extract_json_object(raw)
-        return {
-            "layout_ok": bool(res.get("layout_ok", True)),
-            "reasons": res.get("reasons") or []
-        }
+        return {"layout_ok": bool(res.get("layout_ok", True)), "reasons": res.get("reasons") or []}
     except Exception as exc:
         logger.error("[a11y_chat] Erro no visual layout verifier: %s", exc)
         return {"layout_ok": True, "reasons": []}
@@ -1547,6 +1602,7 @@ def _sanitize_accessible_links_and_labels(html_content: str) -> tuple[str, list[
         return html_content, []
 
     from bs4 import BeautifulSoup
+
     soup = BeautifulSoup(html_content, "html.parser")
     modified = False
     notes: list[str] = []
@@ -1664,7 +1720,9 @@ def _strip_injected_script_vectors(original_html: str, fixed_html: str) -> tuple
                 ("javascript:", "data:text/html")
             )
             if (is_event_handler or is_dangerous_uri) and (tag.name, attr_lower, value_str) not in existing_attrs:
-                notes.append(f"Removido atributo '{attr}' introduzido pela correcao em <{tag.name}> (nao existia no HTML original).")
+                notes.append(
+                    f"Removido atributo '{attr}' introduzido pela correcao em <{tag.name}> (nao existia no HTML original)."
+                )
                 del tag.attrs[attr]
 
     return (str(fixed_soup) if notes else fixed_html), notes
@@ -1687,7 +1745,9 @@ async def _run_fixes_and_generate_zip(
     session_id = resolve_session()
     logger.info(
         "[a11y_chat] _run_fixes_and_generate_zip iniciado (sessao %s, %d arquivo(s), %d issues pre-existentes)",
-        session_id, len(files), len(existing_issues or []),
+        session_id,
+        len(files),
+        len(existing_issues or []),
     )
 
     fixed_files = []
@@ -1724,10 +1784,7 @@ async def _run_fixes_and_generate_zip(
 
         ext = os.path.splitext(path.lower())[1]
         is_html = ext in (".html", ".htm")
-        is_code = ext in (
-            ".css", ".js", ".jsx", ".ts", ".tsx", ".json", ".md",
-            ".swift", ".kt", ".dart", ".java"
-        )
+        is_code = ext in (".css", ".js", ".jsx", ".ts", ".tsx", ".json", ".md", ".swift", ".kt", ".dart", ".java")
         is_docx = ext == ".docx"
         is_pdf = ext == ".pdf"
         is_pptx = ext == ".pptx"
@@ -1757,7 +1814,9 @@ async def _run_fixes_and_generate_zip(
                                 alt_text = await _generate_alt_text_for_image(src, matched_b64)
                                 img["alt"] = alt_text
                                 html_modified = True
-                                changes_summary_all.append(f"[{path}] Injetado alt='{alt_text}' para a imagem '{src}' gerado automaticamente pelo agente de visão computacional.")
+                                changes_summary_all.append(
+                                    f"[{path}] Injetado alt='{alt_text}' para a imagem '{src}' gerado automaticamente pelo agente de visão computacional."
+                                )
 
                 if html_modified:
                     content = str(soup)
@@ -1772,7 +1831,8 @@ async def _run_fixes_and_generate_zip(
                     file_issues_raw = existing_issues
                     logger.info(
                         "[a11y_chat] Usando %d issue(s) pre-existente(s) do cache de analise para %s",
-                        len(file_issues_raw), path,
+                        len(file_issues_raw),
+                        path,
                     )
                 else:
                     audit_res = await orchestrate(content, TaskType.ANALYZE)
@@ -1780,7 +1840,8 @@ async def _run_fixes_and_generate_zip(
                         file_issues_raw = audit_res.data["issues"]
                         logger.info(
                             "[a11y_chat] Re-auditoria encontrou %d issue(s) para %s",
-                            len(file_issues_raw), path,
+                            len(file_issues_raw),
+                            path,
                         )
                     else:
                         logger.info("[a11y_chat] Re-auditoria nao encontrou issues para %s", path)
@@ -1803,31 +1864,47 @@ async def _run_fixes_and_generate_zip(
                     # 3. Validação Visual (Visual Feedback Loop)
                     #    Pula para fallback pequeno para evitar latencia de Playwright + LLM multimodal.
                     if is_small_fallback:
-                        chat_progress.emit({"type": "phase", "text": f"[{path}] Fallback simples detectado; pulando validação visual para resposta rápida."})
+                        chat_progress.emit(
+                            {
+                                "type": "phase",
+                                "text": f"[{path}] Fallback simples detectado; pulando validação visual para resposta rápida.",
+                            }
+                        )
                     else:
                         try:
-                            chat_progress.emit({"type": "phase", "text": f"[{path}] Renderizando página corrigida para validação visual..."})
+                            chat_progress.emit(
+                                {
+                                    "type": "phase",
+                                    "text": f"[{path}] Renderizando página corrigida para validação visual...",
+                                }
+                            )
                             screenshot_b64 = await _render_html_to_screenshot(fixed_content)
 
-                            chat_progress.emit({"type": "phase", "text": f"[{path}] Analisando layout da página com o validador de design..."})
+                            chat_progress.emit(
+                                {
+                                    "type": "phase",
+                                    "text": f"[{path}] Analisando layout da página com o validador de design...",
+                                }
+                            )
                             layout_res = await _verify_layout_visually(content, fixed_content, screenshot_b64)
                             if not layout_res.get("layout_ok", True):
                                 reasons_str = "; ".join(layout_res.get("reasons", []))
-                                chat_progress.emit({"type": "phase", "text": f"[{path}] Quebra de layout detectada: {reasons_str}. Solicitando re-correção visual..."})
+                                chat_progress.emit(
+                                    {
+                                        "type": "phase",
+                                        "text": f"[{path}] Quebra de layout detectada: {reasons_str}. Solicitando re-correção visual...",
+                                    }
+                                )
                                 logger.warning(
                                     "[a11y_chat] Layout quebrado detectado pos-remediacao de %s: %s. Re-executando fixer com correcoes de design.",
                                     path,
-                                    layout_res.get("reasons")
+                                    layout_res.get("reasons"),
                                 )
                                 extra_inst = f"CORRIGIR LAYOUT: O HTML gerado anteriormente quebrou o design visual pelos seguintes motivos: {reasons_str}. Reaplique as correções de acessibilidade mantendo o layout intacto."
                                 if custom_instruction:
                                     extra_inst += f"\n\nInstrução original: {custom_instruction}"
 
-                                fix_res_2 = await run_fixer(
-                                    content,
-                                    file_issues,
-                                    custom_instruction=extra_inst
-                                )
+                                fix_res_2 = await run_fixer(content, file_issues, custom_instruction=extra_inst)
                                 fixed_content = fix_res_2.data.get("fixed_html") or fixed_content
                                 summary.extend(fix_res_2.data.get("changes_summary", []))
                                 summary.append(f"Ajuste visual aplicado para corrigir quebras de design: {reasons_str}")
@@ -1836,7 +1913,12 @@ async def _run_fixes_and_generate_zip(
                                 chat_progress.emit({"type": "phase", "text": f"[{path}] Layout validado com sucesso!"})
                         except Exception as e_vis:
                             logger.error("[a11y_chat] Falha na validação visual de %s: %s", path, e_vis)
-                            chat_progress.emit({"type": "phase", "text": f"[{path}] Falha ao executar validação visual. Continuando..."})
+                            chat_progress.emit(
+                                {
+                                    "type": "phase",
+                                    "text": f"[{path}] Falha ao executar validação visual. Continuando...",
+                                }
+                            )
 
                     # 4. Sanitização semântica de links e rótulos acessíveis (WCAG 2.4.4 / 4.1.2)
                     fixed_content, sanitize_notes = _sanitize_accessible_links_and_labels(fixed_content)
@@ -1857,7 +1939,7 @@ async def _run_fixes_and_generate_zip(
                     fixed_files.append({"path": path, "content": fixed_content})
                     preview_pages.append({"title": path, "original_html": content, "fixed_html": fixed_content})
                     for s in summary:
-                         changes_summary_all.append(f"[{path}] {s}")
+                        changes_summary_all.append(f"[{path}] {s}")
                 else:
                     fixed_files.append({"path": path, "content": content})
             except Exception as exc:
@@ -1870,7 +1952,7 @@ async def _run_fixes_and_generate_zip(
                 summary = code_res.get("changes_summary") or []
                 fixed_files.append({"path": path, "content": fixed_content})
                 for s in summary:
-                     changes_summary_all.append(f"[{path}] {s}")
+                    changes_summary_all.append(f"[{path}] {s}")
             except Exception as exc:
                 logger.error("[a11y_chat] Erro ao processar código %s: %s", path, exc)
                 fixed_files.append({"path": path, "content": content})
@@ -1878,10 +1960,13 @@ async def _run_fixes_and_generate_zip(
             try:
                 docx_bytes = await _fix_docx_document(path, content, custom_instruction)
                 fixed_files.append({"path": path, "content": docx_bytes})
-                changes_summary_all.append(f"[{path}] Documento DOCX estruturado de forma acessível com estilos de cabeçalho e tabelas semânticas.")
+                changes_summary_all.append(
+                    f"[{path}] Documento DOCX estruturado de forma acessível com estilos de cabeçalho e tabelas semânticas."
+                )
             except Exception as exc:
                 logger.error("[a11y_chat] Erro ao corrigir DOCX %s: %s", path, exc)
                 import docx
+
                 doc = docx.Document()
                 doc.add_paragraph(content)
                 out_stream = io.BytesIO()
@@ -1892,18 +1977,25 @@ async def _run_fixes_and_generate_zip(
                 pdf_html = await _fix_pdf_document_to_html(path, content, custom_instruction)
                 html_path = os.path.splitext(path)[0] + ".html"
                 fixed_files.append({"path": html_path, "content": pdf_html})
-                changes_summary_all.append(f"[{path}] Documento PDF convertido e estruturado para página da web HTML5 totalmente acessível: {html_path}")
+                changes_summary_all.append(
+                    f"[{path}] Documento PDF convertido e estruturado para página da web HTML5 totalmente acessível: {html_path}"
+                )
             except Exception as exc:
                 logger.error("[a11y_chat] Erro ao converter PDF %s: %s", path, exc)
-                fixed_files.append({"path": path + ".html", "content": f"<html><body><pre>{content}</pre></body></html>"})
+                fixed_files.append(
+                    {"path": path + ".html", "content": f"<html><body><pre>{content}</pre></body></html>"}
+                )
         elif is_pptx and content.strip():
             try:
                 pptx_bytes = await _fix_pptx_document(path, content, custom_instruction)
                 fixed_files.append({"path": path, "content": pptx_bytes})
-                changes_summary_all.append(f"[{path}] Apresentação PowerPoint PPTX reestruturada de forma acessível com layout de título/conteúdo nativo e tabela posicionada.")
+                changes_summary_all.append(
+                    f"[{path}] Apresentação PowerPoint PPTX reestruturada de forma acessível com layout de título/conteúdo nativo e tabela posicionada."
+                )
             except Exception as exc:
                 logger.error("[a11y_chat] Erro ao corrigir PPTX %s: %s", path, exc)
                 from pptx import Presentation
+
                 prs = Presentation()
                 slide = prs.slides.add_slide(prs.slide_layouts[1])
                 if slide.shapes.title:
@@ -1919,6 +2011,7 @@ async def _run_fixes_and_generate_zip(
     # Atualiza o cache global com todos os issues encontrados no projeto corrigido
     if all_issues_accumulated:
         from backend.src.services.last_analysis_store import set_last_analysis
+
         set_last_analysis(all_issues_accumulated, "Projeto ZIP corrigido", append=False)
 
     # Gera o arquivo ZIP
@@ -1934,13 +2027,16 @@ async def _run_fixes_and_generate_zip(
             z.writestr(f["path"], f["content"])
 
     from backend.src.config.settings import get_settings
+
     download_url = f"{get_settings().resolved_public_base_url()}/export/download_zip/{zip_filename}"
 
     if preview_pages:
         from backend.src.services.last_fix_store import set_last_fix
+
         logger.info(
             "[a11y_chat] _run_fixes_and_generate_zip salvando %d pagina(s) de preview na sessao %s",
-            len(preview_pages), session_id,
+            len(preview_pages),
+            session_id,
         )
         set_last_fix(preview_pages)
     else:
@@ -1999,15 +2095,19 @@ def fix_and_zip_files(args: dict[str, Any], **_kw: Any) -> str:
     files_from_fallback = False
     if not files:
         from backend.src.services.last_analyzed_content_store import get_last_analyzed_content
+
         html, url = get_last_analyzed_content()
         if not html:
-            return json.dumps({
-                "error": (
-                    "Nenhum arquivo foi fornecido e não há HTML de uma análise por URL recente "
-                    "nesta conversa para usar como fallback. Peça ao usuário para enviar o(s) "
-                    "arquivo(s) a corrigir, ou analise uma página por URL primeiro."
-                )
-            }, ensure_ascii=True)
+            return json.dumps(
+                {
+                    "error": (
+                        "Nenhum arquivo foi fornecido e não há HTML de uma análise por URL recente "
+                        "nesta conversa para usar como fallback. Peça ao usuário para enviar o(s) "
+                        "arquivo(s) a corrigir, ou analise uma página por URL primeiro."
+                    )
+                },
+                ensure_ascii=True,
+            )
         path = (url.rstrip("/").rsplit("/", 1)[-1] or "index.html") if url else "index.html"
         ext = os.path.splitext(path.lower())[1]
         if "." not in path or ext not in (".html", ".htm"):
@@ -2025,6 +2125,7 @@ def fix_and_zip_files(args: dict[str, Any], **_kw: Any) -> str:
     existing_issues = None
     if files_from_fallback:
         from backend.src.services.last_analysis_store import get_last_analysis
+
         issues_raw, _ = get_last_analysis()
         existing_issues = [dict(issue) for issue in issues_raw]
         logger.info(
@@ -2036,6 +2137,7 @@ def fix_and_zip_files(args: dict[str, Any], **_kw: Any) -> str:
     # cache da análise e as páginas de preview, e `undo_last_fix` precisa do
     # estado anterior para ter caminho de volta.
     from backend.src.services import fix_checkpoint_store
+
     fix_checkpoint_store.create_checkpoint(f"Correção de {len(files)} arquivo(s)")
 
     try:
@@ -2043,6 +2145,7 @@ def fix_and_zip_files(args: dict[str, Any], **_kw: Any) -> str:
         result.pop("_fixed_files", None)
         from backend.src.services.last_fix_store import get_last_fix
         from backend.src.services.session_context import resolve_session
+
         logger.info(
             "[a11y_chat] fix_and_zip_files concluido (sessao %s): total_files=%d, download_url=%s, "
             "preview_pages_no_cache=%s",
@@ -2124,13 +2227,16 @@ def fix_local_project_files(args: dict[str, Any], **_kw: Any) -> str:
         except Exception as exc:
             return json.dumps({"error": f"Falha ao ler o projeto local: {exc}"}, ensure_ascii=True)
         if not files:
-            return json.dumps({"error": "Nenhum arquivo com extensão reconhecida foi encontrado nesse diretório."}, ensure_ascii=True)
+            return json.dumps(
+                {"error": "Nenhum arquivo com extensão reconhecida foi encontrado nesse diretório."}, ensure_ascii=True
+            )
 
     custom_instruction = args.get("custom_instruction")
     if custom_instruction:
         custom_instruction = str(custom_instruction).strip()
 
     from backend.src.services import fix_checkpoint_store
+
     fix_checkpoint_store.create_checkpoint(f"Correção local de {len(files)} arquivo(s) em {project_dir}")
 
     try:
@@ -2208,17 +2314,23 @@ def undo_last_fix(args: dict[str, Any], **_kw: Any) -> str:
 
     checkpoint = fix_checkpoint_store.restore_checkpoint()
     if checkpoint is None:
-        return json.dumps({
-            "error": "Não há correção para desfazer: nenhum checkpoint foi criado nesta conversa.",
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "error": "Não há correção para desfazer: nenhum checkpoint foi criado nesta conversa.",
+            },
+            ensure_ascii=False,
+        )
 
-    return json.dumps({
-        "restored": True,
-        "checkpoint": checkpoint.describe(),
-        "issues_restored": len(checkpoint.issues),
-        "preview_pages_restored": len(checkpoint.fix_pages),
-        "message": "Estado anterior à última correção restaurado.",
-    }, ensure_ascii=False)
+    return json.dumps(
+        {
+            "restored": True,
+            "checkpoint": checkpoint.describe(),
+            "issues_restored": len(checkpoint.issues),
+            "preview_pages_restored": len(checkpoint.fix_pages),
+            "message": "Estado anterior à última correção restaurado.",
+        },
+        ensure_ascii=False,
+    )
 
 
 _EXPORT_XLSX_SCHEMA = {
@@ -2236,7 +2348,7 @@ _EXPORT_XLSX_SCHEMA = {
             }
         },
         "required": ["pre_exec_msg"],
-    }
+    },
 }
 
 
@@ -2245,10 +2357,14 @@ def export_xlsx(args: dict[str, Any], **_kw: Any) -> str:
     Handler da tool `export_xlsx`. Retorna o link de download direto para a planilha.
     """
     from backend.src.config.settings import get_settings
-    return json.dumps({
-        "download_url": f"{get_settings().resolved_public_base_url()}/export/last_xlsx",
-        "message": "Excel spreadsheet download link is ready. The user can download it by clicking the link."
-    }, ensure_ascii=True)
+
+    return json.dumps(
+        {
+            "download_url": f"{get_settings().resolved_public_base_url()}/export/last_xlsx",
+            "message": "Excel spreadsheet download link is ready. The user can download it by clicking the link.",
+        },
+        ensure_ascii=True,
+    )
 
 
 def _issues_from_last_analysis() -> tuple[list, str]:
@@ -2285,7 +2401,7 @@ _GENERATE_VPAT_SCHEMA = {
             },
         },
         "required": ["pre_exec_msg"],
-    }
+    },
 }
 
 
@@ -2296,9 +2412,14 @@ def generate_vpat(args: dict[str, Any], **_kw: Any) -> str:
     try:
         issues, url = _issues_from_last_analysis()
     except Exception as exc:
-        return json.dumps({"error": f"Não foi possível interpretar os issues da última análise: {exc}"}, ensure_ascii=True)
+        return json.dumps(
+            {"error": f"Não foi possível interpretar os issues da última análise: {exc}"}, ensure_ascii=True
+        )
     if not issues:
-        return json.dumps({"error": "Nenhuma análise recente encontrada. Analise uma página ou site antes de gerar o VPAT."}, ensure_ascii=True)
+        return json.dumps(
+            {"error": "Nenhuma análise recente encontrada. Analise uma página ou site antes de gerar o VPAT."},
+            ensure_ascii=True,
+        )
 
     product_name = args.get("product_name") or "Produto Avaliado"
     try:
@@ -2330,7 +2451,7 @@ _GENERATE_CHECKLIST_SCHEMA = {
             },
         },
         "required": ["pre_exec_msg"],
-    }
+    },
 }
 
 
@@ -2343,13 +2464,20 @@ def generate_checklist(args: dict[str, Any], **_kw: Any) -> str:
     try:
         issues, url = _issues_from_last_analysis()
     except Exception as exc:
-        return json.dumps({"error": f"Não foi possível interpretar os issues da última análise: {exc}"}, ensure_ascii=True)
+        return json.dumps(
+            {"error": f"Não foi possível interpretar os issues da última análise: {exc}"}, ensure_ascii=True
+        )
     if not issues:
-        return json.dumps({"error": "Nenhuma análise recente encontrada. Analise uma página ou site antes de gerar o checklist."}, ensure_ascii=True)
+        return json.dumps(
+            {"error": "Nenhuma análise recente encontrada. Analise uma página ou site antes de gerar o checklist."},
+            ensure_ascii=True,
+        )
 
     html_content, _ = get_last_analyzed_content()
     try:
-        chat_progress.emit_tool_progress(None, "generate_checklist", "Gerando o checklist estruturado de acessibilidade...")
+        chat_progress.emit_tool_progress(
+            None, "generate_checklist", "Gerando o checklist estruturado de acessibilidade..."
+        )
         result = _safe_async_run(run_checklist(issues, html_content=html_content or None))
     except Exception as exc:
         logger.error("[a11y_chat] generate_checklist falhou: %s", exc)
@@ -2374,7 +2502,7 @@ _EXPORT_CHECKLIST_PDF_SCHEMA = {
             },
         },
         "required": ["pre_exec_msg"],
-    }
+    },
 }
 
 
@@ -2382,10 +2510,14 @@ def export_checklist_pdf_tool(args: dict[str, Any], **_kw: Any) -> str:
     """Handler da tool `export_checklist_pdf`. Retorna o link de download direto;
     o PDF é gerado sob demanda no GET (mesmo padrão de `export_xlsx`)."""
     from backend.src.config.settings import get_settings
-    return json.dumps({
-        "download_url": f"{get_settings().resolved_public_base_url()}/export/last_checklist_pdf",
-        "message": "Accessible checklist PDF (PDF/UA-1) download link is ready. The user can download it by clicking the link."
-    }, ensure_ascii=True)
+
+    return json.dumps(
+        {
+            "download_url": f"{get_settings().resolved_public_base_url()}/export/last_checklist_pdf",
+            "message": "Accessible checklist PDF (PDF/UA-1) download link is ready. The user can download it by clicking the link.",
+        },
+        ensure_ascii=True,
+    )
 
 
 _GENERATE_ACCESSIBILITY_STATEMENT_SCHEMA = {
@@ -2442,7 +2574,9 @@ def generate_accessibility_statement(args: dict[str, Any], **_kw: Any) -> str:
     issues, url = get_last_analysis()
     if not issues:
         return json.dumps(
-            {"error": "Nenhuma análise recente encontrada. Analise uma página ou site antes de gerar a declaração de acessibilidade."},
+            {
+                "error": "Nenhuma análise recente encontrada. Analise uma página ou site antes de gerar a declaração de acessibilidade."
+            },
             ensure_ascii=True,
         )
 
@@ -2454,7 +2588,9 @@ def generate_accessibility_statement(args: dict[str, Any], **_kw: Any) -> str:
     }
     set_accessibility_statement_options(options)
 
-    chat_progress.emit_tool_progress(None, "generate_accessibility_statement", "Montando a declaração pública de acessibilidade...")
+    chat_progress.emit_tool_progress(
+        None, "generate_accessibility_statement", "Montando a declaração pública de acessibilidade..."
+    )
     statement = build_accessibility_statement(issues, url, **options)
     return json.dumps(statement, ensure_ascii=False)
 
@@ -2484,10 +2620,14 @@ def export_accessibility_statement_pdf_tool(args: dict[str, Any], **_kw: Any) ->
     download direto; o PDF é gerado sob demanda no GET (mesmo padrão de
     `export_checklist_pdf`)."""
     from backend.src.config.settings import get_settings
-    return json.dumps({
-        "download_url": f"{get_settings().resolved_public_base_url()}/export/last_accessibility_statement_pdf",
-        "message": "Accessible statement PDF (PDF/UA-1) download link is ready. The user can download it by clicking the link."
-    }, ensure_ascii=True)
+
+    return json.dumps(
+        {
+            "download_url": f"{get_settings().resolved_public_base_url()}/export/last_accessibility_statement_pdf",
+            "message": "Accessible statement PDF (PDF/UA-1) download link is ready. The user can download it by clicking the link.",
+        },
+        ensure_ascii=True,
+    )
 
 
 _GENERATE_TEST_SUITE_SCHEMA = {
@@ -2506,7 +2646,7 @@ _GENERATE_TEST_SUITE_SCHEMA = {
             },
         },
         "required": ["pre_exec_msg"],
-    }
+    },
 }
 
 
@@ -2517,12 +2657,21 @@ def generate_test_suite(args: dict[str, Any], **_kw: Any) -> str:
     try:
         issues, url = _issues_from_last_analysis()
     except Exception as exc:
-        return json.dumps({"error": f"Não foi possível interpretar os issues da última análise: {exc}"}, ensure_ascii=True)
+        return json.dumps(
+            {"error": f"Não foi possível interpretar os issues da última análise: {exc}"}, ensure_ascii=True
+        )
     if not issues:
-        return json.dumps({"error": "Nenhuma análise recente encontrada. Analise uma página ou site antes de gerar a suíte de testes."}, ensure_ascii=True)
+        return json.dumps(
+            {
+                "error": "Nenhuma análise recente encontrada. Analise uma página ou site antes de gerar a suíte de testes."
+            },
+            ensure_ascii=True,
+        )
 
     try:
-        chat_progress.emit_tool_progress(None, "generate_test_suite", "Escrevendo os testes automatizados de acessibilidade...")
+        chat_progress.emit_tool_progress(
+            None, "generate_test_suite", "Escrevendo os testes automatizados de acessibilidade..."
+        )
         result = _safe_async_run(run_test_generator(issues=issues, target=url))
     except Exception as exc:
         logger.error("[a11y_chat] generate_test_suite falhou: %s", exc)
@@ -2549,7 +2698,7 @@ _OPEN_LIVE_PREVIEW_SCHEMA = {
             },
         },
         "required": ["pre_exec_msg"],
-    }
+    },
 }
 
 
@@ -2569,7 +2718,9 @@ def open_live_preview(args: dict[str, Any], **_kw: Any) -> str:
             session_id,
         )
         return json.dumps(
-            {"error": "Nenhuma correção recente encontrada. Rode fix_and_zip_files antes de abrir a visualização ao vivo."},
+            {
+                "error": "Nenhuma correção recente encontrada. Rode fix_and_zip_files antes de abrir a visualização ao vivo."
+            },
             ensure_ascii=True,
         )
 
@@ -2593,7 +2744,7 @@ _TAVILY_SEARCH_SCHEMA = {
             "limit": {"type": "integer", "description": "Max results to return (1-10)", "default": 5},
         },
         "required": ["pre_exec_msg", "query"],
-    }
+    },
 }
 
 _EXA_SEARCH_SCHEMA = {
@@ -2612,7 +2763,7 @@ _EXA_SEARCH_SCHEMA = {
             "limit": {"type": "integer", "description": "Max results to return (1-10)", "default": 5},
         },
         "required": ["pre_exec_msg", "query"],
-    }
+    },
 }
 
 
@@ -2626,6 +2777,7 @@ def tavily_search(args: dict[str, Any], **_kw: Any) -> str:
         import httpx
 
         from backend.src.config.settings import get_settings
+
         settings = get_settings()
         api_key = settings.tavily_api_key or os.environ.get("TAVILY_API_KEY", "")
         if not api_key:
@@ -2634,23 +2786,15 @@ def tavily_search(args: dict[str, Any], **_kw: Any) -> str:
         chat_progress.emit_tool_progress(None, "tavily_search", f"Pesquisando: {query}...")
         response = httpx.post(
             "https://api.tavily.com/search",
-            json={
-                "api_key": api_key,
-                "query": query,
-                "max_results": limit
-            },
-            timeout=15.0
+            json={"api_key": api_key, "query": query, "max_results": limit},
+            timeout=15.0,
         )
         response.raise_for_status()
         data = response.json()
 
         results = []
         for r in data.get("results", []):
-            results.append({
-                "title": r.get("title", ""),
-                "url": r.get("url", ""),
-                "content": r.get("content", "")
-            })
+            results.append({"title": r.get("title", ""), "url": r.get("url", ""), "content": r.get("content", "")})
         return json.dumps({"success": True, "data": {"web": results}}, ensure_ascii=False)
     except Exception as exc:
         return json.dumps({"error": f"Tavily search failed: {str(exc)}"})
@@ -2666,6 +2810,7 @@ def exa_search(args: dict[str, Any], **_kw: Any) -> str:
         import httpx
 
         from backend.src.config.settings import get_settings
+
         settings = get_settings()
         api_key = settings.exa_api_key or os.environ.get("EXA_API_KEY", "")
         if not api_key:
@@ -2674,27 +2819,22 @@ def exa_search(args: dict[str, Any], **_kw: Any) -> str:
         chat_progress.emit_tool_progress(None, "exa_search", f"Pesquisando: {query}...")
         response = httpx.post(
             "https://api.exa.ai/search",
-            headers={
-                "x-api-key": api_key,
-                "content-type": "application/json"
-            },
-            json={
-                "query": query,
-                "num_results": limit,
-                "use_autoprompt": True
-            },
-            timeout=15.0
+            headers={"x-api-key": api_key, "content-type": "application/json"},
+            json={"query": query, "num_results": limit, "use_autoprompt": True},
+            timeout=15.0,
         )
         response.raise_for_status()
         data = response.json()
 
         results = []
         for r in data.get("results", []):
-            results.append({
-                "title": r.get("title", ""),
-                "url": r.get("url", ""),
-                "content": r.get("text", "") or r.get("highlights", [""])[0]
-            })
+            results.append(
+                {
+                    "title": r.get("title", ""),
+                    "url": r.get("url", ""),
+                    "content": r.get("text", "") or r.get("highlights", [""])[0],
+                }
+            )
         return json.dumps({"success": True, "data": {"web": results}}, ensure_ascii=False)
     except Exception as exc:
         return json.dumps({"error": f"Exa search failed: {str(exc)}"})
@@ -2739,13 +2879,16 @@ def evaluate_research(args: dict) -> str:
     missing = args.get("missing_info", "")
     refined = args.get("refined_query", "")
     sources = args.get("sources_found", "")
-    return json.dumps({
-        "verdict": verdict,
-        "missing_info": missing,
-        "refined_query": refined,
-        "sources_found": sources,
-        "action": "continue_search" if verdict == "insufficient" else "synthesize",
-    }, ensure_ascii=False)
+    return json.dumps(
+        {
+            "verdict": verdict,
+            "missing_info": missing,
+            "refined_query": refined,
+            "sources_found": sources,
+            "action": "continue_search" if verdict == "insufficient" else "synthesize",
+        },
+        ensure_ascii=False,
+    )
 
 
 _CREATE_GITHUB_ISSUE_SCHEMA: dict[str, Any] = {
@@ -2785,6 +2928,7 @@ _CREATE_GITHUB_ISSUE_SCHEMA: dict[str, Any] = {
 def create_github_issue_tool(args: dict) -> str:
     """Handler da ferramenta de criação de Issue no GitHub."""
     from backend.src.services.github_service import create_github_issue
+
     chat_progress.emit_tool_progress(None, "create_github_issue", "Abrindo a issue no GitHub...")
     res = create_github_issue(
         title=args.get("title", ""),
@@ -2832,6 +2976,7 @@ _CREATE_JIRA_ISSUE_SCHEMA: dict[str, Any] = {
 def create_jira_issue_tool(args: dict) -> str:
     """Handler da ferramenta de criação de Issue no Jira."""
     from backend.src.services.ticket_integrations import create_jira_issue
+
     chat_progress.emit_tool_progress(None, "create_jira_issue", "Abrindo a issue no Jira...")
     res = create_jira_issue(
         summary=args.get("summary", ""),
@@ -2879,6 +3024,7 @@ _CREATE_AZURE_DEVOPS_WORK_ITEM_SCHEMA: dict[str, Any] = {
 def create_azure_devops_work_item_tool(args: dict) -> str:
     """Handler da ferramenta de criação de Work Item no Azure DevOps."""
     from backend.src.services.ticket_integrations import create_azure_devops_work_item
+
     chat_progress.emit_tool_progress(None, "create_azure_devops_work_item", "Criando o work item no Azure DevOps...")
     res = create_azure_devops_work_item(
         title=args.get("title", ""),
@@ -2891,8 +3037,7 @@ def create_azure_devops_work_item_tool(args: dict) -> str:
 
 _NVDA_SPEAK_SCHEMA: dict[str, Any] = {
     "description": (
-        "Envia um comando de voz diretamente para o leitor de tela NVDA ativo "
-        "para que ele fale um texto ao usuário."
+        "Envia um comando de voz diretamente para o leitor de tela NVDA ativo para que ele fale um texto ao usuário."
     ),
     "parameters": {
         "type": "object",
@@ -2914,6 +3059,7 @@ _NVDA_SPEAK_SCHEMA: dict[str, Any] = {
 def nvda_speak_tool(args: dict) -> str:
     """Handler da ferramenta de controle de fala do NVDA."""
     from backend.src.services.nvda_service import speak_text
+
     chat_progress.emit_tool_progress(None, "nvda_speak", "Enviando texto para o NVDA...")
     res = speak_text(args.get("text", ""))
     return json.dumps(res, ensure_ascii=False)
@@ -2959,10 +3105,10 @@ def verify_screen_reader_announcements_tool(args: dict, **_kw: Any) -> str:
     if not url:
         return json.dumps({"error": "Parâmetro 'url' é obrigatório."}, ensure_ascii=True)
 
-    chat_progress.emit_tool_progress(None, "verify_screen_reader_announcements", "Verificando anúncios de leitor de tela...")
-    result = _safe_async_run(
-        verify_screen_reader_announcements(url, speak_via_nvda=bool(args.get("speak_via_nvda")))
+    chat_progress.emit_tool_progress(
+        None, "verify_screen_reader_announcements", "Verificando anúncios de leitor de tela..."
     )
+    result = _safe_async_run(verify_screen_reader_announcements(url, speak_via_nvda=bool(args.get("speak_via_nvda"))))
     return json.dumps(
         {
             "url": result.url,
@@ -3024,7 +3170,9 @@ def design_review_tool(args: dict[str, Any], **_kw: Any) -> str:
     if not requirement_text:
         return json.dumps({"error": "Parâmetro 'requirement_text' é obrigatório."}, ensure_ascii=True)
 
-    chat_progress.emit_tool_progress(None, "design_review", "Revisando o requisito em busca de riscos de acessibilidade...")
+    chat_progress.emit_tool_progress(
+        None, "design_review", "Revisando o requisito em busca de riscos de acessibilidade..."
+    )
     result = _safe_async_run(run_design_review(requirement_text, args.get("component_type")))
     if not result.success:
         return json.dumps({"error": result.error or "Falha na revisão de design."}, ensure_ascii=True)
@@ -3076,7 +3224,7 @@ describe('Auditoria de Acessibilidade Cypress', () => {{
   }});
 
   it('Deve passar na auditoria WCAG 2.2', () => {{
-    cy.checkA11y({scope_arg if selector else 'null'}, {{
+    cy.checkA11y({scope_arg if selector else "null"}, {{
       includedImpacts: ['critical', 'serious']
     }});
   }});
@@ -3115,7 +3263,7 @@ pm.test("Zero violações críticas", function () {
     var critical = jsonData.issues_by_severity ? jsonData.issues_by_severity.critical : 0;
     pm.expect(critical || 0).to.eql(0);
 });"""
-    else: # playwright
+    else:  # playwright
         script = f"""// tests/a11y.spec.ts (Playwright)
 import {{ test, expect }} from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -3129,11 +3277,14 @@ test('Auditoria WCAG 2.2 com Playwright', async ({{ page }}) => {{
   expect(accessibilityScanResults.violations).toEqual([]);
 }});"""
 
-    return json.dumps({
-        "status": "ok",
-        "framework": framework,
-        "script": script,
-    }, ensure_ascii=False)
+    return json.dumps(
+        {
+            "status": "ok",
+            "framework": framework,
+            "script": script,
+        },
+        ensure_ascii=False,
+    )
 
 
 _RUN_REMOTE_TEST_SCHEMA: dict[str, Any] = {
@@ -3300,7 +3451,9 @@ def run_cross_browser_test_tool(args: dict) -> str:
         return json.dumps({"error": "Parâmetro 'target_url' é obrigatório."}, ensure_ascii=True)
 
     try:
-        chat_progress.emit_tool_progress(None, "run_cross_browser_test", f"Testando {target_url} nos 3 motores de navegador...")
+        chat_progress.emit_tool_progress(
+            None, "run_cross_browser_test", f"Testando {target_url} nos 3 motores de navegador..."
+        )
         raw = _safe_async_run(run_axe_core_cross_browser_audit(target_url))
     except Exception as exc:
         logger.error("[a11y_chat] run_cross_browser_test_tool falhou: %s", exc)
@@ -3335,7 +3488,8 @@ def run_cross_browser_test_tool(args: dict) -> str:
     # o erro cru -- o usuário decide via `install_playwright_browsers` (tool
     # separada, requer confirmação explícita antes de baixar qualquer coisa).
     missing_engines = [
-        engine for engine, data in per_engine_summary.items()
+        engine
+        for engine, data in per_engine_summary.items()
         if isinstance(data.get("error"), str) and "playwright install" in data["error"].lower()
     ]
     if missing_engines:
@@ -3384,14 +3538,19 @@ def install_playwright_browsers_tool(args: dict, **_kw: Any) -> str:
     try:
         proc = subprocess.run(
             [sys.executable, "-m", "playwright", "install", "chromium", "firefox", "webkit"],
-            capture_output=True, text=True, timeout=600,
+            capture_output=True,
+            text=True,
+            timeout=600,
         )
         if proc.returncode != 0:
             logger.error("[a11y_chat] install_playwright_browsers falhou: %s", proc.stderr[-2000:])
-            return json.dumps({
-                "status": "error",
-                "error": f"Falha ao instalar os navegadores do Playwright: {proc.stderr[-1000:]}",
-            }, ensure_ascii=True)
+            return json.dumps(
+                {
+                    "status": "error",
+                    "error": f"Falha ao instalar os navegadores do Playwright: {proc.stderr[-1000:]}",
+                },
+                ensure_ascii=True,
+            )
         # Achado real (checado ao vivo nesta máquina, 2026-08-12): quando os
         # navegadores já estão instalados, `playwright install` roda em
         # segundos e não imprime NADA (stdout vazio, sem linhas "Downloading
@@ -3402,15 +3561,18 @@ def install_playwright_browsers_tool(args: dict, **_kw: Any) -> str:
         message = (
             "Chromium, Firefox e WebKit já estavam instalados nesta máquina -- nada precisou ser baixado. "
             "O teste cross-browser real já pode usar os 3 motores."
-            if already_installed else
-            "Chromium, Firefox e WebKit instalados com sucesso agora. O teste cross-browser real já pode usar os 3 motores."
+            if already_installed
+            else "Chromium, Firefox e WebKit instalados com sucesso agora. O teste cross-browser real já pode usar os 3 motores."
         )
         logger.info("[a11y_chat] install_playwright_browsers concluído (already_installed=%s).", already_installed)
-        return json.dumps({
-            "status": "ok",
-            "already_installed": already_installed,
-            "message": message,
-        }, ensure_ascii=True)
+        return json.dumps(
+            {
+                "status": "ok",
+                "already_installed": already_installed,
+                "message": message,
+            },
+            ensure_ascii=True,
+        )
     except subprocess.TimeoutExpired:
         return json.dumps({"status": "error", "error": "Instalação excedeu o tempo limite de 600s."}, ensure_ascii=True)
     except Exception as exc:
@@ -3440,6 +3602,7 @@ def _cache_remote_test_result_for_deliverables(runner: str, target_url: str, raw
             issue["url"] = target_url
 
         from backend.src.services.last_analysis_store import set_last_analysis
+
         set_last_analysis(issues_dicts, target_url)
 
         from backend.src.routes.analyze import _extract_semantic_html
@@ -3448,16 +3611,20 @@ def _cache_remote_test_result_for_deliverables(runner: str, target_url: str, raw
         raw_html, _screenshot = _safe_async_run(fetch_rendered_html_and_screenshot(target_url))
         resolved_content = _extract_semantic_html(raw_html)
         from backend.src.services.last_analyzed_content_store import set_last_analyzed_content
+
         set_last_analyzed_content(resolved_content, target_url)
 
         logger.info(
             "[a11y_chat] Resultado do teste remoto (%s) cacheado para entregas (planilha/checklist/PDF/correção): "
-            "%d issues.", runner, len(issues_dicts),
+            "%d issues.",
+            runner,
+            len(issues_dicts),
         )
     except Exception as exc:
         logger.warning(
             "[a11y_chat] Não foi possível cachear o resultado do teste remoto (%s) para entregas automáticas: %s",
-            runner, exc,
+            runner,
+            exc,
         )
 
 
@@ -3796,9 +3963,7 @@ def register_chat_tools() -> None:
         # mesma classe de efeito colateral do nvda_speak acima.
         requires_approval=True,
     )
-    logger.info(
-        "[a11y_chat] toolset '%s' registrado (verify_screen_reader_announcements)", A11Y_CHAT_TOOLSET
-    )
+    logger.info("[a11y_chat] toolset '%s' registrado (verify_screen_reader_announcements)", A11Y_CHAT_TOOLSET)
 
     registry.register(
         name="design_review",

@@ -102,18 +102,23 @@ def create_jira_issue(
     }
 
     try:
-        response = requests.post(
-            endpoint, json=payload, auth=(auth_email, token), timeout=_REQUEST_TIMEOUT_SECONDS
-        )
+        response = requests.post(endpoint, json=payload, auth=(auth_email, token), timeout=_REQUEST_TIMEOUT_SECONDS)
         if response.status_code == 201:
             data = response.json()
             issue_key = data.get("key", "")
             issue_url = f"{url_base}/browse/{issue_key}"
             logger.info("[ticket_integrations] Issue Jira criada com sucesso: %s", issue_url)
-            return {"status": "created", "provider": "jira", "issue_key": issue_key, "issue_url": issue_url, "summary": summary}
+            return {
+                "status": "created",
+                "provider": "jira",
+                "issue_key": issue_key,
+                "issue_url": issue_url,
+                "summary": summary,
+            }
         logger.error(
             "[ticket_integrations] Erro ao criar issue no Jira (HTTP %d): %s",
-            response.status_code, response.text,
+            response.status_code,
+            response.text,
         )
         return {"status": "error", "provider": "jira", "error": response.text, "status_code": response.status_code}
     except Exception as exc:
@@ -160,20 +165,19 @@ def create_azure_devops_work_item(
             "title": title,
         }
 
-    endpoint = (
-        f"https://dev.azure.com/{org}/{proj}/_apis/wit/workitems/${work_item_type}"
-        "?api-version=7.1"
-    )
+    endpoint = f"https://dev.azure.com/{org}/{proj}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
     patch_document = [
         {"op": "add", "path": "/fields/System.Title", "value": title},
         {"op": "add", "path": "/fields/System.Description", "value": description},
     ]
     if work_item_type == "Bug":
-        patch_document.append({
-            "op": "add",
-            "path": "/fields/Microsoft.VSTS.Common.Severity",
-            "value": _AZURE_SEVERITY_BY_SEVERITY.get(severity, "3 - Medium"),
-        })
+        patch_document.append(
+            {
+                "op": "add",
+                "path": "/fields/Microsoft.VSTS.Common.Severity",
+                "value": _AZURE_SEVERITY_BY_SEVERITY.get(severity, "3 - Medium"),
+            }
+        )
 
     try:
         response = requests.post(
@@ -189,15 +193,21 @@ def create_azure_devops_work_item(
             work_item_url = f"https://dev.azure.com/{org}/{proj}/_workitems/edit/{work_item_id}"
             logger.info("[ticket_integrations] Work item Azure DevOps criado com sucesso: %s", work_item_url)
             return {
-                "status": "created", "provider": "azure_devops", "work_item_id": work_item_id,
-                "work_item_url": work_item_url, "title": title,
+                "status": "created",
+                "provider": "azure_devops",
+                "work_item_id": work_item_id,
+                "work_item_url": work_item_url,
+                "title": title,
             }
         logger.error(
             "[ticket_integrations] Erro ao criar work item no Azure DevOps (HTTP %d): %s",
-            response.status_code, response.text,
+            response.status_code,
+            response.text,
         )
         return {
-            "status": "error", "provider": "azure_devops", "error": response.text,
+            "status": "error",
+            "provider": "azure_devops",
+            "error": response.text,
             "status_code": response.status_code,
         }
     except Exception as exc:

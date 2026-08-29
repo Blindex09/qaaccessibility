@@ -37,8 +37,7 @@ SUMMARY_PROMPT = (
 def render_transcript(messages: list[dict[str, Any]]) -> str:
     """Flatten messages into a readable transcript for the summarizer."""
     return "\n\n".join(
-        f"{message.get('role', 'unknown')}: {str(message.get('content') or '').strip()}"
-        for message in messages
+        f"{message.get('role', 'unknown')}: {str(message.get('content') or '').strip()}" for message in messages
     )
 
 
@@ -75,10 +74,7 @@ def summarize_messages(
         log_prefix="[a11y:compaction]",
     )
     result = agent.run_conversation(
-        user_message=(
-            "Summarize the following earlier part of the conversation:\n\n"
-            + render_transcript(messages)
-        )
+        user_message=("Summarize the following earlier part of the conversation:\n\n" + render_transcript(messages))
     )
 
     if result.get("failed"):
@@ -90,6 +86,7 @@ def summarize_messages(
 
     logger.info(
         "[history_summarizer] %d mensagens antigas resumidas em %d chars",
-        len(messages), len(summary),
+        len(messages),
+        len(summary),
     )
     return summary

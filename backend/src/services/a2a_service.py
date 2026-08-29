@@ -52,9 +52,7 @@ def generate_agent_card(base_url: str = "http://localhost:8000") -> dict[str, An
                 "name": "Web Accessibility Audit",
                 "description": "Audits HTML content or URLs across 25 parallel specialized subagents against WCAG 2.2 AA, WAI-ARIA 1.2/1.3, ADA Section 508, EAA EN 301 549, and WebXR XAUR standards.",
                 "tags": ["wcag22", "wai-aria", "accessibility", "a11y", "section508", "eaa"],
-                "examples": [
-                    "Audit the following HTML markup for accessibility barriers"
-                ],
+                "examples": ["Audit the following HTML markup for accessibility barriers"],
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -179,13 +177,16 @@ async def submit_a2a_task(
     }
 
 
-async def _execute_a2a_task_worker(task_id: str, skill_id: str, input_data: dict[str, Any], parameters: dict[str, Any]) -> None:
+async def _execute_a2a_task_worker(
+    task_id: str, skill_id: str, input_data: dict[str, Any], parameters: dict[str, Any]
+) -> None:
     """Worker assíncrono que executa os motores de acessibilidade do backend."""
     start_time = asyncio.get_event_loop().time()
     try:
         if skill_id == "accessibility_analysis":
             from backend.src.agents.orchestrator.orchestrator import orchestrate
             from backend.src.shared.models import TaskType
+
             html_content = input_data.get("html_content", "<html><body><h1>Page</h1></body></html>")
             result = await orchestrate(html_content, TaskType.ANALYZE)
 
@@ -209,6 +210,7 @@ async def _execute_a2a_task_worker(task_id: str, skill_id: str, input_data: dict
         elif skill_id == "sarif_export":
             from backend.src.services.sarif_exporter import export_to_sarif
             from backend.src.shared.models import AccessibilityIssue
+
             issues_raw = input_data.get("issues", [])
             url = input_data.get("url", "http://localhost")
             issues = [AccessibilityIssue(**i) for i in issues_raw]
@@ -218,6 +220,7 @@ async def _execute_a2a_task_worker(task_id: str, skill_id: str, input_data: dict
         elif skill_id == "self_healing_fix":
             from backend.src.services.self_healing import run_self_healing_loop
             from backend.src.shared.models import AccessibilityIssue
+
             html_content = input_data.get("html_content", "")
             issues_raw = input_data.get("issues", [])
             issues = [AccessibilityIssue(**i) for i in issues_raw]
