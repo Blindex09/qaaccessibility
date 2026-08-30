@@ -66,3 +66,8 @@ tests/web/e2e/playwright-report/
 
 # Bundle da interface (artefato de build -- gerado por `npx expo export:web`)
 web/web-build/
+
+# Anotacoes locais de credenciais -- nunca versionar
+chaves*.txt
+**/chaves*.txt
+*api*key*.txt
