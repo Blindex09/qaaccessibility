@@ -4,7 +4,9 @@
 > nem pelo README). Cobre tudo que o projeto **faz de verdade** em
 > acessibilidade digital: funcionalidades, ferramentas e capacidades — o que
 > está implementado e rodando, e onde estão os limites reais de escopo.
-> Data da auditoria: 2026-08-27.
+> Data da auditoria: 2026-08-27, revisada em 2026-08-29 (adicionada a
+> seção 11 — histórico de conversas, BYOK e links de download de
+> entregáveis, que estavam ausentes de todos os docs do projeto).
 
 ---
 
@@ -154,8 +156,9 @@ lista de keywords. Rodam em paralelo, coordenados pelo orquestrador (seção 3).
   em alguns motores.
 - **Portões de build em CI/CD**: workflow de GitHub Actions + script Git
   prontos para bloquear commits com violações críticas/graves.
-- **Lighthouse CI** (`.lighthouserc.json`): gate de score de acessibilidade
-  mínimo 0.9.
+- **Lighthouse CI** (`web/.lighthouserc.json`, job `web` do CI): gate de score
+  de acessibilidade mínimo 0.9 sobre a própria interface, headless via
+  `@lhci/cli`.
 
 ---
 
@@ -193,3 +196,31 @@ lista de keywords. Rodam em paralelo, coordenados pelo orquestrador (seção 3).
   agentes de IA corporativos.
 - **Webhook assíncrono**: `POST /webhook/analyze` + `GET /webhook/result/{job_id}`
   para integração server-to-server sem manter conexão aberta.
+
+---
+
+## 11. Chat, configurações e download de entregáveis
+
+- **Histórico de conversas** (`backend/src/routes/chat.py`,
+  `chat_history_store.py`): `GET /chat/conversations` lista as conversas
+  salvas, `GET /chat/history/{conversation_id}` devolve o histórico
+  completo de uma conversa, `DELETE /chat/history/{conversation_id}`
+  apaga uma conversa salva. É a persistência que alimenta a tela de
+  histórico do frontend (`web/src/screens/ConversationHistoryModal.tsx`).
+- **BYOK — chave de API própria do usuário** (`POST /settings/service-key`,
+  `backend/src/routes/settings.py`): permite que o usuário informe sua
+  própria chave de API do provedor de LLM em vez de depender da chave
+  configurada no servidor, via a tela de configurações do frontend
+  (`web/src/screens/SettingsScreen.tsx`). Rota protegida por rate limit.
+  `GET/POST /settings` cobre as demais preferências (provedor/modelo
+  padrão, etc.).
+- **Links de download dos últimos entregáveis** (`backend/src/routes/
+  export_xlsx.py`): além de `POST /export/xlsx` e `POST /export/sarif`,
+  existem rotas `GET` que servem o artefato mais recente já gerado nessa
+  sessão sem precisar reenviar os issues — `GET /export/last_xlsx`,
+  `GET /export/last_checklist_pdf`,
+  `GET /export/last_accessibility_statement_pdf`, `GET /export/last_sarif`
+  e `GET /export/download_zip/{filename}` (usado por `fix_and_zip_files`/
+  `fix_local_project_files` para servir o ZIP de correção). São o
+  mecanismo real por trás dos "links de download" que as ferramentas 🔒 de
+  exportação (seção 7 de `FERRAMENTAS.md`) devolvem ao chat.

@@ -13,6 +13,17 @@
 > Documentation-First + Static/Dynamic/Behavioral Verification aplicado aos novos pilares (4 novos subagentes de acessibilidade, W3C ARIA Proibido, SARIF 2.1.0 Exporter, Protocolo A2A v1.0 Linux Foundation, Roteamento por Tier com Filtro `requires_extra_usage` e Cascata Automática de Provider `_resolve_auto_fallback`)
 > Alinhamento doc ↔ código (2026-07-29): provider "agentic" exposto na rota `/models`, ordem sincronizada frontend ↔ backend, `resolve_model_and_provider` para suporte agêntico completo, mensagens de erro humanizadas em Português (400, 401, 402, 403, 404, 429, 500, 502, 503, 504, 529, timeouts)
 > Gaps 2026 fechados (2026-08-01): Dependency Compliance (pip-audit + npm audit no CI), Configuration Drift Detection (`config_drift.py`), Repository Intelligence (`REPO_MAP.json` + tool MCP `describe_repository`) — ver seção 13
+>
+> **Nota de revisão (2026-08-29):** o bloco de resumo acima e as seções abaixo
+> registram a contagem de agentes de análise vigente em 2026-08-01 ("25
+> agentes de análise", "SvelteFrameworkAgent, 25º especialista", "~34
+> sub-agentes"). Este documento é um log cronológico de evidência — as
+> entradas abaixo não foram reescritas retroativamente. A contagem real atual
+> é **29 especialistas de auditoria** (+ 14 agentes de orquestração/suporte =
+> 43 diretórios em `backend/src/agents/`) e **42 entradas** em
+> `docs/REPO_MAP.json`. Ver `docs/CAPACIDADES_ACESSIBILIDADE.md` (seção 2)
+> para a lista completa e revalidada, e `docs/FERRAMENTAS.md` para a contagem
+> de ferramentas (38, não mais os totais antigos citados nas seções abaixo).
 
 Este documento é a **rastreabilidade formal** entre cada promessa declarada nos
 `AI_MODULE_SPEC.md` (backend + web) e a **evidência executável** que a valida
@@ -276,8 +287,8 @@ Identificados numa auditoria de conceitos de engenharia agêntica 2026 (validado
 
 | Promessa | Artefato | Evidência executável |
 |----------|----------|----------------------|
-| CVE conhecido bloqueia merge (backend) | `.github/workflows/accessibility-ci.yml::code-quality` | `pip-audit -r backend/requirements.txt` — 0 vulnerabilidades após bump de `cryptography` para `>=48.0.1,<49.0.0` (corrigia GHSA-537c-gmf6-5ccf) |
-| CVE visível sem travar em dívida pré-existente (web) | `.github/workflows/accessibility-ci.yml::web-app-quality` | `npm audit --audit-level=moderate` com `continue-on-error: true` — 54 vulnerabilidades pré-existentes, todas em ferramentas de build do Expo/Metro (nunca chegam ao bundle servido), raiz é a mesma trava documentada do `@expo/webpack-config` preso no SDK 51 |
+| CVE conhecido bloqueia merge (backend) | `.github/workflows/ci.yml::lint` + `::typecheck` (o `pip-audit` ainda não está no workflow atual) | `pip-audit -r backend/requirements.txt` — 0 vulnerabilidades após bump de `cryptography` para `>=48.0.1,<49.0.0` (corrigia GHSA-537c-gmf6-5ccf) |
+| CVE visível sem travar em dívida pré-existente (web) | `.github/workflows/ci.yml::web` (o `npm audit` ainda não está no workflow atual) | `npm audit --audit-level=moderate` com `continue-on-error: true` — 54 vulnerabilidades pré-existentes, todas em ferramentas de build do Expo/Metro (nunca chegam ao bundle servido), raiz é a mesma trava documentada do `@expo/webpack-config` preso no SDK 51 |
 
 ### Configuration Drift Detection
 

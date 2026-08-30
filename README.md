@@ -2,6 +2,12 @@
 
 Analisador de acessibilidade com IA, seguindo WCAG 2.2, WAI-ARIA e ADA/Section 508.
 
+> Revisado em 2026-08-29: adicionados ao diagrama do "Pipeline de agentes" os
+> agentes `LinkCheckerAgent` e `TablesDataAgent`, que já rodam de verdade no
+> `OrchestratorAgent` (condicionais por evidência de `<a href>`/`<table>`) mas
+> estavam ausentes do diagrama. Ver `docs/CAPACIDADES_ACESSIBILIDADE.md` para
+> a contagem completa e revalidada dos 29 especialistas de auditoria.
+
 ## Regras obrigatórias
 
 - Este README prevalece sobre qualquer outra documentação
@@ -65,7 +71,7 @@ Analisador de acessibilidade com IA, seguindo WCAG 2.2, WAI-ARIA e ADA/Section 5
 - **Roteamento por Cascateamento (Model Cascading)**: otimiza custos rodando a auto-correção (Self-Healing) primeiro em modelos rápidos/baratos e escalando automaticamente para modelos de reasoning de ponta caso falhe nas validações do Axe-core no browser
 - **Checklist Híbrido (Auto + Manual QA)**: combina o escaneamento automático com tarefas de QA manual guiadas e customizadas para os elementos da página (alt text, alvos de toque, ordem de foco)
 - **Portões de Build no CI/CD**: script integrado de Git e workflow de GitHub Actions pronto para bloquear commits se houver violações críticas/graves de acessibilidade no código do projeto ou site de teste
-- **Squad de acessibilidade**: o chat cria um `SquadPlan` por solicitação, com escopo, análise especializada, correção opcional, QA e documentação. O plano usa tarefas com dependências/estados, portões de aprovação e evidências; o evento SSE `squad_plan` atualiza o progresso na interface. A especificação completa está em [`docs/ARQUITETURA_SQUAD_ACESSIBILIDADE.md`](docs/ARQUITETURA_SQUAD_ACESSIBILIDADE.md).
+- **Squad de acessibilidade**: o chat cria um `SquadPlan` por solicitação, com escopo, análise especializada, correção, QA e documentação. O plano usa tarefas com dependências/estados, portões de aprovação e evidências; o evento SSE `squad_plan` atualiza o progresso na interface. A etapa de correção está **sempre** no plano e **sempre** nasce `BLOCKED`: nada adivinha a intenção do usuário a partir do texto dele, e a autorização real continua no `requires_approval` das ferramentas de mutação. A especificação completa está em [`docs/ARQUITETURA_SQUAD_ACESSIBILIDADE.md`](docs/ARQUITETURA_SQUAD_ACESSIBILIDADE.md).
 - **Verificação de anúncios de leitor de tela contra a árvore de acessibilidade REAL** (`POST /analyze/screen-reader`, tool de chat `verify_screen_reader_announcements`): cruza a árvore de acessibilidade computada pelo motor real do navegador (Chromium/CDP via `page.accessibility.snapshot()` — a mesma API que NVDA/JAWS/Narrator consultam no Windows) contra regras determinísticas de nome acessível ausente ou genérico. Diferente do resto do pipeline (que estima problemas a partir do HTML bruto via LLM), aqui o achado é confirmado pelo próprio motor de acessibilidade do navegador. Se o NVDA real estiver rodando na máquina (`nvda_service.py`, DLL oficial `nvdaControllerClient.dll`), os achados podem ser lidos em voz alta para confirmação humana. Requer `BROWSERLESS_WS_URL` configurado.
 - **Revisão de acessibilidade pré-desenvolvimento / shift-left** (`POST /analyze/design-review`, tool de chat `design_review`): único agente do projeto que não audita HTML/código já existente — lê um requisito, user story ou descrição de componente/fluxo em texto livre e antecipa riscos de acessibilidade (com critérios WCAG 2.2 prováveis, severidade, motivo específico e recomendação acionável) antes de qualquer linha de código ser escrita.
 - **Criação automática de tickets em Jira e Azure DevOps** (`create_jira_issue`/`create_azure_devops_work_item` no chat, via `ticket_integrations.py`): abre issues/work items reais a partir de um achado de acessibilidade, com severidade mapeada para prioridade (Jira) ou `Microsoft.VSTS.Common.Severity` (Azure DevOps). Configuração via `JIRA_BASE_URL`/`JIRA_EMAIL`/`JIRA_API_TOKEN`/`JIRA_PROJECT_KEY` ou `AZURE_DEVOPS_ORG`/`AZURE_DEVOPS_PROJECT`/`AZURE_DEVOPS_PAT`; sem credenciais, simula a criação (mesmo padrão de `create_github_issue`).
@@ -190,6 +196,8 @@ OrchestratorAgent
 ├── [PARALELO] Spatial3D_XR_Agent     WebXR XAUR 2026, Canvas Three.js/Babylon.js PAT DOM
 ├── [PARALELO] WebComponentsAgent     Custom Elements FACE ElementInternals e shadowrootreferencetarget
 ├── [PARALELO] NicheDomainsAgent      Passkeys SC 3.3.8/3.3.9, Sonificação D3 e Kiosks ADA/EAA
+├── [CONDICIONAL] LinkCheckerAgent    Texto de link/URLs — só roda se o HTML contém <a href>
+├── [CONDICIONAL] TablesDataAgent     Tabelas de dados — só roda se o HTML contém <table>
 ├── [CONDICIONAL] ReactFrameworkAgent React/framework anti-patterns
 ├── [CONDICIONAL] AngularFrameworkAgent Angular framework anti-patterns
 ├── [CONDICIONAL] VueFrameworkAgent   Vue framework anti-patterns
@@ -371,11 +379,10 @@ Se você trocar de provedor de IA na tela de Configurações, a chave do provedo
 # Backend (a partir da raiz do repo)
 python -m pytest
 
-# Web
-cd tests/web
-npm test
+# Web (unitários + acessibilidade da própria interface)
+cd web && npm ci && npm test
 
-# E2E Web (Playwright + axe-core)
+# E2E Web (Playwright + axe-core) — exige a app e o backend de pé
 cd tests/web/e2e && npx playwright test
 ```
 
@@ -396,12 +403,17 @@ python -m mypy backend run_agent.py agent   # usa mypy.ini na raiz
 python -m pytest
 ```
 
-Comandos (dentro de `web/`):
+Comandos (dentro de `web/`) — os mesmos quatro que o job `web` do CI roda:
 ```bash
-npx tsc --noEmit -p .
 npm run lint
-npm test
+npm run typecheck
+npm run test:ci
+npx expo export:web && npm run a11y:lighthouse
 ```
+
+No Windows o passo do Lighthouse termina com `EPERM` ao limpar o tempdir do
+Chrome (bug conhecido do `chrome-launcher`), **depois** de a auditoria já ter
+rodado. O CI roda em Linux, onde isso não acontece.
 
 Fluxo ao achar um apontamento do ruff/mypy/eslint/tsc: **não é pra suprimir de cara**.
 1. Ler o código ao redor do apontamento e decidir: é um bug real, ou o verificador está sendo raso (ex.: SDK externo com stub mais rígido que o comportamento real)?
@@ -412,16 +424,34 @@ Fluxo ao achar um apontamento do ruff/mypy/eslint/tsc: **não é pra suprimir de
 
 ## CI/CD
 
-Pipeline GitHub Actions em `.github/workflows/accessibility-ci.yml`:
+Pipeline GitHub Actions em `.github/workflows/ci.yml` (push e PR para `main`):
 
-| Job                    | Trigger          | O que executa                                      |
-|------------------------|------------------|-----------------------------------------------------|
-| code-quality           | push/PR          | Quality gate: proibições README + ruff + mypy type-check (usando `mypy.ini` da raiz) + `pip-audit` (Dependency Compliance, bloqueante) |
-| backend-tests          | push/PR          | pytest do pipeline seletivo de agentes + coverage ≥70% (`--ignore=integration`) |
-| web-unit-tests         | push/PR          | Jest unit tests (`tests/web/`)                     |
-| web-app-quality        | push/PR          | tsc + eslint no app (`web/`) + `npm audit` (Dependency Compliance, não-bloqueante — dívida pré-existente do toolchain Expo/Metro) |
-| web-e2e-tests          | push/PR          | Playwright — teclado, ARIA live, contraste, axe    |
-| lighthouse-audit       | PRs only         | Accessibility ≥ 0.90, Best-Practices ≥ 0.85       |
-| github-a11y-scanner    | PRs → main only  | github/accessibility-scanner@v2 nas rotas da app   |
+| Job       | O que executa                                                                    |
+|-----------|----------------------------------------------------------------------------------|
+| lint      | `ruff check .`                                                                    |
+| typecheck | `mypy --config-file mypy.ini backend/src`                                         |
+| test      | `pytest` (coverage via `pytest.ini`); instala Pango/cairo para os testes de PDF/UA |
+| web       | `npm ci` → `eslint` → `tsc --noEmit` → `jest --ci` → `expo export:web` → Lighthouse CI |
 
-Threshold Lighthouse configurado em `.lighthouserc.json`.
+O job `web` é onde ficam os testes de acessibilidade da **própria interface**:
+contraste dos tokens, alvo de toque de 44px, live region do chat, foco de
+diálogo e o painel de aprovação inline que libera mutação de código.
+
+Threshold do Lighthouse em `web/.lighthouserc.json`: acessibilidade ≥ 0.90
+(bloqueante) e best-practices ≥ 0.85 (aviso). Roda headless sobre o build
+recém-gerado, via `@lhci/cli` — pacote npm, não a extensão do Chrome; nada
+sai do repositório. O relatório é publicado como artefato do job.
+
+`web/.npmrc` fixa `legacy-peer-deps=true`: `@expo/webpack-config@19` declara
+peer `expo ^49||^50` e o app está no 51. Sem isso `npm ci` aborta e nenhuma
+dependência do web instala.
+
+**Fora do gate**, por precisarem de serviço de pé:
+
+- `tests/backend/real_llm/` — chama provider LLM pago. Opt-in via
+  `RUN_REAL_LLM_TESTS=1`; ver [`docs/real_llm_testing.md`](docs/real_llm_testing.md).
+- `tests/web/e2e/` — Playwright + axe-core contra a app rodando.
+- `scripts/run_*.py` — execuções manuais ao vivo; ver [`scripts/README.md`](scripts/README.md).
+- `scripts/ci_a11y_check.py` — portão de acessibilidade para o pipeline de
+  quem **usa** o produto (aponta para um backend de pé e falha em achado
+  crítico/alto), não para o CI deste repositório.

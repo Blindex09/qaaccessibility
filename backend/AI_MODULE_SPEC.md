@@ -1,5 +1,18 @@
 # AI_MODULE_SPEC — Backend
 
+> Revisado em 2026-08-29: corrigidas referências desatualizadas a "25 agentes
+> de análise" (contagem real hoje: 29 especialistas de auditoria + 14 agentes
+> de orquestração/suporte = 43 diretórios em `backend/src/agents/`) e "~34
+> sub-agentes" no índice `REPO_MAP.json` (contagem real: 42 entradas — todos os
+> agentes exceto `squad/`, que não tem um módulo `squad.py` único e por isso
+> não é capturado por `scripts/generate_repo_map.py`). Também adicionados ao
+> diagrama do pipeline os agentes `LinkCheckerAgent` e `TablesDataAgent`
+> (`backend/src/agents/link_checker/`, `backend/src/agents/tables_data/`),
+> que já rodam de verdade no `OrchestratorAgent` (condicionais por evidência
+> de `<a href>`/`<table>` — ver `orchestrator.py` linhas ~156-162 e ~527-528)
+> mas estavam ausentes deste documento. Ver `docs/CAPACIDADES_ACESSIBILIDADE.md`
+> para a lista completa e revalidada dos 29 especialistas.
+
 ## Responsabilidade
 Servidor FastAPI que expõe a API REST do QA Accessibility e orquestra o pipeline
 de sub-agentes especializados para análise, correção e geração de checklists.
@@ -31,12 +44,12 @@ de sub-agentes especializados para análise, correção e geração de checklist
 - Response Caching (`response_cache.py`): cache exato (hash do prompt completo, não semântico) para os leaf subagents single-shot sem tools — mesmo escopo do `response_schema`. TTL configurável (`A11Y_RESPONSE_CACHE_TTL_SECONDS`, default 300s), desativável (`A11Y_RESPONSE_CACHE_ENABLED=false`). Nunca aplicado a chat/tools. Deliberadamente exact-match (não por similaridade de embeddings): uma cache semântica arriscaria confundir HTML "parecido" com HTML que mudou de forma relevante para acessibilidade.
 - Context Drift Detection + Reflection/Replanning (`run_agent.py::AIAgent._check_context_drift`): nenhum provider expõe sinal nativo de "o modelo perdeu o fio" (só `finish_reason`/`stop_reason` por limite de tokens). Detecção por repetição (mesma tool+args+resultado 3x numa janela de 6) dispara UMA reflexão anexada ao resultado da tool que volta pro modelo — funciona nos 4 caminhos de provider sem tocar na lógica de mensagens de cada um, porque toda tool call passa por `_execute_tool_calls`. `context_drift_callback` dá transparência ao chat.
 - Multimodal Processing (`run_agent.py::_*_user_content`/`_gemini_user_parts`, `chat_runtime.py::extract_message_with_images`): imagens (PNG/JPEG/WEBP/GIF) do turno atual do chat viram content block nativo de imagem no provider (shape confirmado por pesquisa: `input_image` OpenAI/xAI, `image`+`source` Anthropic, `inlineData` Gemini, `image_url` Ollama), não mais texto extraído. Histórico nunca reenvia imagens de turnos passados. Fallback gracioso: se o provider rejeitar a imagem, `run_conversation` refaz UMA vez sem ela (nota explicativa) antes de cair pro provider de reserva — nenhum provider documenta como saber de antemão se o modelo aceita imagem.
-- Batch Inference (`batch_inference.py` + `batch_collector.py` + `batch_job_store.py`): `submit_batch`/`poll_batch`/`fetch_batch_results` para OpenAI, Anthropic e Gemini (os 3 com desconto de ~50% documentado; xAI/Ollama sem Batch API com desconto claro, levantam `BatchNotSupportedError`). Integrado ao crawl via `POST /analyze/crawl/batch` + `GET /analyze/crawl/batch/{batch_id}`: uma passada de coleta (`orchestrate(..., batch_collect=True)`) roda o pipeline normal, mas `call_llm` grava a chamada em vez de ligar pro provider; os resultados reais do batch são inseridos no `response_cache` sob a mesma chave e o pipeline roda de novo — cada um dos 25 agentes faz seu próprio parsing sem nenhuma alteração de código. Ver VERIFICATION.md §21 para o racional completo.
+- Batch Inference (`batch_inference.py` + `batch_collector.py` + `batch_job_store.py`): `submit_batch`/`poll_batch`/`fetch_batch_results` para OpenAI, Anthropic e Gemini (os 3 com desconto de ~50% documentado; xAI/Ollama sem Batch API com desconto claro, levantam `BatchNotSupportedError`). Integrado ao crawl via `POST /analyze/crawl/batch` + `GET /analyze/crawl/batch/{batch_id}`: uma passada de coleta (`orchestrate(..., batch_collect=True)`) roda o pipeline normal, mas `call_llm` grava a chamada em vez de ligar pro provider; os resultados reais do batch são inseridos no `response_cache` sob a mesma chave e o pipeline roda de novo — cada um dos 29 agentes especialistas faz seu próprio parsing sem nenhuma alteração de código. Ver VERIFICATION.md §21 para o racional completo (nota: a seção 21 do VERIFICATION.md, um log cronológico de 2026-08-01, ainda registra a contagem de 25 vigente naquela data — não editada retroativamente).
 - Cada turno devolve `result["usage"] = {input_tokens, output_tokens, total_tokens}`, normalizado a partir do shape de cada provider (Responses `input/output_tokens`, Chat Completions `prompt/completion_tokens`, Gemini `*_token_count`) e somado ao longo das iterações de tool-calling.
 - `reasoning_effort` é encaminhado nos quatro caminhos de provider. No Anthropic não existe esse campo: o valor vira `thinking` (`{"type": "disabled"}` para `none`, ou um orçamento proporcional a `max_tokens`), só em modelos marcados como `reasoning` no catálogo, e `temperature` é omitida quando o thinking fica ligado porque a API a rejeita nesse modo.
 - Triagem do clarifier no chat: `out_of_scope` responde a recusa de escopo e `needs_clarification` devolve ao usuário a pergunta gerada pelo próprio clarifier (com fallback quando ele não gera nenhuma). Ambos encerram o turno sem chamar o modelo agentico.
 - Cache da última análise (`last_analysis_store.py`): um slot em memória **por conversa** (`conversation_id`) e um arquivo por conversa em `%TEMP%`, com o id sanitizado no nome. A sessão corrente viaja por ContextVar (definida em `stream_chat`), então `generate_vpat`/`generate_test_suite`/`fix_and_zip_files` leem sempre a análise da própria conversa. Fora do chat vale a sessão `default`.
-- Base de conhecimento do chat (`a11y_knowledge.py`): RAG híbrido (BM25 + embeddings + fusão RRF + rerank) sobre o corpus `_CORPUS_FILES` — `a11y_reference.md` (guia de referência escrito à mão: AccName, APG, i18n/RTL, data grids, guia de teste por leitor de tela) e `agent_knowledge.md` (**gerado** por `scripts/generate_agent_knowledge.py` a partir do `SYSTEM_PROMPT` dos 25 agentes de análise — nunca editar à mão). `build_reference_block(message)` injeta o trecho relevante no turno do chat. Resolve a divergência entre "o que os agentes de análise sabem" e "o que o chat sabe": qualquer mudança num `SYSTEM_PROMPT` de agente flui para o chat rodando o gerador de novo. `tests/backend/unit/test_agent_knowledge_sync.py` falha se `agent_knowledge.md` divergir do que o gerador produziria agora.
+- Base de conhecimento do chat (`a11y_knowledge.py`): RAG híbrido (BM25 + embeddings + fusão RRF + rerank) sobre o corpus `_CORPUS_FILES` — `a11y_reference.md` (guia de referência escrito à mão: AccName, APG, i18n/RTL, data grids, guia de teste por leitor de tela) e `agent_knowledge.md` (**gerado** por `scripts/generate_agent_knowledge.py` a partir do `SYSTEM_PROMPT` dos 29 agentes especialistas de análise — nunca editar à mão). `build_reference_block(message)` injeta o trecho relevante no turno do chat. Resolve a divergência entre "o que os agentes de análise sabem" e "o que o chat sabe": qualquer mudança num `SYSTEM_PROMPT` de agente flui para o chat rodando o gerador de novo. `tests/backend/unit/test_agent_knowledge_sync.py` falha se `agent_knowledge.md` divergir do que o gerador produziria agora.
 - Regra 18 do system prompt do chat (`chat_runtime.py`): antes de dar passo a passo de teste com leitor de tela, o chat deve saber SO/dispositivo/navegador/leitor de tela do usuário (perguntar se não souber) e usar o pareamento correto (ex.: VoiceOver só é confiável com Safari) em vez de instrução genérica — guia completo em `a11y_reference.md` §11.
 - Observabilidade: `telemetry.agent_span()` embrulha o turno de chat (`agent.chat_turn`, com provider/modelo/conversa e tokens) e cada execução de tool (`agent.tool`). Sem `OTEL_EXPORTER_OTLP_ENDPOINT` os spans são no-op.  - **Online scoring de traces (2026-07-28):** `telemetry.score_trace(trace_text, criteria)` pontua spans de produção com LLM-as-judge (rubric: factual accuracy, completeness, tool efficiency). Padrão Braintrust/DeepEval 2026: o scorer é assíncrono, não impacta latência, e usa o mesmo `call_llm` do projeto. Resultado anotado no span como atributo `eval.score`. Sem provider configurado → no-op. Permite detectar regressões em produção que os evals offline não cobrem.
   - **End-state evals (2026-07-28):** `tests/backend/unit/test_end_state_evals.py` valida o **estado final** de fluxos multi-turn (análise → fix → re-audit), não cada step isolado. Padrão Anthropic 2026 ("evaluate final state, not every step"): o agente pode tomar caminhos diferentes, mas o estado final deve satisfazer invariantes (issues corrigidas, score melhorou, sem regressões). Casos: `EC001` (fix endereça issue reportada), `EC002` (re-audit não regressa), `EC003` (VPAT gerado reflete issues resolvidas).- Superfícies oficiais por provider:
@@ -55,7 +68,7 @@ de sub-agentes especializados para análise, correção e geração de checklist
 
 ### Servidor MCP (`backend/src/services/mcp_server.py`)
 - 6 ferramentas via stdio: `get_rendered_page`, `run_axe_audit`, `export_xlsx`, `analyze_page_full`, `analyze_site_full`, `describe_repository`
-- **`describe_repository` (Repository Intelligence):** devolve `docs/REPO_MAP.json` -- indice estruturado dos ~34 sub-agentes (nome, arquivo, entry-point `run_*`/`orchestrate`, prefixo de ID de issue, diretriz) gerado por `scripts/generate_repo_map.py` a partir do proprio codigo-fonte (regex sobre `def run_*`, `"id": "prefixo-<n>"`, docstring/SYSTEM_PROMPT). Permite a um agente cliente (Claude Desktop, VS Code Copilot, outra sessao de Claude Code) descobrir "quem cobre ARIA?" sem ler os 34 modulos. `docs/REPO_MAP.json` e artefato gerado (nunca editado a mao); `tests/backend/unit/test_repo_map.py::test_committed_repo_map_matches_generator_output` falha se o JSON commitado divergir do que o gerador produziria agora -- previne que o indice fique obsoleto em silencio
+- **`describe_repository` (Repository Intelligence):** devolve `docs/REPO_MAP.json` -- indice estruturado de 42 sub-agentes (nome, arquivo, entry-point `run_*`/`orchestrate`, prefixo de ID de issue, diretriz) gerado por `scripts/generate_repo_map.py` a partir do proprio codigo-fonte (regex sobre `def run_*`, `"id": "prefixo-<n>"`, docstring/SYSTEM_PROMPT). `backend/src/agents/` tem 43 diretorios de agente no total; o unico fora do indice e `squad/`, porque nao existe um modulo `squad.py` que bata com o proprio nome do diretorio (o generator so indexa `agent_dir/{agent_dir.name}.py`) -- comportamento do gerador, nao uma lacuna do indice. Permite a um agente cliente (Claude Desktop, VS Code Copilot, outra sessao de Claude Code) descobrir "quem cobre ARIA?" sem ler os 42 modulos. `docs/REPO_MAP.json` e artefato gerado (nunca editado a mao); `tests/backend/unit/test_repo_map.py::test_committed_repo_map_matches_generator_output` falha se o JSON commitado divergir do que o gerador produziria agora -- previne que o indice fique obsoleto em silencio
 
 ### Protocolo Agent-to-Agent (A2A v1.0 Linux Foundation) (`backend/src/services/a2a_service.py` & `backend/src/routes/a2a_route.py`)
 - **Arquitetura Dual-Protocol:** o projeto expõe o protocolo vertical MCP (servidor FastMCP `mcp_server.py` para ferramentas Agent-to-Tool) e o protocolo horizontal A2A (Linux Foundation v1.0 para descoberta e delegação Agent-to-Agent).
@@ -130,6 +143,8 @@ OrchestratorAgent
 ├── [PARALELO] WidgetsA11yAgent       ARIA widgets interativos
 ├── [PARALELO] WCAGSemanticsAgent     Semântica HTML profunda (landmarks, headings, tabelas, iframes)
 ├── [PARALELO] ComplianceAuditAgent   Conformidade WCAG AA + Section 508 + EN 301 549
+├── [CONDICIONAL] LinkCheckerAgent    Texto de link/URLs — só roda se o HTML contém <a href>
+├── [CONDICIONAL] TablesDataAgent     Tabelas de dados — só roda se o HTML contém <table>
 ├── [CONDICIONAL] ReactFrameworkAgent React/framework anti-patterns
 ├── [CONDICIONAL] AngularFrameworkAgent Angular framework anti-patterns
 ├── [CONDICIONAL] VueFrameworkAgent   Vue framework anti-patterns
@@ -379,6 +394,13 @@ do Gemini não suporta combinar `googleSearch` com function tools na mesma chama
 
 ## Rotas expostas
 
+> Esta tabela cobre só o núcleo de análise/entrega tratado em detalhe logo
+> abaixo. Para o inventário completo de rotas do backend (`/analyze/screen-reader`,
+> `/analyze/design-review`, `/export/sarif` e as rotas `GET /export/last_*`,
+> `/chat/*`, `/settings/*`, `/webhook/*`, `/a2a/v1/*`, `/.well-known/*`,
+> `/models`, `/preview`), ver `docs/CAPACIDADES_ACESSIBILIDADE.md` (seções 4,
+> 5, 7, 10 e 11) e `docs/FERRAMENTAS.md` — revisados e revalidados em 2026-08-29.
+
 | Método | Rota             | Descrição                         | Rate limit |
 |--------|------------------|-----------------------------------|------------|
 | POST   | /analyze/url     | Analisa URL externa (Playwright JS rendering)                | Sim        |
@@ -484,18 +506,21 @@ Limitado a 500 caracteres por issue.
 
 ## CI/CD
 
-Pipeline GitHub Actions em `.github/workflows/accessibility-ci.yml`:
+Pipeline GitHub Actions em `.github/workflows/ci.yml` (push e PR para `main`):
 
-| Job                 | Trigger         | O que verifica                                    |
-|---------------------|-----------------|---------------------------------------------------|
-| code-quality        | push/PR         | Quality gate: proibições README + mypy (config `backend/mypy.ini`, plugin `pydantic.mypy`) |
-| backend-tests       | push/PR         | pytest, coverage ≥ 80% (`--cov-fail-under=80`), `--ignore=integration` |
-| web-unit-tests      | push/PR         | Jest unit tests (web)                             |
-| web-e2e-tests       | push/PR         | Playwright + axe-core (teclado, ARIA live, contraste) |
-| lighthouse-audit    | PRs only        | Accessibility score ≥ 0.90, Best Practices ≥ 0.85 |
-| github-a11y-scanner | PRs → main only | github/accessibility-scanner@v2 nas rotas da app  |
+| Job       | O que verifica                                                                    |
+|-----------|-----------------------------------------------------------------------------------|
+| lint      | `ruff check .`                                                                     |
+| typecheck | `mypy --config-file mypy.ini backend/src`                                          |
+| test      | `pytest` (coverage por `pytest.ini`); instala Pango/cairo para os testes de PDF/UA |
+| web       | `eslint` → `tsc --noEmit` → `jest --ci` → `expo export:web` → Lighthouse CI        |
 
-Lighthouse CI configurado em `.lighthouserc.json`.
+Lighthouse CI configurado em `web/.lighthouserc.json` (acessibilidade ≥ 0.90
+bloqueante, best-practices ≥ 0.85 aviso), via `@lhci/cli` headless.
+
+Fora do gate, por exigirem serviço de pé: `tests/backend/real_llm/` (provider
+pago, opt-in por `RUN_REAL_LLM_TESTS=1`), `tests/web/e2e/` (Playwright) e
+`scripts/run_*.py` (ver `scripts/README.md`).
 
 ---
 
