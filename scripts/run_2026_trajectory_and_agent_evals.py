@@ -1,5 +1,5 @@
 """
-scripts/test_2026_trajectory_and_agent_evals.py
+scripts/run_2026_trajectory_and_agent_evals.py
 Suíte Avançada de Avaliação de Trajetória, Governança, Acessibilidade e Resiliência Agêntica (Padrão Anthropic/OpenAI 2026).
 
 Valida empiricamente:

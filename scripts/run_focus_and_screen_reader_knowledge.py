@@ -1,5 +1,5 @@
 """
-scripts/test_focus_and_screen_reader_knowledge.py
+scripts/run_focus_and_screen_reader_knowledge.py
 Testa:
 1. Foco automático imediato no campo de texto ao clicar no botão "Nova conversa".
 2. Conhecimento especializado da IA sobre leitores de tela (NVDA, JAWS, VoiceOver Mac, VoiceOver iOS/iPhone, TalkBack Android) e suporte a testes cross-browser.

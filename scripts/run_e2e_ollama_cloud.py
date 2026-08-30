@@ -1,5 +1,5 @@
 """
-scripts/test_e2e_ollama_cloud.py
+scripts/run_e2e_ollama_cloud.py
 Script de prova E2E real e validação de engenharia agêntica 2026 com o provedor Ollama Cloud.
 
 Valida:

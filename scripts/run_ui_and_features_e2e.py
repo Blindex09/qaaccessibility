@@ -1,5 +1,5 @@
 """
-scripts/test_ui_and_features_e2e.py
+scripts/run_ui_and_features_e2e.py
 Executa testes reais em todas as funcionalidades do QA Accessibility interagindo
 diretamente com a interface web (Playwright) e a API backend local.
 """

@@ -1,5 +1,5 @@
 """
-scripts/test_advanced_interactive_e2e.py
+scripts/run_advanced_interactive_e2e.py
 Bateria avançada de testes cobrindo:
 1. Papel do Playwright local no projeto (inspeção determinística axe-core, geometria e árvore de acessibilidade).
 2. Runner Cypress Local e Remoto/Nuvem.

@@ -1,5 +1,5 @@
 """
-scripts/test_compare_real_interfaces.py
+scripts/run_compare_real_interfaces.py
 Executa o teste E2E real e comparativo via terminal com Playwright Chromium,
 validando todos os comportamentos de interface, execução de ferramentas,
 atalhos de acessibilidade e regiões semânticas entre os projetos.

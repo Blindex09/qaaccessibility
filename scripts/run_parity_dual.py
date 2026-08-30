@@ -1,5 +1,5 @@
 """
-scripts/test_parity_dual.py
+scripts/run_parity_dual.py
 Executa o teste comparativo E2E de paridade lado a lado entre:
 - agent-chat-app (http://localhost:5173)
 - qaaccessibility (http://localhost:3000)

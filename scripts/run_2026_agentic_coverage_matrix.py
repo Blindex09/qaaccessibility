@@ -1,5 +1,5 @@
 """
-scripts/test_2026_agentic_coverage_matrix.py
+scripts/run_2026_agentic_coverage_matrix.py
 Matriz Diagnóstica de Cobertura E2E Real para Conceitos Agênticos de 2026 no QA Accessibility.
 
 Avalia empiricamente no ambiente real:

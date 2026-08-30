@@ -1,5 +1,5 @@
 """
-scripts/test_ui_chat_real_webpage.py
+scripts/run_ui_chat_real_webpage.py
 Executa o teste E2E real navegando na interface web via Playwright Chromium,
 solicitando a análise de uma página real da internet (ex: https://example.com)
 e validando o fluxo completo de auditoria, diagnóstico de acessibilidade WCAG 2.2

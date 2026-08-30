@@ -1,5 +1,5 @@
 """
-scripts/test_agent_chat_app_e2e.py
+scripts/run_agent_chat_app_e2e.py
 Executa o teste E2E real na interface web do agent-chat-app (http://localhost:5173)
 via Playwright Chromium no terminal.
 """

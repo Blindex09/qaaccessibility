@@ -1,5 +1,5 @@
 """
-scripts/test_real_accessibility_conversation.py
+scripts/run_real_accessibility_conversation.py
 Simulação e execução real de um teste de acessibilidade agêntico do começo ao fim (Multi-Turn Chat),
 utilizando o backend local (http://127.0.0.1:8001/chat/stream) e o provedor Ollama Cloud.
 """

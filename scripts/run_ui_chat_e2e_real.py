@@ -1,5 +1,5 @@
 """
-scripts/test_ui_chat_e2e_real.py
+scripts/run_ui_chat_e2e_real.py
 Executa o teste E2E real navegando na interface web via Playwright Chromium:
 1. Acessa http://localhost:3000 e inicia nova conversa com foco no campo.
 2. Envia um snippet de código HTML com violações de acessibilidade para auditoria.

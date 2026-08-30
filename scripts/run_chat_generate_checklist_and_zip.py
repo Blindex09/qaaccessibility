@@ -1,5 +1,5 @@
 """
-scripts/test_chat_generate_checklist_and_zip.py
+scripts/run_chat_generate_checklist_and_zip.py
 Executa no chat via Playwright Chromium:
 1. Envio de HTML para auditoria de acessibilidade.
 2. Pedido de geração de Checklist e arquivo ZIP com as correções.

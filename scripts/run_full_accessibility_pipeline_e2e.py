@@ -1,5 +1,5 @@
 """
-scripts/test_full_accessibility_pipeline_e2e.py
+scripts/run_full_accessibility_pipeline_e2e.py
 Execução completa do pipeline real de acessibilidade do QA Accessibility via httpx:
 1. POST /analyze/file (25 agentes especialistas WCAG 2.2 com Ollama Cloud)
 2. POST /fix (Correção automática de HTML via AST/Codemod)

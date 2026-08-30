@@ -1,5 +1,5 @@
 """
-scripts/test_ui_tool_execution.py
+scripts/run_ui_tool_execution.py
 Executa o teste E2E real na interface web (Playwright Chromium) validando
 a exibição em tempo real da execução de ferramentas (tool calls, logs de progresso,
 semântica acessível, timer de processamento e navegação por turnos),

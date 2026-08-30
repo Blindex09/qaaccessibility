@@ -1,5 +1,5 @@
 """
-scripts/test_15_agentic_concepts_2026.py
+scripts/run_15_agentic_concepts_2026.py
 Matriz Completa de Validação E2E para os 15 Conceitos Fundamentais de Engenharia de IA de 2026.
 """
 
