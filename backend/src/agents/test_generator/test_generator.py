@@ -1,10 +1,19 @@
+import asyncio
 import json
 import logging
 
-from backend.src.services.llm_client import call_llm_structured, extract_json_object
-from backend.src.shared.models import AccessibilityIssue, AgentResult, TestSuite
+from backend.src.services.llm_client import call_llm_structured, extract_json_array
+from backend.src.shared.models import AccessibilityIssue, AccessibilityTest, AgentResult, TestSuite
 
 logger = logging.getLogger(__name__)
+
+# Um teste por issue, cada um com bloco de codigo pronto para colar no CI --
+# a saida cresce linearmente com os achados. Pedir tudo numa resposta so
+# estourava o orcamento com volume real: medido em 2026-08-30, /analyze/tests
+# devolveu 500 ("empty final response") com 32 issues, e passou com os mesmos
+# 32 numa execucao anterior -- ou seja, ficava na borda e falhava por sorte.
+# Mesmo lote de 20 que o a11y_expert_reviewer usa pelo mesmo motivo.
+_BATCH_SIZE = 20
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Agente: TestGenerator
@@ -134,6 +143,85 @@ Return ONLY valid JSON object. No markdown fences.
 """
 
 
+# Variante em LOTE: mesma disciplina de teste do SYSTEM_PROMPT acima, mas
+# devolvendo apenas a LISTA de testes. O envelope da suite (setup, instrucoes
+# de CI, contagem) e identico entre lotes e e montado em Python -- pedi-lo N
+# vezes gastaria tokens repetindo a mesma coisa e deixaria `total_tests`
+# discordar da lista.
+SYSTEM_PROMPT_LOTE = (
+    SYSTEM_PROMPT.split("## Output schema")[0]
+    + """## Output schema: a JSON ARRAY, one object per issue given to you
+[
+  {
+    "test_id": "test-<n>",
+    "criterion": "<WCAG criterion>",
+    "severity": "critical|high|medium|low",
+    "framework": "playwright|axe-core|jest-axe",
+    "description": "<plain language what it validates>",
+    "code": "<complete runnable test code>",
+    "element_hint": "<selector or context>"
+  }
+]
+
+ONE test per issue given to you. Do NOT invent tests for issues not listed.
+Do NOT emit setup/imports or CI instructions -- those are added separately.
+Return ONLY the JSON array. No markdown fences, no prose.
+"""
+).strip()
+
+
+_SETUP_SNIPPET = """// npm i -D @playwright/test @axe-core/playwright
+import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';"""
+
+_CI_INSTRUCTIONS = (
+    "Rode `npx playwright test` no seu pipeline. Falhe o build quando houver violacao "
+    "critical/serious. Reexecute a suite a cada PR que toque template, CSS ou componente "
+    "de UI -- barreira de acessibilidade volta silenciosa em refactor."
+)
+
+
+async def _gerar_testes_do_lote(lote: list[AccessibilityIssue], target: str) -> list[AccessibilityTest]:
+    """Gera os testes de UM lote de issues.
+
+    Devolve uma LISTA de testes, nao a suite inteira: o envelope (setup,
+    instrucoes de CI, contagem) e identico entre lotes e e montado pelo
+    chamador, sem gastar tokens repetindo-o nem arriscar `total_tests`
+    discordar da lista.
+    """
+    resumo = json.dumps(
+        [
+            {
+                "id": i.id,
+                "criterion": i.criterion,
+                "severity": i.severity.value,
+                "element": i.element,
+                "description": i.description,
+                "suggestion": i.suggestion,
+                "suggestion_technical": i.suggestion_technical or "",
+                "wcag_url": i.wcag_url or "",
+            }
+            for i in lote
+        ],
+        ensure_ascii=False,
+        indent=2,
+    )
+    testes = await call_llm_structured(
+        system_prompt=SYSTEM_PROMPT_LOTE,
+        user_prompt=(
+            f"Target under test: {target or 'the analyzed page'}\n\n"
+            f"Generate one test per issue for these {len(lote)} issues "
+            f"(ordered by severity):\n\n{resumo}"
+        ),
+        build=lambda raw: [AccessibilityTest(**t) for t in extract_json_array(raw)],
+        temperature=0.1,
+        max_tokens=16384,
+        agent_label="test_generator",
+    )
+    logger.info("[TestGenerator] Lote de %d issues -> %d testes", len(lote), len(testes))
+    return testes
+
+
 async def run_test_generator(
     issues: list[AccessibilityIssue],
     target: str = "",
@@ -168,38 +256,30 @@ async def run_test_generator(
     _order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     sorted_issues = sorted(issues, key=lambda i: (_order.get(i.severity.value, 9), i.criterion))
 
-    issues_summary = json.dumps(
-        [
-            {
-                "id": i.id,
-                "criterion": i.criterion,
-                "severity": i.severity.value,
-                "element": i.element,
-                "description": i.description,
-                "suggestion": i.suggestion,
-                "suggestion_technical": i.suggestion_technical or "",
-                "wcag_url": i.wcag_url or "",
-            }
-            for i in sorted_issues
-        ],
-        ensure_ascii=False,
-        indent=2,
-    )
-
+    # A serializacao dos issues foi para `_gerar_testes_do_lote`: cada lote
+    # manda so os seus, e nao a lista inteira.
     try:
-        suite = await call_llm_structured(
-            system_prompt=SYSTEM_PROMPT,
-            user_prompt=(
-                f"Generate accessibility test suite for: {target or 'the analyzed page'}\n\n"
-                f"Issues ({len(sorted_issues)}, ordered by severity):\n\n{issues_summary}"
-            ),
-            build=lambda raw: TestSuite(**extract_json_object(raw)),
-            temperature=0.1,
-            max_tokens=8192,
-            agent_label="test_generator",
+        lotes = [sorted_issues[i : i + _BATCH_SIZE] for i in range(0, len(sorted_issues), _BATCH_SIZE)]
+        resultados = await asyncio.gather(*[_gerar_testes_do_lote(lote, target) for lote in lotes])
+        testes = [teste for lote in resultados for teste in lote]
+
+        # O envelope da suite (setup, instrucoes de CI, contagem) e o MESMO
+        # qualquer que seja o lote -- montar em Python evita pedir N vezes a
+        # mesma coisa ao modelo e evita `total_tests` discordar da lista.
+        suite = TestSuite(
+            target=target or "unknown",
+            total_tests=len(testes),
+            tests=testes,
+            setup_snippet=_SETUP_SNIPPET,
+            ci_instructions=_CI_INSTRUCTIONS,
         )
 
-        logger.info("[TestGenerator] Suite gerada -- %d testes para %d issues", suite.total_tests, len(issues))
+        logger.info(
+            "[TestGenerator] Suite gerada -- %d testes para %d issues em %d lote(s)",
+            suite.total_tests,
+            len(issues),
+            len(lotes),
+        )
 
         return AgentResult(agent="test_generator", success=True, data={"suite": suite.model_dump()})
 
