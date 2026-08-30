@@ -333,6 +333,28 @@ class ScreenReaderVerificationResponse(BaseModel):
 
 class DesignRiskFlag(BaseModel):
     id: str
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _id_aceita_numero(cls, valor: object) -> object:
+        """Aceita `id` numerico vindo do modelo e converte para string.
+
+        Bug real (2026-08-30, achado delegando design_review via A2A): o
+        SYSTEM_PROMPT pede "keys: id, risk, ..." sem dizer que `id` e string e
+        -- diferente dos outros agentes -- sem exemplo de saida. O modelo
+        emitia `"id": 1` e a validacao derrubava a resposta inteira:
+
+            1 validation error for DesignRiskFlag
+            id  Input should be a valid string [input_value=1, input_type=int]
+
+        Um identificador numerico e uma resposta legitima; recusar a analise
+        inteira por causa do TIPO de um rotulo e desperdicar a chamada. O
+        prompt tambem ganhou um exemplo, mas prompt nao garante formato --
+        esta coercao e a rede de baixo.
+        """
+        if isinstance(valor, (int, float)) and not isinstance(valor, bool):
+            return str(valor)
+        return valor
     risk: str = Field(..., description="Risco de acessibilidade identificado no requisito")
     wcag_criteria: list[str] = Field(
         default_factory=list, description="Criterios WCAG 2.2 provavelmente afetados (ex.: '2.4.3 Focus Order')"

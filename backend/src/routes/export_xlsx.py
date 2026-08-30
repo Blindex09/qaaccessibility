@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import ValidationError
 
+from backend.src.services.pdf_engine import MotorPdfIndisponivelError, exigir_motor_pdf
 from backend.src.services.sarif_exporter import export_to_sarif
 from backend.src.services.xlsx_exporter import export_issues_xlsx
 
@@ -104,6 +105,15 @@ async def export_last_checklist_pdf() -> StreamingResponse:
     from backend.src.services.last_analyzed_content_store import get_last_analyzed_content
     from backend.src.shared.models import AccessibilityIssue
 
+    # Checa o motor de PDF ANTES de rodar o ChecklistAgent: a renderizacao
+    # depende de libs nativas (Pango/GObject/cairo) que podem faltar, e antes
+    # disto o usuario esperava ~50s de LLM pago para so entao receber um 500
+    # generico. Falhar em milissegundos, dizendo o que instalar, e melhor.
+    try:
+        exigir_motor_pdf()
+    except MotorPdfIndisponivelError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
     issues_raw, url = get_last_analysis()
     if not issues_raw:
         raise HTTPException(
@@ -169,6 +179,11 @@ async def export_last_accessibility_statement_pdf() -> StreamingResponse:
             status_code=400,
             detail="Nenhuma auditoria recente encontrada no cache para gerar a declaração de acessibilidade.",
         )
+
+    try:
+        exigir_motor_pdf()
+    except MotorPdfIndisponivelError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     options = get_accessibility_statement_options()
     statement = build_accessibility_statement(issues, url, **options)

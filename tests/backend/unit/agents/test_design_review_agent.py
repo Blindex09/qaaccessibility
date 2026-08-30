@@ -83,3 +83,66 @@ class TestDesignReviewAgent:
             await run_design_review(long_text)
         _, kwargs = mock_llm.call_args
         assert len(kwargs["user_prompt"]) < 20_000
+
+
+# ── Regressão: `id` numérico não pode derrubar a análise inteira ─────────────
+
+
+def test_id_numerico_do_modelo_e_aceito():
+    """Bug real (2026-08-30), achado delegando design_review via A2A.
+
+    O SYSTEM_PROMPT pedia "keys: id, risk, ..." sem dizer que `id` e string e
+    -- diferente dos outros agentes -- sem exemplo de saida. O modelo emitia
+    `"id": 1` e a validacao derrubava a resposta inteira:
+
+        1 validation error for DesignRiskFlag
+        id  Input should be a valid string [input_value=1, input_type=int]
+
+    Um identificador numerico e resposta legitima; recusar a analise por causa
+    do TIPO de um rotulo desperdicia a chamada. O prompt ganhou exemplo, mas
+    prompt nao garante formato -- a coercao e a rede de baixo.
+    """
+    from backend.src.shared.models import DesignRiskFlag
+
+    flag = DesignRiskFlag(
+        id=1,
+        risk="Sem alternativa de teclado para o drag",
+        wcag_criteria=["2.1.1 Keyboard"],
+        severity="high",
+        rationale="O requisito descreve reordenar so arrastando.",
+        recommendation="Oferecer Ctrl+Setas com anuncio em live region.",
+    )
+    assert flag.id == "1"
+    assert isinstance(flag.id, str)
+
+
+def test_id_string_continua_intacto():
+    from backend.src.shared.models import DesignRiskFlag
+
+    flag = DesignRiskFlag(
+        id="risk-1",
+        risk="x",
+        wcag_criteria=[],
+        severity="low",
+        rationale="y",
+        recommendation="z",
+    )
+    assert flag.id == "risk-1"
+
+
+def test_booleano_nao_vira_id():
+    """`True` virando "True" seria mascarar um erro de verdade do modelo."""
+    import pytest
+    from pydantic import ValidationError
+
+    from backend.src.shared.models import DesignRiskFlag
+
+    with pytest.raises(ValidationError):
+        DesignRiskFlag(
+            id=True,
+            risk="x",
+            wcag_criteria=[],
+            severity="low",
+            rationale="y",
+            recommendation="z",
+        )

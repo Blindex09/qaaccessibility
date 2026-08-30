@@ -87,6 +87,13 @@ class TestExportXlsxRoute:
         ), patch(
             "backend.src.services.accessibility_statement_generator.export_accessibility_statement_pdf",
             return_value=b"%PDF-1.7 mock accessibility statement",
+        ), patch(
+            # A rota checa o motor de PDF antes de trabalhar (ver pdf_engine).
+            # Sem este patch o teste dependeria de o WeasyPrint ter as libs
+            # nativas na maquina -- passava no CI Linux e falhava em qualquer
+            # dev sem GTK, medindo o ambiente em vez da rota.
+            "backend.src.routes.export_xlsx.exigir_motor_pdf",
+            return_value=None,
         ):
             response = client.get("/export/last_accessibility_statement_pdf")
         assert response.status_code == 200

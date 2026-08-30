@@ -52,7 +52,21 @@ meaningful accessibility risk (e.g. "update the copyright year in the footer"), 
 empty list -- that is a fully valid answer, not a failure.
 
 Return a JSON array of objects with keys: id, risk, wcag_criteria (array of strings),
-severity, rationale, recommendation. No markdown, no prose outside the JSON array.
+severity, rationale, recommendation. `id` is a STRING label, not a number.
+
+Example of the exact shape (one element):
+[
+  {
+    "id": "risk-1",
+    "risk": "Reordering the list by drag-and-drop has no keyboard equivalent",
+    "wcag_criteria": ["2.1.1 Keyboard", "2.5.7 Dragging Movements"],
+    "severity": "high",
+    "rationale": "The requirement describes reordering only by dragging the card, so anyone who cannot use a pointer cannot reorder at all.",
+    "recommendation": "Ship a keyboard path alongside the drag: focus the item, then Ctrl+Arrow to move it, announcing the new position in a live region."
+  }
+]
+
+No markdown, no prose outside the JSON array.
 """.strip()
 
 _MAX_REQUIREMENT_CHARS = 8_000
