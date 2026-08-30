@@ -58,6 +58,7 @@ def main():
     files = {"file": ("formulario_teste.html", SAMPLE_HTML.encode("utf-8"), "text/html")}
     resp = client.post("/analyze/file", files=files)
     print(f"Status HTTP /analyze/file: {resp.status_code}")
+    assert resp.status_code == 200, f"/analyze/file falhou: {resp.status_code} {resp.text[:300]}"
     analyze_res = resp.json()
 
     issues = analyze_res.get("data", {}).get("issues", []) if analyze_res.get("data") else analyze_res.get("issues", [])
@@ -81,6 +82,7 @@ def main():
         "model": "alto"
     })
     print(f"Status HTTP /fix: {fix_resp.status_code}")
+    assert fix_resp.status_code == 200, f"/fix falhou: {fix_resp.status_code} {fix_resp.text[:300]}"
     fix_res = fix_resp.json()
 
     fixed_html = fix_res.get("fixed_html") or fix_res.get("data", {}).get("fixed_html", "")
@@ -112,9 +114,11 @@ def main():
         "model": "alto"
     })
     print(f"Status HTTP /analyze/tests: {tests_resp.status_code}")
+    assert tests_resp.status_code == 200, f"/analyze/tests falhou: {tests_resp.status_code} {tests_resp.text[:300]}"
     tests_res = tests_resp.json()
     suite = tests_res.get("data", {}).get("suite", {})
     print(f"[Suíte Gerada] Arquivo de teste: {suite.get('filename', 'a11y.spec.ts')}")
+    assert suite.get("tests"), "suite sem teste nenhum nao e uma suite"
 
     print("\n======================================================================")
     print("  AUDITORIA DE ACESSIBILIDADE REAL E2E CONCLUÍDA COM SUCESSO TOTAL!")
