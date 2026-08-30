@@ -654,15 +654,39 @@ async def call_llm_structured(
     prompt = user_prompt
     current_max_tokens = max_tokens
     for attempt in range(1, attempts + 1):
-        raw = await call_llm(
-            system_prompt=system_prompt,
-            user_prompt=prompt,
-            temperature=temperature,
-            max_tokens=current_max_tokens,
-            request_id=request_id,
-            agent_label=agent_label,
-            response_schema=response_schema,
-        )
+        try:
+            raw = await call_llm(
+                system_prompt=system_prompt,
+                user_prompt=prompt,
+                temperature=temperature,
+                max_tokens=current_max_tokens,
+                request_id=request_id,
+                agent_label=agent_label,
+                response_schema=response_schema,
+            )
+        except ValueError as exc:
+            # `call_llm` levanta ValueError quando o provider devolve resposta
+            # VAZIA ("AIAgent returned an empty final response"). Esta chamada
+            # ficava FORA do try do `build`, entao esse caso escapava sem
+            # nenhuma tentativa -- apesar de attempts=2 e de o docstring acima
+            # prometer justamente absorver a flakiness do provider.
+            #
+            # Custou caro: com 52 issues reais, /analyze/vpat e /analyze/tests
+            # devolveram 500 ao usuario por UMA resposta vazia, enquanto a
+            # mesma chamada refeita passa (comprovado: 5 e 52 issues geram o
+            # VPAT normalmente). Erro de provider (401/429/timeout) continua
+            # subindo na hora, sem retry cego -- so a resposta vazia reentra.
+            last_error = exc
+            logger.warning(
+                "[AIAgent] %s resposta vazia do provider (tentativa %d/%d): %s",
+                agent_label or "leaf",
+                attempt,
+                attempts,
+                exc,
+            )
+            if attempt >= attempts:
+                raise
+            continue
         try:
             return build(raw)
         except (ValueError, ValidationError) as exc:

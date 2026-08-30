@@ -683,3 +683,66 @@ class TestStructuredOutputFallbackChain:
 
         assert result == '{"issues": []}'
         assert calls == [("opencode-go", "gpt-5.6-luna")]
+
+
+# ── Regressão: resposta vazia do provider tem de reentrar no retry ───────────
+
+
+@pytest.mark.asyncio
+async def test_resposta_vazia_do_provider_e_repetida_e_nao_derruba_o_agente():
+    """Bug real, custou dois HTTP 500 em producao.
+
+    `call_llm` levanta ValueError quando o provider devolve resposta VAZIA. A
+    chamada estava FORA do try que dispara o retry de `call_llm_structured`,
+    entao esse caso escapava sem nenhuma tentativa -- apesar de attempts=2 e
+    de o docstring do helper prometer absorver exatamente essa flakiness (o
+    Ollama Cloud devolve resposta vazia/truncada em ~1 a cada 15-20 chamadas,
+    e mais sob concorrencia).
+
+    Consequencia observada em 2026-08-30 com 52 issues reais:
+    /analyze/vpat e /analyze/tests devolveram 500 ao usuario por UMA resposta
+    vazia -- sendo que a mesma chamada refeita gera o VPAT normalmente.
+    """
+    chamadas: list[str] = []
+
+    async def _falha_depois_ok(*_args, **kwargs):
+        chamadas.append(kwargs.get("user_prompt", ""))
+        if len(chamadas) == 1:
+            raise ValueError("AIAgent returned an empty final response after recovery retry")
+        return '{"ok": true}'
+
+    with patch("backend.src.services.llm_client.call_llm", new=_falha_depois_ok):
+        resultado = await call_llm_structured("sys", "user", build=lambda raw: json.loads(raw))
+
+    assert resultado == {"ok": True}
+    assert len(chamadas) == 2, "a resposta vazia tem de gerar uma segunda tentativa"
+
+
+@pytest.mark.asyncio
+async def test_resposta_vazia_persistente_ainda_falha_explicito():
+    """O retry nao pode mascarar um provider consistentemente quebrado."""
+
+    async def _sempre_vazio(*_args, **_kwargs):
+        raise ValueError("AIAgent returned an empty final response after recovery retry")
+
+    with patch("backend.src.services.llm_client.call_llm", new=_sempre_vazio), pytest.raises(
+        ValueError, match="empty final response"
+    ):
+        await call_llm_structured("sys", "user", build=lambda raw: json.loads(raw), attempts=2)
+
+
+@pytest.mark.asyncio
+async def test_erro_de_provider_nao_entra_em_retry_cego():
+    """401/429/timeout sobem na hora: repetir nao ajuda e custa tempo e dinheiro."""
+    chamadas: list[int] = []
+
+    async def _erro_de_provider(*_args, **_kwargs):
+        chamadas.append(1)
+        raise Exception("Erro na chamada do AIAgent: 401 invalid api key")
+
+    with patch("backend.src.services.llm_client.call_llm", new=_erro_de_provider), pytest.raises(
+        Exception, match="401"
+    ):
+        await call_llm_structured("sys", "user", build=lambda raw: json.loads(raw), attempts=3)
+
+    assert len(chamadas) == 1, "erro de provider nao pode ser repetido cegamente"
