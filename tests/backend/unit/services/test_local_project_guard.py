@@ -44,3 +44,42 @@ class TestAccessibilityScopeDenialMessage:
         msg = accessibility_scope_denial_message(r"C:\dev\loja-online")
         assert "Traceback" not in msg
         assert "acessibilidade" in msg.lower()
+
+
+class TestGrafiaEnEPt:
+    """Regressao: a grafia INGLESA `access` nao era aceita.
+
+    A lista de marcadores tinha "acess" (PT, 1 c) mas nao "access" (EN, 2 c),
+    e "acess" NAO e substring de "access". Consequencia: um diretorio chamado
+    `ACCESS-portal` ou `access-audit` era RECUSADO, embora seja exatamente o
+    nome que um usuario anglofono daria a um projeto de acessibilidade. O
+    criterio e o NOME do diretorio, entao ele precisa cobrir as duas grafias
+    que as pessoas de fato usam.
+    """
+
+    @pytest.mark.parametrize("path", [
+        r"C:\x\ACCESS-portal",
+        r"C:\dev\access-audit",
+        r"C:\dev\accessible-shop",
+        r"C:\dev\accessibility-audit",
+    ])
+    def test_grafia_inglesa_e_aceita(self, path):
+        assert is_accessibility_project_dir(path) is True
+
+    @pytest.mark.parametrize("path", [
+        r"C:\projetos\meu-site-acessibilidade",
+        r"C:\acessivel\loja",
+        r"C:\dev\acess-checker",
+    ])
+    def test_grafia_portuguesa_continua_aceita(self, path):
+        assert is_accessibility_project_dir(path) is True
+
+    @pytest.mark.parametrize("path", [
+        r"C:\projetos\loja-virtual",
+        r"C:\dev\ecommerce",
+        r"C:\Windows\System32",
+        r"C:\Users\ana\Documents",
+    ])
+    def test_a_fronteira_continua_fechada(self, path):
+        """Ampliar a grafia nao pode virar "permite qualquer coisa"."""
+        assert is_accessibility_project_dir(path) is False

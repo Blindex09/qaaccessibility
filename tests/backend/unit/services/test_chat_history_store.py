@@ -123,3 +123,45 @@ class TestClearHistory:
         assert chat_history_store.get_history(session_id="c1") == []
         assert not os.path.exists(path)
         assert chat_history_store.list_conversations() == []
+
+
+class TestOrdemNaoDependeDaResolucaoDoRelogio:
+    """Regressao: conversas criadas no mesmo tick do relogio saiam fora de ordem.
+
+    `time.time()` no Windows tem resolucao de ~15,6 ms -- seis leituras
+    seguidas devolvem o MESMO valor (medido em 2026-08-30). Com `last_updated`
+    identico e `sorted` estavel, o desempate caia na ordem de insercao do
+    dicionario, e a lista "mais recentes primeiro" mostrava a MAIS ANTIGA
+    primeiro. O sintoma apareceu como teste intermitente: passava sozinho e
+    falhava junto com o arquivo.
+    """
+
+    def test_conversas_no_mesmo_tick_saem_na_ordem_certa(self, monkeypatch):
+        # Relogio TRAVADO: pior caso, todas as escritas no mesmo instante.
+        monkeypatch.setattr("time.time", lambda: 1788102267.3709526)
+
+        for indice in range(5):
+            chat_history_store.append_message("user", f"conversa {indice}", session_id=f"c{indice}")
+
+        ids = [c["conversation_id"] for c in chat_history_store.list_conversations()]
+        assert ids == ["c4", "c3", "c2", "c1", "c0"], f"ordem errada com relogio travado: {ids}"
+
+    def test_responder_em_conversa_antiga_a_traz_para_o_topo(self, monkeypatch):
+        monkeypatch.setattr("time.time", lambda: 1788102267.3709526)
+        chat_history_store.append_message("user", "antiga", session_id="c1")
+        chat_history_store.append_message("user", "nova", session_id="c2")
+        assert [c["conversation_id"] for c in chat_history_store.list_conversations()][0] == "c2"
+
+        chat_history_store.append_message("user", "voltei aqui", session_id="c1")
+
+        ids = [c["conversation_id"] for c in chat_history_store.list_conversations()]
+        assert ids[0] == "c1", f"turno novo tem de trazer a conversa para o topo: {ids}"
+
+    def test_carimbo_continua_sendo_hora_de_parede(self, monkeypatch):
+        """A correcao nao pode inflar o relogio: com tempo avancando de verdade,
+        o carimbo e o proprio `time.time()`."""
+        monkeypatch.setattr("time.time", lambda: 1788102300.0)
+        chat_history_store.append_message("user", "unica", session_id="c1")
+
+        conversa = chat_history_store.list_conversations()[0]
+        assert conversa["last_updated"] == 1788102300.0

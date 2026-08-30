@@ -23,7 +23,13 @@ logger = logging.getLogger(__name__)
 # bloqueando resposta da IA).
 # ─────────────────────────────────────────────────────────────────────────────
 
-_ACCESSIBILITY_MARKERS = ("acessibilidade", "acessivel", "acess", "accessibility", "a11y")
+# "acess" cobre a grafia PT (acessibilidade, acessivel, acessible...) e "access"
+# cobre a EN (accessibility, accessible, access-audit...). Faltava a segunda:
+# ate 2026-08-30 a lista tinha "acess" mas nao "access", entao um diretorio
+# chamado `ACCESS-portal` ou `accessibility-audit` era RECUSADO -- "acess"
+# (1 c) nao e substring de "access" (2 c). Como o criterio e o NOME do
+# diretorio, e ele que precisa cobrir as duas grafias que o usuario de fato usa.
+_ACCESSIBILITY_MARKERS = ("acess", "access", "a11y")
 
 
 def is_accessibility_project_dir(path: str) -> bool:

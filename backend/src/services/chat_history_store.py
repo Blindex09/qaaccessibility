@@ -92,6 +92,30 @@ def _save_index(index: dict[str, dict[str, Any]]) -> None:
         logger.error("[ChatHistoryStore] Falha ao salvar índice de conversas: %s", exc)
 
 
+def _proximo_carimbo(index: dict[str, dict[str, Any]], session_id: str) -> float:
+    """Carimbo de tempo ESTRITAMENTE maior que o de qualquer outra conversa.
+
+    `time.time()` no Windows tem resolucao de ~15,6 ms: seis leituras seguidas
+    devolvem o MESMO valor (medido em 2026-08-30). Duas conversas criadas em
+    sequencia ficavam com `last_updated` identico, e como `sorted` e estavel,
+    o desempate caia na ordem de insercao do dicionario -- ou seja, a lista
+    "mais recentes primeiro" mostrava a MAIS ANTIGA primeiro.
+
+    O empate tambem valia entre um turno novo e uma conversa ja existente:
+    responder numa conversa antiga podia nao traze-la para o topo.
+
+    Aqui o carimbo continua sendo hora de parede (a interface mostra isso),
+    mas nunca menor ou igual ao maior ja registrado. Ler do indice -- e nao de
+    um contador em memoria -- mantem a garantia depois de reiniciar o backend.
+    """
+    agora = time.time()
+    maior = max(
+        (float(c.get("last_updated", 0) or 0) for chave, c in index.items() if chave != session_id),
+        default=0.0,
+    )
+    return agora if agora > maior else maior + 0.000001
+
+
 def _update_index(session_id: str, messages: list[dict[str, Any]]) -> None:
     if session_id == DEFAULT_SESSION_ID:
         return  # sessão default (fora do chat, ex.: rotas /analyze) não entra na lista de conversas
@@ -101,7 +125,7 @@ def _update_index(session_id: str, messages: list[dict[str, Any]]) -> None:
         "conversation_id": session_id,
         "title": first_user_msg[:80],
         "message_count": len(messages),
-        "last_updated": time.time(),
+        "last_updated": _proximo_carimbo(index, session_id),
     }
     _save_index(index)
 
