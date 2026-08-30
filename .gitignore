@@ -63,3 +63,6 @@ Thumbs.db
 # Artefatos do Playwright (regenerados a cada execucao)
 tests/web/e2e/test-results/
 tests/web/e2e/playwright-report/
+
+# Bundle da interface (artefato de build -- gerado por `npx expo export:web`)
+web/web-build/

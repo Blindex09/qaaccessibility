@@ -315,7 +315,13 @@ Em inicialização padrão via `python start_backend.py`, os logs persistentes f
 ### Web
 
 O frontend local usa o proxy estático em `web/proxy-server.js`, que serve `web/web-build`
-e encaminha chamadas de API para o backend:
+e encaminha chamadas de API para o backend.
+
+`web/web-build/` é artefato de build e **não é versionado**. O
+`start_frontend.py` o gera na primeira execução (roda `npm ci` e
+`npx expo export:web` quando falta); para refazer do zero, apague o diretório.
+Subir o `proxy-server.js` direto sem o bundle falha com a instrução do comando
+a rodar, em vez de servir 404 em toda rota:
 
 ```bash
 # instalar dependências (uma vez)

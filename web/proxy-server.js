@@ -153,6 +153,24 @@ const server = http.createServer((req, res) => {
   });
 });
 
+// O bundle em web-build/ e artefato de build e NAO e versionado. Sem ele, este
+// servidor subiria normalmente e responderia 404 em toda rota -- uma falha muda
+// que parece bug do app. Falha aqui, dizendo exatamente o que rodar.
+const INDEX_HTML = path.join(STATIC_DIR, 'index.html');
+if (!fs.existsSync(INDEX_HTML)) {
+  console.error('');
+  console.error('[proxy-server] Nao encontrei o bundle da interface em:');
+  console.error(`[proxy-server]   ${STATIC_DIR}`);
+  console.error('');
+  console.error('[proxy-server] web-build/ e gerado pelo build e nao fica no repositorio.');
+  console.error('[proxy-server] Gere-o antes de subir o frontend:');
+  console.error('');
+  console.error('[proxy-server]   cd web && npm ci && npx expo export:web');
+  console.error('');
+  console.error('[proxy-server] (start_frontend.py faz isso sozinho quando o bundle falta.)');
+  process.exit(1);
+}
+
 server.listen(PORT, () => {
   console.log(`Proxy server running on http://localhost:${PORT}`);
   console.log(`API requests proxied to http://localhost:${BACKEND_PORT}`);
