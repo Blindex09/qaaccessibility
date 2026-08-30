@@ -2725,7 +2725,25 @@ def open_live_preview(args: dict[str, Any], **_kw: Any) -> str:
         )
 
     session_id = register_preview_session(pages)
-    return json.dumps({"session_id": session_id, "total_pages": len(pages)}, ensure_ascii=True)
+    # As URLs renderizadas viajam junto com a sessao.
+    #
+    # Sem elas o modelo tinha `session_id` e mais nada: nao havia como apontar
+    # `verify_screen_reader_announcements` (que recebe URL) para a pagina que
+    # acabou de ser corrigida. A verificacao pos-correcao era impossivel de
+    # cumprir, nao so nao pedida. Mesma base publica ja usada nos links de
+    # download (`resolved_public_base_url`), nunca host fixo no codigo.
+    from backend.src.config.settings import get_settings
+
+    base = get_settings().resolved_public_base_url
+    return json.dumps(
+        {
+            "session_id": session_id,
+            "total_pages": len(pages),
+            "fixed_url": f"{base}/preview/render/{session_id}/0?mode=fixed",
+            "original_url": f"{base}/preview/render/{session_id}/0?mode=original",
+        },
+        ensure_ascii=True,
+    )
 
 
 _TAVILY_SEARCH_SCHEMA = {
