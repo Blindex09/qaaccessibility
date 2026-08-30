@@ -16,7 +16,7 @@ nunca levantar exceção para cima nem inventar um resultado verde.
 import asyncio
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -26,10 +26,11 @@ from backend.src.services import remote_runners
 class _FakeProc:
     """Processo falso com a superfície que o remote_runners realmente usa."""
 
-    def __init__(self, returncode: int = 0, on_communicate=None, raises=None):
+    def __init__(self, returncode: int = 0, on_communicate=None, raises=None, stdout: bytes = b""):
         self.returncode = returncode
         self._on_communicate = on_communicate
         self._raises = raises
+        self._stdout = stdout
         self.killed = False
 
     async def communicate(self):
@@ -37,7 +38,7 @@ class _FakeProc:
             raise self._raises
         if self._on_communicate is not None:
             self._on_communicate()
-        return (b"", b"")
+        return (self._stdout, b"")
 
     def kill(self):
         self.killed = True
@@ -247,7 +248,14 @@ async def test_cypress_local_sem_relatorio_significa_zero_violacoes(projeto_cypr
 
     resultado = await remote_runners._try_run_local_cypress("https://exemplo.com")
 
-    assert resultado == {"violations": [], "incomplete": [], "testEngine": {"name": "axe-core"}}
+    assert resultado == {
+        "violations": [],
+        "incomplete": [],
+        "testEngine": {"name": "axe-core"},
+        # Chave reservada: carrega a URL do run gravado no Cypress Cloud ate o
+        # chamador. None aqui porque as chaves de gravacao nao estao setadas.
+        "_cypress_dashboard_url": None,
+    }
 
 
 async def test_cypress_local_le_o_relatorio_e_limpa_os_artefatos(projeto_cypress_pronto, monkeypatch):
@@ -266,8 +274,108 @@ async def test_cypress_local_le_o_relatorio_e_limpa_os_artefatos(projeto_cypress
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", _exec)
 
-    assert await remote_runners._try_run_local_cypress("https://exemplo.com") == esperado
+    assert await remote_runners._try_run_local_cypress("https://exemplo.com") == {
+        **esperado,
+        "_cypress_dashboard_url": None,
+    }
     # Spec e relatorio sao temporarios dentro do projeto persistente: se
     # ficarem para tras, a proxima execucao le o resultado da anterior.
     assert list((projeto_cypress_pronto / "cypress" / "e2e").glob("a11y_audit_*.cy.js")) == []
     assert list(projeto_cypress_pronto.glob("a11y_report_*.json")) == []
+
+
+# -- Gravacao real no Cypress Cloud -------------------------------------------
+
+
+async def test_cypress_local_grava_no_cloud_e_devolve_a_url_do_run(projeto_cypress_pronto, monkeypatch):
+    monkeypatch.setenv("CYPRESS_PROJECT_ID", "abc123")
+    monkeypatch.setenv("CYPRESS_RECORD_KEY", "chave-secreta")
+    comandos: list = []
+    ambientes: list = []
+
+    async def _exec(*args, **kwargs):
+        comandos.append(args)
+        ambientes.append(kwargs.get("env") or {})
+        if "version" in args:
+            return _FakeProc(returncode=0)
+        saida = b"Recorded Run: https://cloud.cypress.io/projects/abc123/runs/42\n"
+        return _FakeProc(returncode=0, stdout=saida)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", _exec)
+    relatorio = await remote_runners._try_run_local_cypress("https://exemplo.com")
+
+    run_cmd = comandos[-1]
+    assert "--record" in run_cmd and "chave-secreta" in run_cmd
+    # `--project` no CLI do Cypress e o CAMINHO do projeto, nao o projectId: o
+    # id tem de ir por variavel de ambiente, senao o --record falha.
+    assert "--project" not in run_cmd
+    assert ambientes[-1]["CYPRESS_PROJECT_ID"] == "abc123"
+    assert relatorio["_cypress_dashboard_url"] == "https://cloud.cypress.io/projects/abc123/runs/42"
+
+
+async def test_cypress_local_sem_chaves_nao_passa_record(projeto_cypress_pronto, monkeypatch):
+    monkeypatch.delenv("CYPRESS_PROJECT_ID", raising=False)
+    monkeypatch.delenv("CYPRESS_RECORD_KEY", raising=False)
+    comandos: list = []
+
+    async def _exec(*args, **kwargs):
+        comandos.append(args)
+        return _FakeProc(returncode=0)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", _exec)
+    relatorio = await remote_runners._try_run_local_cypress("https://exemplo.com")
+
+    assert "--record" not in comandos[-1]
+    assert relatorio["_cypress_dashboard_url"] is None
+
+
+async def test_record_pedido_mas_sem_url_de_run_nao_conta_como_gravado(projeto_cypress_pronto, monkeypatch):
+    """Chave invalida ou sem rede: o Cypress roda, mas nao grava. O resultado
+    NAO pode dizer que sincronizou."""
+    monkeypatch.setenv("CYPRESS_PROJECT_ID", "abc123")
+    monkeypatch.setenv("CYPRESS_RECORD_KEY", "chave-errada")
+
+    async def _exec(*args, **kwargs):
+        if "version" in args:
+            return _FakeProc(returncode=0)
+        return _FakeProc(returncode=1, stdout=b"Your Record Key is not valid\n")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", _exec)
+    relatorio = await remote_runners._try_run_local_cypress("https://exemplo.com")
+
+    assert relatorio["_cypress_dashboard_url"] is None
+
+
+async def test_resumo_local_reporta_gravacao_e_url(monkeypatch):
+    monkeypatch.setenv("CYPRESS_PROJECT_ID", "abc123")
+    monkeypatch.setenv("CYPRESS_RECORD_KEY", "chave-secreta")
+    relatorio = {
+        "violations": [],
+        "incomplete": [],
+        "testEngine": {"name": "axe-core"},
+        "_cypress_dashboard_url": "https://cloud.cypress.io/projects/abc123/runs/42",
+    }
+    with patch(
+        "backend.src.services.remote_runners._try_run_local_cypress",
+        new=AsyncMock(return_value=relatorio),
+    ):
+        resultado = await remote_runners.run_remote_accessibility_audit("https://exemplo.com", location="local")
+
+    assert resultado["cypress_cloud_synced"] is True
+    assert resultado["cypress_dashboard_url"] == "https://cloud.cypress.io/projects/abc123/runs/42"
+    assert "cypress_cloud_error" not in resultado
+
+
+async def test_resumo_local_explica_quando_a_gravacao_falhou(monkeypatch):
+    monkeypatch.setenv("CYPRESS_PROJECT_ID", "abc123")
+    monkeypatch.setenv("CYPRESS_RECORD_KEY", "chave-errada")
+    relatorio = {"violations": [], "incomplete": [], "_cypress_dashboard_url": None}
+    with patch(
+        "backend.src.services.remote_runners._try_run_local_cypress",
+        new=AsyncMock(return_value=relatorio),
+    ):
+        resultado = await remote_runners.run_remote_accessibility_audit("https://exemplo.com", location="local")
+
+    assert resultado["cypress_cloud_synced"] is False
+    assert resultado["cypress_cloud_recording_configured"] is True
+    assert "cypress_cloud_error" in resultado

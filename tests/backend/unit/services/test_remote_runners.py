@@ -61,7 +61,7 @@ async def test_run_remote_selenium_returns_real_axe_violations_on_success():
         result = await remote_runners.run_remote_selenium("https://example.com")
 
     assert result["status"] == "ok"
-    assert result["runner"] == "selenium_remote"
+    assert result["runner"] == "axe_core_remote"
     assert result["engine"] == "axe-core"
     assert result["total_violations"] == 2
     assert result["violations_by_impact"] == {"critical": 1, "serious": 1}
@@ -160,7 +160,7 @@ async def test_run_remote_postman_contract_runs_real_newman_when_available():
         result = await remote_runners.run_remote_postman_contract("https://api.example.com")
 
     assert result["status"] == "ok"
-    assert result["runner"] == "postman_remote"
+    assert result["runner"] == "postman_newman"
     assert result["engine"] == "newman"
     assert result["newman_ran"] is True
     assert result["score"] == 100
@@ -203,7 +203,7 @@ async def test_run_remote_postman_contract_fetches_real_collection_when_configur
     ), patch("backend.src.services.remote_runners._run_newman", side_effect=_fake_run_newman):
         result = await remote_runners.run_remote_postman_contract("https://api.example.com")
 
-    assert result["postman_cloud_synced"] is True
+    assert result["postman_cloud_authenticated"] is True
     assert captured_collection["info"]["name"] == "Real"
 
 
@@ -226,7 +226,9 @@ async def test_run_remote_postman_contract_falls_back_honestly_when_newman_unava
         result = await remote_runners.run_remote_postman_contract("https://api.example.com")
 
     assert result["status"] == "ok"
-    assert result["runner"] == "postman_remote"
+    # Rotulo distinto do caminho com Newman: quem le a resposta precisa saber
+    # que o runner Postman NAO rodou, e nao so ler newman_ran no meio do dict.
+    assert result["runner"] == "postman_lightweight"
     assert result["engine"] == "lightweight_contract_check"
     assert result["newman_ran"] is False
     assert result["http_status"] == 200
@@ -261,7 +263,7 @@ async def test_run_remote_postman_contract_syncs_postman_cloud_when_key_set(monk
     ):
         result = await remote_runners.run_remote_postman_contract("https://api.example.com")
 
-    assert result["postman_cloud_synced"] is True
+    assert result["postman_cloud_authenticated"] is True
 
 
 @pytest.mark.asyncio
@@ -340,7 +342,11 @@ async def test_run_remote_accessibility_audit_uses_scope_selector_to_filter_viol
 
 
 @pytest.mark.asyncio
-async def test_run_remote_accessibility_audit_reports_cloud_sync_status(monkeypatch):
+async def test_caminho_remoto_nunca_diz_que_gravou_no_cypress_cloud(monkeypatch):
+    """Regressao: `cypress_cloud_synced` era True so porque as duas chaves
+    existiam no ambiente -- inclusive neste caminho, que roda axe-core via
+    Playwright/Browserless e nao executa Cypress nenhum. Dizia "sincronizado
+    com a nuvem" sem nada ter sido enviado, em qualquer circunstancia."""
     monkeypatch.setenv("CYPRESS_PROJECT_ID", "proj-123")
     monkeypatch.setenv("CYPRESS_RECORD_KEY", "rec-key")
     with patch(
@@ -349,8 +355,9 @@ async def test_run_remote_accessibility_audit_reports_cloud_sync_status(monkeypa
     ):
         result = await remote_runners.run_remote_accessibility_audit("https://example.com")
 
-    assert result["cypress_cloud_synced"] is True
-    assert result["cypress_project_id"] == "proj-123"
+    assert result["cypress_cloud_synced"] is False
+    assert result["cypress_cloud_recording_configured"] is True
+    assert "cypress_cloud_note" in result, "tem de explicar por que nao gravou"
 
 
 # --------------------------------------------------------------------------- #

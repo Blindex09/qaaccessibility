@@ -20,15 +20,6 @@ def _fake_response(status_code: int, json_data: dict, text: str = "") -> object:
 
 
 class TestCreateJiraIssue:
-    def test_simulates_when_credentials_missing(self, monkeypatch):
-        for var in ("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_PROJECT_KEY"):
-            monkeypatch.delenv(var, raising=False)
-
-        result = ticket_integrations.create_jira_issue(summary="[A11Y] bug", description="descricao")
-
-        assert result["status"] == "simulated"
-        assert result["provider"] == "jira"
-        assert "MOCK-1" in result["issue_key"]
 
     def test_creates_on_http_201(self):
         fake = _fake_response(201, {"key": "PROJ-42"})
@@ -104,14 +95,6 @@ class TestCreateJiraIssue:
 
 
 class TestCreateAzureDevOpsWorkItem:
-    def test_simulates_when_credentials_missing(self, monkeypatch):
-        for var in ("AZURE_DEVOPS_ORG", "AZURE_DEVOPS_PROJECT", "AZURE_DEVOPS_PAT"):
-            monkeypatch.delenv(var, raising=False)
-
-        result = ticket_integrations.create_azure_devops_work_item(title="[A11Y] bug", description="descricao")
-
-        assert result["status"] == "simulated"
-        assert result["provider"] == "azure_devops"
 
     def test_creates_on_http_200(self):
         fake = _fake_response(200, {"id": 123})
@@ -176,3 +159,44 @@ class TestCreateAzureDevOpsWorkItem:
 
         assert result["status"] == "created"
         assert "envorg/envproj" in mock_post.call_args.args[0]
+
+
+class TestNaoFabricaIdentificadorQuandoFaltaCredencial:
+    """Regressao: com credenciais ausentes, estas funcoes devolviam
+    status="simulated" JUNTO de um identificador e uma URL plausiveis --
+    "MOCK-1" e ".../browse/MOCK-1" no Jira, work_item_id=1 e
+    ".../_workitems/edit/1" no Azure -- nos MESMOS campos do caminho de
+    sucesso. O modelo lia aquilo e respondia "abri o ticket <link>" a quem
+    tinha aprovado a acao e nao recebeu ticket nenhum. Falha tem de parecer
+    falha."""
+
+    def test_jira_devolve_erro_sem_issue_key_nem_url(self, monkeypatch):
+        for var in ("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_PROJECT_KEY"):
+            monkeypatch.delenv(var, raising=False)
+
+        result = ticket_integrations.create_jira_issue(summary="[A11Y] teste", description="corpo")
+
+        assert result["status"] == "error"
+        assert "issue_key" not in result
+        assert "issue_url" not in result
+        assert set(result["missing_config"]) == {
+            "JIRA_BASE_URL",
+            "JIRA_EMAIL",
+            "JIRA_API_TOKEN",
+            "JIRA_PROJECT_KEY",
+        }
+
+    def test_azure_devolve_erro_sem_work_item_id_nem_url(self, monkeypatch):
+        for var in ("AZURE_DEVOPS_ORG", "AZURE_DEVOPS_PROJECT", "AZURE_DEVOPS_PAT"):
+            monkeypatch.delenv(var, raising=False)
+
+        result = ticket_integrations.create_azure_devops_work_item(title="[A11Y] teste", description="corpo")
+
+        assert result["status"] == "error"
+        assert "work_item_id" not in result
+        assert "work_item_url" not in result
+        assert set(result["missing_config"]) == {
+            "AZURE_DEVOPS_ORG",
+            "AZURE_DEVOPS_PROJECT",
+            "AZURE_DEVOPS_PAT",
+        }

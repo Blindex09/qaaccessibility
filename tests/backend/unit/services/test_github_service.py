@@ -1,7 +1,7 @@
 """Testes do github_service — criação de Issues no GitHub via REST API.
 
-Valida os três caminhos: simulação (credenciais ausentes), sucesso (HTTP 201)
-e erro (HTTP não-201), sem acionar rede real (requests mockado).
+Valida os três caminhos: credenciais ausentes (erro explícito, sem URL
+inventada), sucesso (HTTP 201) e erro (HTTP não-201), sem acionar rede real.
 """
 
 from unittest.mock import patch
@@ -9,20 +9,21 @@ from unittest.mock import patch
 from backend.src.services import github_service
 
 
-def test_create_github_issue_simulates_when_credentials_missing(monkeypatch):
-    monkeypatch.delenv("GITHUB_OWNER", raising=False)
-    monkeypatch.delenv("GITHUB_REPO", raising=False)
-    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+def test_create_github_issue_never_fabricates_a_url_when_credentials_missing(monkeypatch):
+    """Regressao: antes esta funcao devolvia status="simulated" JUNTO de
+    issue_url="https://github.com/owner/repo/issues/mock-1" -- uma URL com cara
+    de real, no mesmo campo do caminho de sucesso. O modelo lia isso e
+    respondia "criei a issue: <link>" a quem tinha aprovado a acao e nao
+    recebeu issue nenhuma."""
+    for var in ("GITHUB_OWNER", "GITHUB_REPO", "GITHUB_TOKEN"):
+        monkeypatch.delenv(var, raising=False)
 
-    result = github_service.create_github_issue(
-        title="[A11Y] WCAG 1.1.1 - Imagem sem alt",
-        body="descricao da violacao",
-    )
+    result = github_service.create_github_issue(title="[A11Y] teste", body="corpo")
 
-    assert result["status"] == "simulated"
-    assert "mock-1" in result["issue_url"]
-    assert result["title"] == "[A11Y] WCAG 1.1.1 - Imagem sem alt"
-
+    assert result["status"] == "error"
+    assert "issue_url" not in result, "nenhuma URL pode ser inventada quando nada foi criado"
+    assert set(result["missing_config"]) == {"GITHUB_OWNER", "GITHUB_REPO", "GITHUB_TOKEN"}
+    assert "GITHUB_TOKEN" in result["error"]
 
 def test_create_github_issue_creates_on_http_201():
     fake_response = type(

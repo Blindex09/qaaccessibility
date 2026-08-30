@@ -81,12 +81,29 @@ def create_jira_issue(
     project = (project_key if project_key else os.getenv("JIRA_PROJECT_KEY", "")).strip()
 
     if not url_base or not auth_email or not token or not project:
-        logger.warning("[ticket_integrations] Credenciais do Jira incompletas. Simulando criação da issue.")
+        # Sem issue_key nem issue_url inventados: ver o comentario equivalente
+        # em github_service.create_github_issue. Um "MOCK-1" plausivel no mesmo
+        # campo do caminho de sucesso vira "criei a issue MOCK-1" na resposta
+        # ao usuario, que aprovou a acao e nao recebeu issue nenhuma.
+        faltando = [
+            nome
+            for nome, valor in (
+                ("JIRA_BASE_URL", url_base),
+                ("JIRA_EMAIL", auth_email),
+                ("JIRA_API_TOKEN", token),
+                ("JIRA_PROJECT_KEY", project),
+            )
+            if not valor
+        ]
+        logger.warning("[ticket_integrations] Credenciais do Jira incompletas: %s", ", ".join(faltando))
         return {
-            "status": "simulated",
+            "status": "error",
             "provider": "jira",
-            "issue_key": "MOCK-1",
-            "issue_url": f"{url_base or 'https://your-domain.atlassian.net'}/browse/MOCK-1",
+            "error": (
+                "Nao foi possivel criar a issue no Jira: falta configurar "
+                f"{', '.join(faltando)}. Nenhuma issue foi criada."
+            ),
+            "missing_config": faltando,
             "summary": summary,
         }
 
@@ -156,12 +173,25 @@ def create_azure_devops_work_item(
     pat = (personal_access_token if personal_access_token else os.getenv("AZURE_DEVOPS_PAT", "")).strip()
 
     if not org or not proj or not pat:
-        logger.warning("[ticket_integrations] Credenciais do Azure DevOps incompletas. Simulando criação do work item.")
+        # Sem work_item_id/url inventados -- mesma razao do Jira e do GitHub.
+        faltando = [
+            nome
+            for nome, valor in (
+                ("AZURE_DEVOPS_ORG", org),
+                ("AZURE_DEVOPS_PROJECT", proj),
+                ("AZURE_DEVOPS_PAT", pat),
+            )
+            if not valor
+        ]
+        logger.warning("[ticket_integrations] Credenciais do Azure DevOps incompletas: %s", ", ".join(faltando))
         return {
-            "status": "simulated",
+            "status": "error",
             "provider": "azure_devops",
-            "work_item_id": 1,
-            "work_item_url": f"https://dev.azure.com/{org or 'org'}/{proj or 'project'}/_workitems/edit/1",
+            "error": (
+                "Nao foi possivel criar o work item no Azure DevOps: falta configurar "
+                f"{', '.join(faltando)}. Nenhum work item foi criado."
+            ),
+            "missing_config": faltando,
             "title": title,
         }
 

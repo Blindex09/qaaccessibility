@@ -56,13 +56,41 @@ efeito de um ZIP enviado, mas sem exigir que o usuário empacote e envie o
 projeto. Só usa um caminho que o próprio usuário informou explicitamente.
 
 ### `run_remote_test` 🔒
-Executa um teste de acessibilidade real: `cypress`/`selenium` rodam o
-axe-core de verdade (mesmo motor da Deque Systems) contra a página
-renderizada; `postman` roda uma collection real via Newman quando `npx`
-está disponível no servidor. Para cypress/selenium, a execução pode ser
-`local` (binário real na máquina do backend) ou `cloud` (via Playwright/
-Browserless remoto) — a escolha é sempre do usuário, nunca decidida
-silenciosamente pelo modelo.
+Executa um teste de acessibilidade real. A escolha entre local e nuvem é
+sempre do usuário, nunca decidida silenciosamente pelo modelo.
+
+| `runner` | `location` | O que roda de fato | `runner` na resposta |
+|---|---|---|---|
+| `cypress` | `local` / `install_local` | Binário do Cypress + `cypress-axe` na máquina do backend | `cypress_local` |
+| `cypress` | `cloud` | axe-core via Playwright/Browserless — **não há Cypress** | `axe_core_remote` |
+| `selenium` | `local` / `install_local` | Selenium WebDriver + Chrome + axe-core injetado | `selenium_local` |
+| `selenium` | `cloud` | axe-core via Playwright/Browserless — **não há Selenium** | `axe_core_remote` |
+| `postman` | — | Collection real via Newman (`npx newman run`) | `postman_newman` |
+| `postman` | — | Sem `npx`/Newman: checagem leve de contrato | `postman_lightweight` |
+
+O motor de detecção é o mesmo (axe-core, Deque Systems) em todos os
+caminhos; o que muda é **quem executa**. Os rótulos `cypress_remote` e
+`selenium_remote` deixaram de existir porque prometiam um runner que não
+estava ali.
+
+**Gravação no Cypress Cloud.** Com `CYPRESS_PROJECT_ID` e
+`CYPRESS_RECORD_KEY` configurados, o run local é disparado com
+`--record --key` e gravado no Cypress Cloud; a resposta traz
+`cypress_dashboard_url` com a URL real do run. Detalhe que engana: no CLI do
+Cypress, `--project` é o **caminho** do projeto, não o `projectId` — o id vai
+pela variável de ambiente `CYPRESS_PROJECT_ID`.
+
+`cypress_cloud_synced` é `true` **apenas** quando a gravação de fato
+aconteceu (o Cypress devolveu a URL do run). Quando as chaves estão
+configuradas mas a gravação falhou, vem `false` mais um
+`cypress_cloud_error` explicando o motivo. Em `location='cloud'` é sempre
+`false`: não há Cypress para gravar.
+
+**Postman.** `postman_cloud_authenticated` indica que a API do Postman
+respondeu à autenticação, e `collection_source` diz se a collection veio da
+nuvem do usuário (`postman_cloud`) ou foi gerada aqui (`generated`).
+`results_uploaded_to_postman` é sempre `false`: nada é enviado de volta ao
+Postman — o antigo `postman_cloud_synced` sugeria que era.
 
 ### `run_cross_browser_test` 🔒
 Roda uma auditoria axe-core real contra uma URL nos 3 motores de
@@ -165,8 +193,8 @@ auditado plugar no próprio CI e travar regressões.
 
 ### `generate_automation_script` 🔒
 Gera um script de teste de acessibilidade automatizado pronto para uso em
-Cypress (cypress-axe), Postman (collection JSON/Newman) ou Selenium
-(axe-selenium-python).
+Cypress (cypress-axe), Postman (collection JSON/Newman), Selenium
+(axe-selenium-python) ou Playwright (`@axe-core/playwright`).
 
 ---
 
@@ -206,6 +234,15 @@ simples via `tavily_search`/`exa_search`.
 ---
 
 ## 6. Integração externa e infraestrutura
+
+> **Credencial ausente = erro, nunca um ticket falso.** As três ferramentas
+> de ticket devolvem `status: "error"` com `missing_config` listando as
+> variáveis que faltam, e **nenhum identificador ou URL é inventado**. Até
+> a auditoria de 2026-08-30 elas devolviam `status: "simulated"` junto de um
+> `issue_url`/`work_item_url` plausível (`.../issues/mock-1`, `MOCK-1`,
+> `_workitems/edit/1`) nos mesmos campos do caminho de sucesso — o modelo lia
+> aquilo e respondia "abri o ticket: <link>" a quem tinha aprovado a ação e
+> não recebeu ticket nenhum.
 
 ### `create_github_issue` 🔒
 Cria uma nova Issue no repositório GitHub configurado, contendo o

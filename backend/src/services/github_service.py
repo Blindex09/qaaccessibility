@@ -45,10 +45,26 @@ def create_github_issue(
     auth_token = token or os.getenv("GITHUB_TOKEN", "").strip()
 
     if not owner or not repo or not auth_token:
-        logger.warning("[github_service] Credenciais do GitHub incompletas. Simulando criação da Issue.")
+        # NUNCA devolver uma issue_url aqui. Antes esta função inventava
+        # `https://github.com/owner/repo/issues/mock-1` junto de
+        # status="simulated" -- uma URL com cara de real, no mesmo campo que o
+        # caminho de sucesso usa. O modelo lê isso e responde "criei a issue:
+        # <link>" ao usuário, que aprovou a ação e recebe um link morto. O
+        # nome acessível de uma falha é a falha, não um placeholder plausível.
+        faltando = [
+            nome
+            for nome, valor in (("GITHUB_OWNER", owner), ("GITHUB_REPO", repo), ("GITHUB_TOKEN", auth_token))
+            if not valor
+        ]
+        logger.warning("[github_service] Credenciais do GitHub incompletas: %s", ", ".join(faltando))
         return {
-            "status": "simulated",
-            "issue_url": f"https://github.com/{owner or 'owner'}/{repo or 'repo'}/issues/mock-1",
+            "status": "error",
+            "error": (
+                "Nao foi possivel criar a issue no GitHub: falta configurar "
+                f"{', '.join(faltando)}. Nenhuma issue foi criada. Configure em Configuracoes "
+                "e tente de novo."
+            ),
+            "missing_config": faltando,
             "title": title,
         }
 

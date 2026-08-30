@@ -3182,7 +3182,8 @@ def design_review_tool(args: dict[str, Any], **_kw: Any) -> str:
 _GENERATE_AUTOMATION_SCRIPT_SCHEMA: dict[str, Any] = {
     "description": (
         "Gera um script de teste de acessibilidade automatizado pronto para uso em "
-        "Cypress (cypress-axe), Postman (Coleção JSON / Newman) ou Selenium (axe-selenium-python)."
+        "Cypress (cypress-axe), Postman (Coleção JSON / Newman), Selenium (axe-selenium-python) "
+        "ou Playwright (@axe-core/playwright)."
     ),
     "parameters": {
         "type": "object",
@@ -3307,7 +3308,14 @@ _RUN_REMOTE_TEST_SCHEMA: dict[str, Any] = {
         "same runner. If 'local' is requested but the tool reports it is not actually installed there, "
         "it returns a clear error offering to install it for real (retry with location='install_local') "
         "-- ask the user first whether they want that (it can take a few minutes) or prefer cloud "
-        "instead; never install anything without that explicit go-ahead."
+        "instead; never install anything without that explicit go-ahead. "
+        "CYPRESS CLOUD: when CYPRESS_PROJECT_ID and CYPRESS_RECORD_KEY are configured, a "
+        "location='local'/'install_local' run is recorded to Cypress Cloud and the response "
+        "carries `cypress_dashboard_url` with the real run URL -- report that link to the user. "
+        "`cypress_cloud_synced` is true ONLY when the recording actually happened; if it is false "
+        "while `cypress_cloud_recording_configured` is true, read `cypress_cloud_error` and tell "
+        "the user the recording failed. location='cloud' NEVER records, because it runs axe-core "
+        "via Playwright/Browserless and no Cypress at all -- never claim a Cypress Cloud run for it."
     ),
     "parameters": {
         "type": "object",

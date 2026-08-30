@@ -38,6 +38,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -211,7 +212,10 @@ async def run_remote_selenium(url: str, location: str | None = None) -> dict[str
 
         axe_results = await run_axe_core_audit(url)
         summary = _summarize_axe_results(axe_results)
-        summary.update({"status": "ok", "runner": "selenium_remote", "url": url})
+        # Nao ha Selenium nenhum neste caminho: e axe-core via
+        # Playwright/Browserless. Mesmo motivo pelo qual `cypress_remote` deixou
+        # de existir -- o rotulo ia parar na resposta lida pelo modelo.
+        summary.update({"status": "ok", "runner": "axe_core_remote", "url": url})
         return summary
     except Exception as exc:
         logger.error("[RemoteRunner] Erro na auditoria de acessibilidade (selenium): %s", exc)
@@ -402,7 +406,11 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
 
     _validate_url_ssrf(api_url)
     postman_key = os.getenv("POSTMAN_API_KEY", "").strip()
-    postman_cloud_synced = False
+    # `postman_cloud_synced` dizia "sincronizado" quando o unico contato com a
+    # nuvem era AUTENTICAR e BAIXAR a collection -- nenhum resultado de execucao
+    # e enviado de volta ao Postman. Os dois fatos passam a ser reportados pelo
+    # que sao: autenticacao e origem da collection.
+    postman_cloud_authenticated = False
     collection: dict[str, Any] | None = None
 
     if postman_key:
@@ -415,11 +423,12 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
             if pm_res.status_code == 200:
                 user_data = pm_res.json().get("user", {})
                 logger.info("[RemoteRunner] Conectado com sucesso ao Postman Cloud: %s", user_data.get("username"))
-                postman_cloud_synced = True
+                postman_cloud_authenticated = True
                 collection = await _fetch_real_postman_collection(postman_key)
         except Exception as exc:
             logger.warning("[RemoteRunner] Não foi possível autenticar na Postman Cloud API: %s", exc)
 
+    collection_source = "postman_cloud" if collection is not None else "generated"
     if collection is None:
         collection = _build_generated_a11y_contract_collection(api_url)
 
@@ -430,8 +439,10 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
             summary.update(
                 {
                     "status": "ok",
-                    "runner": "postman_remote",
-                    "postman_cloud_synced": postman_cloud_synced,
+                    "runner": "postman_newman",
+                    "postman_cloud_authenticated": postman_cloud_authenticated,
+                    "collection_source": collection_source,
+                    "results_uploaded_to_postman": False,
                     "api_url": api_url,
                 }
             )
@@ -463,10 +474,12 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
 
         return {
             "status": "ok",
-            "runner": "postman_remote",
+            "runner": "postman_lightweight",
             "engine": "lightweight_contract_check",
             "newman_ran": False,
-            "postman_cloud_synced": postman_cloud_synced,
+            "postman_cloud_authenticated": postman_cloud_authenticated,
+            "collection_source": collection_source,
+            "results_uploaded_to_postman": False,
             "api_url": api_url,
             "http_status": status_code,
             "score": score,
@@ -753,15 +766,42 @@ async def _try_run_local_cypress(
     )
 
     cmd = [npx_path, "--no-install", "cypress", "run", "--spec", str(spec_path)]
+
+    # Gravacao real no Cypress Cloud, quando o usuario configurou as duas
+    # chaves. Detalhe que engana: no CLI do Cypress, `--project` e o CAMINHO do
+    # projeto, NAO o projectId -- o id so entra por `projectId` no config ou
+    # pela variavel de ambiente CYPRESS_PROJECT_ID, que e como fazemos aqui
+    # (o cypress.config.js deste diretorio e gerado por nos e nao tem o id).
+    # Sem isso, `--record --key` falha com "You passed the --record flag but
+    # this project has not been setup to record".
+    run_env = dict(os.environ)
+    dashboard_url: str | None = None
+    project_id = os.getenv("CYPRESS_PROJECT_ID", "").strip()
+    record_key = os.getenv("CYPRESS_RECORD_KEY", "").strip()
+    recording_requested = bool(project_id and record_key)
+    if recording_requested:
+        cmd += ["--record", "--key", record_key]
+        run_env["CYPRESS_PROJECT_ID"] = project_id
+        logger.info("[RemoteRunner] Cypress Cloud: gravando o run no projeto %s", project_id)
+
     logger.info("[RemoteRunner] Rodando Cypress local de verdade em %s para %s", project_dir, url)
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             cwd=project_dir,
+            env=run_env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
+        if recording_requested:
+            saida = (stdout or b"").decode("utf-8", errors="ignore") + (stderr or b"").decode("utf-8", errors="ignore")
+            dashboard_url = _extract_cypress_dashboard_url(saida)
+            if dashboard_url is None:
+                logger.warning(
+                    "[RemoteRunner] --record foi passado mas o Cypress nao devolveu URL de run "
+                    "-- a gravacao NAO aconteceu (chave invalida, projeto errado ou sem rede)."
+                )
     except TimeoutError:
         proc.kill()
         logger.warning("[RemoteRunner] Cypress local excedeu o timeout de %ss.", timeout_seconds)
@@ -777,20 +817,45 @@ async def _try_run_local_cypress(
     # o callback (que escreve o arquivo) quando HÁ violações -- página limpa
     # de verdade nunca escreve o arquivo, e isso é um resultado válido (zero
     # violações), não uma falha de execução.
+    # A URL do run gravado viaja DENTRO do relatorio (chave reservada, removida
+    # pelo chamador) em vez de num estado de modulo: duas auditorias concorrentes
+    # sobrescreveriam uma a outra e cada usuario receberia o link da run do outro.
     if not report_path.exists():
         logger.info(
             "[RemoteRunner] Cypress local rodou sem violações encontradas (nenhum arquivo de relatório gerado)."
         )
-        return {"violations": [], "incomplete": [], "testEngine": {"name": "axe-core"}}
+        return {
+            "violations": [],
+            "incomplete": [],
+            "testEngine": {"name": "axe-core"},
+            "_cypress_dashboard_url": dashboard_url,
+        }
     try:
         report_text = report_path.read_text(encoding="utf-8")
-        return json.loads(report_text)
+        relatorio = json.loads(report_text)
+        if isinstance(relatorio, dict):
+            relatorio["_cypress_dashboard_url"] = dashboard_url
+        return relatorio
     except Exception as exc:
         logger.warning("[RemoteRunner] Relatório do Cypress local veio ilegível: %s", exc)
         return None
     finally:
         with contextlib.suppress(OSError):
             report_path.unlink()
+
+
+def _extract_cypress_dashboard_url(saida: str) -> str | None:
+    """Extrai a URL do run gravado a partir da saida do Cypress.
+
+    O Cypress imprime a linha `Recorded Run: https://cloud.cypress.io/...`
+    quando a gravacao de fato aconteceu. Ausente = nao gravou, mesmo que o
+    `--record` tenha sido passado -- e essa distincao e exatamente o que
+    `cypress_cloud_synced` precisa refletir.
+    """
+    achado = re.search(r"https://cloud\.cypress\.io/\S+", saida)
+    if achado:
+        return achado.group(0).rstrip(".,)")
+    return None
 
 
 def _default_local_cypress_dir() -> Path:
@@ -925,7 +990,11 @@ async def run_remote_accessibility_audit(
     )
     project_id = os.getenv("CYPRESS_PROJECT_ID", "").strip()
     record_key = os.getenv("CYPRESS_RECORD_KEY", "").strip()
-    cypress_cloud_synced = bool(project_id and record_key)
+    # `cypress_cloud_synced` reportava True so porque as duas chaves existiam
+    # no ambiente -- dizia "sincronizado com a nuvem" sem nada ter sido
+    # enviado. Agora e True apenas quando o Cypress devolveu a URL do run
+    # gravado, e essa URL vai junto na resposta.
+    recording_configured = bool(project_id and record_key)
 
     try:
         if location == "install_local":
@@ -956,17 +1025,28 @@ async def run_remote_accessibility_audit(
                         "'install_local') ou se prefere rodar na nuvem (location='cloud')."
                     ),
                 }
+            dashboard_url = local_report.pop("_cypress_dashboard_url", None)
             summary = _summarize_axe_results(local_report)
             summary.update(
                 {
                     "status": "ok",
                     "runner": "cypress_local",
-                    "cypress_cloud_synced": cypress_cloud_synced,
+                    # Gravado de verdade == o Cypress devolveu a URL do run.
+                    "cypress_cloud_synced": bool(dashboard_url),
+                    "cypress_cloud_recording_configured": recording_configured,
+                    "cypress_dashboard_url": dashboard_url,
                     "cypress_project_id": project_id,
                     "url": url,
                     "scope": scope_selector or "global",
                 }
             )
+            if recording_configured and not dashboard_url:
+                summary["cypress_cloud_error"] = (
+                    "As chaves do Cypress Cloud estao configuradas e o run foi disparado com "
+                    "--record, mas o Cypress nao devolveu a URL do run: a gravacao NAO aconteceu. "
+                    "Verifique CYPRESS_RECORD_KEY, se o CYPRESS_PROJECT_ID existe na organizacao "
+                    "e se a maquina tem acesso a cloud.cypress.io."
+                )
             return summary
 
         from backend.src.services.browser import run_axe_core_audit
@@ -986,12 +1066,20 @@ async def run_remote_accessibility_audit(
             {
                 "status": "ok",
                 "runner": "axe_core_remote",
-                "cypress_cloud_synced": cypress_cloud_synced,
-                "cypress_project_id": project_id,
+                # Este caminho nao roda Cypress nenhum (e axe-core via
+                # Playwright/Browserless), logo nao ha o que gravar no Cypress
+                # Cloud -- reportar "synced" aqui seria falso em qualquer caso.
+                "cypress_cloud_synced": False,
+                "cypress_cloud_recording_configured": recording_configured,
                 "url": url,
                 "scope": scope_selector or "global",
             }
         )
+        if recording_configured:
+            summary["cypress_cloud_note"] = (
+                "Gravacao no Cypress Cloud so acontece em location='local'/'install_local', "
+                "onde o binario do Cypress roda de verdade. Este run usou axe-core remoto."
+            )
         return summary
     except CypressProjectOutOfScopeError as exc:
         from backend.src.services.local_project_guard import accessibility_scope_denial_message
