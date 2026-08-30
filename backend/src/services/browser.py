@@ -13,6 +13,7 @@ Regras (README):
 
 import asyncio
 import base64
+import contextlib
 import json
 import logging
 import urllib.request
@@ -278,6 +279,98 @@ def _format_accessibility_node(node: dict[str, Any], depth: int, lines: list[str
             return
 
 
+def _valor_ax(campo: Any) -> Any:
+    """CDP embrulha cada propriedade em {"type": ..., "value": ...}."""
+    if isinstance(campo, dict):
+        return campo.get("value")
+    return campo
+
+
+def _no_cdp_para_snapshot(bruto: dict[str, Any], por_id: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Converte um nó do CDP para a forma aninhada que os consumidores esperam.
+
+    Mantém o mesmo contrato de `page.accessibility.snapshot()` (role, name,
+    estados, children) para que `_format_accessibility_node` e
+    `_flatten_accessibility_node` continuem valendo sem alteração.
+    """
+    no: dict[str, Any] = {
+        "role": _valor_ax(bruto.get("role")) or "",
+        "name": _valor_ax(bruto.get("name")) or "",
+    }
+    for propriedade in bruto.get("properties") or []:
+        nome = propriedade.get("name")
+        if nome in ("checked", "pressed", "expanded", "selected", "disabled", "required", "invalid"):
+            no[nome] = _valor_ax(propriedade.get("value"))
+    valor = _valor_ax(bruto.get("value"))
+    if valor not in (None, ""):
+        no["value"] = valor
+
+    filhos = _filhos_visiveis(bruto, por_id)
+    if filhos:
+        no["children"] = filhos
+    return no
+
+
+def _filhos_visiveis(bruto: dict[str, Any], por_id: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Filhos do nó, ATRAVESSANDO os marcados como `ignored`.
+
+    Num árvore de acessibilidade, um nó ignorado é TRANSPARENTE, não terminal:
+    o Chromium marca assim os contêineres genéricos (`<div>` sem semântica),
+    e o conteúdo real fica pendurado embaixo deles. Descartar o nó ignorado
+    junto com sua subárvore -- que foi o meu primeiro corte -- devolvia só o
+    `RootWebArea` e nada mais, exatamente o mesmo "0 achados" que este
+    conserto veio eliminar.
+    """
+    visiveis: list[dict[str, Any]] = []
+    for cid in bruto.get("childIds") or []:
+        filho = por_id.get(cid)
+        if filho is None:
+            continue
+        if filho.get("ignored"):
+            visiveis.extend(_filhos_visiveis(filho, por_id))
+        else:
+            visiveis.append(_no_cdp_para_snapshot(filho, por_id))
+    return visiveis
+
+
+async def _arvore_via_cdp(context: Any, page: Any) -> dict[str, Any] | None:
+    """Árvore de acessibilidade real via CDP `Accessibility.getFullAXTree`.
+
+    Por que não `page.accessibility.snapshot()`: essa API foi REMOVIDA do
+    Playwright (ausente na 1.62, instalada aqui). O código antigo fazia
+
+        accessibility = getattr(page, "accessibility", None)
+        snapshot = await accessibility.snapshot(...) if accessibility else None
+
+    e o `getattr(..., None)` transformava a ausência da API em `None` sem um
+    único aviso. Resultado (medido em 2026-08-30): a captura devolvia SEMPRE
+    vazio, e `verify_screen_reader_announcements` reportava "0 nós
+    interativos, 0 achados" -- indistinguível de "página impecável". Era
+    justamente a verificação que a documentação chama de mais confiável do
+    produto, por ser a única sem inferência de IA.
+
+    O CDP continua expondo a mesma árvore que o motor de acessibilidade do
+    Chromium computa -- a mesma que NVDA/JAWS/Narrator consultam pelo SO.
+    """
+    cdp = await context.new_cdp_session(page)
+    try:
+        await cdp.send("Accessibility.enable")
+        resposta = await cdp.send("Accessibility.getFullAXTree")
+    finally:
+        with contextlib.suppress(Exception):
+            await cdp.detach()
+
+    nos = resposta.get("nodes") or []
+    if not nos:
+        return None
+
+    por_id = {n["nodeId"]: n for n in nos if "nodeId" in n}
+    raizes = [n for n in nos if not n.get("parentId") and not n.get("ignored")]
+    if not raizes:
+        raizes = [nos[0]]
+    return _no_cdp_para_snapshot(raizes[0], por_id)
+
+
 async def _capture_raw_accessibility_snapshot(url: str) -> dict[str, Any] | None:
     """Abre a URL num Chromium remoto (Browserless/CDP) e devolve a árvore de
     acessibilidade bruta (`page.accessibility.snapshot`), sem formatação.
@@ -309,8 +402,7 @@ async def _capture_raw_accessibility_snapshot(url: str) -> dict[str, Any] | None
                     await page.wait_for_load_state("networkidle", timeout=_NETWORK_IDLE_TIMEOUT)
                 except PWTimeout:
                     logger.warning("[Browser] networkidle timeout na captura da árvore de acessibilidade real: %s", url)
-                accessibility = getattr(page, "accessibility", None)
-                snapshot = await accessibility.snapshot(interesting_only=True) if accessibility else None
+                snapshot = await _arvore_via_cdp(context, page)
             finally:
                 await browser.close()
     except Exception as exc:

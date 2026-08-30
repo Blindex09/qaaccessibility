@@ -46,6 +46,11 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+# A API do Postman respondeu em ~10s desta maquina em 2026-08-30. O timeout
+# anterior, de 5s, transformava latencia normal em "nao autenticado" e fazia
+# a collection do usuario ser silenciosamente ignorada.
+_POSTMAN_TIMEOUT_SECONDS = 30
+
 
 def _summarize_axe_results(axe_results: dict[str, Any]) -> dict[str, Any]:
     """Reduz o payload verboso do axe.run() (nodes, html, target, todos os
@@ -272,7 +277,7 @@ async def _fetch_real_postman_collection(postman_key: str) -> dict[str, Any] | N
         res = requests.get(
             f"https://api.getpostman.com/collections/{collection_id}",
             headers={"x-api-key": postman_key},
-            timeout=10,
+            timeout=_POSTMAN_TIMEOUT_SECONDS,
         )
         if res.status_code == 200:
             return res.json().get("collection")
@@ -411,6 +416,7 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
     # e enviado de volta ao Postman. Os dois fatos passam a ser reportados pelo
     # que sao: autenticacao e origem da collection.
     postman_cloud_authenticated = False
+    postman_cloud_error: str | None = None
     collection: dict[str, Any] | None = None
 
     if postman_key:
@@ -418,15 +424,24 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
             pm_res = requests.get(
                 "https://api.getpostman.com/me",
                 headers={"x-api-key": postman_key},
-                timeout=5,
+                # 5s era apertado demais: medido em 2026-08-30, a mesma chamada
+                # com a mesma chave respondeu 200 em ~10s daqui, e com 5s dava
+                # ReadTimeout. A consequencia era SILENCIOSA -- caia para a
+                # collection gerada e o usuario, que tinha configurado a chave,
+                # nunca sabia por que a collection dele nao foi usada.
+                timeout=_POSTMAN_TIMEOUT_SECONDS,
             )
             if pm_res.status_code == 200:
                 user_data = pm_res.json().get("user", {})
                 logger.info("[RemoteRunner] Conectado com sucesso ao Postman Cloud: %s", user_data.get("username"))
                 postman_cloud_authenticated = True
                 collection = await _fetch_real_postman_collection(postman_key)
+            else:
+                postman_cloud_error = f"Postman Cloud respondeu HTTP {pm_res.status_code} na autenticacao."
+                logger.warning("[RemoteRunner] %s", postman_cloud_error)
         except Exception as exc:
-            logger.warning("[RemoteRunner] Não foi possível autenticar na Postman Cloud API: %s", exc)
+            postman_cloud_error = f"Nao foi possivel falar com a Postman Cloud API: {type(exc).__name__}: {exc}"
+            logger.warning("[RemoteRunner] %s", postman_cloud_error)
 
     collection_source = "postman_cloud" if collection is not None else "generated"
     if collection is None:
@@ -441,6 +456,7 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
                     "status": "ok",
                     "runner": "postman_newman",
                     "postman_cloud_authenticated": postman_cloud_authenticated,
+                    "postman_cloud_error": postman_cloud_error,
                     "collection_source": collection_source,
                     "results_uploaded_to_postman": False,
                     "api_url": api_url,
@@ -478,6 +494,7 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
             "engine": "lightweight_contract_check",
             "newman_ran": False,
             "postman_cloud_authenticated": postman_cloud_authenticated,
+            "postman_cloud_error": postman_cloud_error,
             "collection_source": collection_source,
             "results_uploaded_to_postman": False,
             "api_url": api_url,

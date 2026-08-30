@@ -110,6 +110,14 @@ class ScreenReaderVerificationResult:
     findings: list[ScreenReaderFinding] = field(default_factory=list)
     nvda_running: bool = False
     spoken_findings: int = 0
+    # `False` = a arvore de acessibilidade NAO foi capturada (sem Browserless,
+    # navegacao falhou, pagina vazia). Sem este campo, uma captura que falhou
+    # e uma pagina impecavel produziam exatamente a mesma resposta:
+    # "0 nos interativos, 0 achados". Como esta e a unica verificacao do
+    # produto sem inferencia de IA, dar "limpo" quando nada foi inspecionado
+    # e o pior erro possivel aqui.
+    tree_captured: bool = True
+    not_verified_reason: str | None = None
 
 
 async def verify_screen_reader_announcements(
@@ -124,13 +132,29 @@ async def verify_screen_reader_announcements(
     fala que ja existe (`nvda_service.speak_text`) para o proposito que faltava:
     ler os problemas concretos encontrados, nao so um texto arbitrario.
 
-    Lista de achados vazia (sem lancar excecao) quando BROWSERLESS_WS_URL nao
-    esta configurado ou a navegacao falha -- mesmo comportamento best-effort
-    de `fetch_accessibility_tree_nodes`.
+    Quando a arvore nao e capturada (sem BROWSERLESS_WS_URL, navegacao falha,
+    pagina sem nos), devolve `tree_captured=False` e `not_verified_reason`
+    preenchido, em vez de simplesmente "0 achados" -- que era indistinguivel
+    de uma pagina impecavel.
     """
     nodes = await fetch_accessibility_tree_nodes(url)
     findings = detect_screen_reader_findings(nodes)
     interactive_count = sum(1 for node in nodes if node.is_interactive)
+
+    # Arvore vazia NAO e "pagina sem problemas" -- e "nao verifiquei".
+    tree_captured = bool(nodes)
+    not_verified_reason = (
+        None
+        if tree_captured
+        else (
+            "A arvore de acessibilidade real nao foi capturada para esta URL "
+            "(BROWSERLESS_WS_URL ausente, navegacao falhou, ou a pagina nao "
+            "expos nos). NENHUMA verificacao foi feita: ausencia de achados "
+            "aqui nao significa ausencia de problemas."
+        )
+    )
+    if not tree_captured:
+        logger.warning("[ScreenReaderVerification] %s: arvore vazia -- nada foi verificado", url)
 
     from backend.src.services.nvda_service import is_nvda_running, speak_text
 
@@ -156,6 +180,8 @@ async def verify_screen_reader_announcements(
         findings=findings,
         nvda_running=nvda_running,
         spoken_findings=spoken_findings,
+        tree_captured=tree_captured,
+        not_verified_reason=not_verified_reason,
     )
 
 

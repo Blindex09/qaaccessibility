@@ -168,3 +168,50 @@ class TestFindingToIssueDict:
         assert built.severity.value == "critical"
         assert built.guideline.value == "WAI-ARIA"
         assert built.url == "https://example.com"
+
+
+# ── Regressão: árvore vazia não pode passar por "página impecável" ───────────
+
+
+async def test_arvore_vazia_reporta_nao_verificado():
+    """Bug real (2026-08-30), o mais grave da auditoria.
+
+    `page.accessibility` foi REMOVIDA do Playwright (ausente na 1.62). O
+    codigo fazia `getattr(page, "accessibility", None)` e, com a API ausente,
+    devolvia None SEM UM AVISO -- a captura voltava sempre vazia e esta
+    verificacao reportava "0 nos interativos, 0 achados", indistinguivel de
+    uma pagina impecavel.
+
+    E justamente a unica verificacao do produto SEM inferencia de IA, que a
+    documentacao chama de mais confiavel. Dar "limpo" sem ter inspecionado
+    nada e o pior erro possivel aqui.
+    """
+    with patch(
+        "backend.src.services.screen_reader_verification.fetch_accessibility_tree_nodes",
+        new=AsyncMock(return_value=[]),
+    ):
+        resultado = await verify_screen_reader_announcements("https://exemplo.com")
+
+    assert resultado.tree_captured is False
+    assert resultado.not_verified_reason, "precisa dizer que nada foi verificado"
+    assert "nao significa ausencia de problemas" in resultado.not_verified_reason
+    assert resultado.findings == []
+
+
+async def test_arvore_capturada_sem_achados_e_pagina_limpa_de_verdade():
+    """O outro lado: com arvore real e nenhum defeito, `tree_captured` e True."""
+    # Nome descritivo de proposito. "Saiba mais" NAO serve aqui: o detector
+    # (corretamente) o classifica como nome generico, WCAG 2.4.4.
+    no = AccessibilityTreeNode(
+        role="link", name="Baixar o relatorio VPAT em PDF", path="link[1]", is_interactive=True
+    )
+    with patch(
+        "backend.src.services.screen_reader_verification.fetch_accessibility_tree_nodes",
+        new=AsyncMock(return_value=[no]),
+    ):
+        resultado = await verify_screen_reader_announcements("https://exemplo.com")
+
+    assert resultado.tree_captured is True
+    assert resultado.not_verified_reason is None
+    assert resultado.total_interactive_nodes == 1
+    assert resultado.findings == []

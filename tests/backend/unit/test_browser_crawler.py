@@ -13,6 +13,49 @@ import pytest
 # ── browser.py ────────────────────────────────────────────────────────────────
 
 
+
+def _mock_cdp_playwright(mock_pw, nos_cdp):
+    """Monta o encadeamento do Playwright com uma sessao CDP falsa.
+
+    Antes estes testes faziam `mock_page.accessibility.snapshot = AsyncMock(...)`.
+    Isso INVENTAVA um atributo que o Playwright 1.62 nao tem mais (a API
+    Accessibility foi removida), entao os testes passavam enquanto a producao
+    devolvia arvore vazia sempre -- o mock testava uma ficcao. Agora o mock
+    espelha o caminho real: `context.new_cdp_session` +
+    `Accessibility.getFullAXTree`.
+    """
+    async def _send(metodo, *_a, **_kw):
+        if metodo == "Accessibility.getFullAXTree":
+            return {"nodes": nos_cdp}
+        return {}
+
+    mock_cdp = AsyncMock()
+    mock_cdp.send = AsyncMock(side_effect=_send)
+    mock_page = AsyncMock()
+    mock_context = AsyncMock()
+    mock_context.new_page = AsyncMock(return_value=mock_page)
+    mock_context.new_cdp_session = AsyncMock(return_value=mock_cdp)
+    mock_browser = AsyncMock()
+    mock_browser.new_context = AsyncMock(return_value=mock_context)
+    mock_pw_instance = AsyncMock()
+    mock_pw_instance.chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
+    mock_pw.return_value.__aenter__ = AsyncMock(return_value=mock_pw_instance)
+    mock_pw.return_value.__aexit__ = AsyncMock(return_value=None)
+    return mock_page
+
+
+def _no_cdp(node_id, papel, nome, filhos=(), ignorado=False, pai=None):
+    """Um no no formato que o CDP devolve: propriedades embrulhadas em {value}."""
+    return {
+        "nodeId": node_id,
+        "role": {"value": papel},
+        "name": {"value": nome},
+        "childIds": list(filhos),
+        "ignored": ignorado,
+        **({"parentId": pai} if pai else {}),
+    }
+
+
 class TestFetchRenderedHtml:
     @pytest.mark.asyncio
     @patch("backend.src.services.browser.get_settings")
@@ -562,20 +605,10 @@ class TestFetchAccessibilityTreeSnapshot:
     async def test_returns_formatted_tree_on_success(self, mock_pw, mock_settings):
         mock_settings.return_value.browserless_ws_url = "wss://fake-browserless"
 
-        mock_page = AsyncMock()
-        mock_page.accessibility.snapshot = AsyncMock(
-            return_value={"role": "WebArea", "name": "Teste", "children": [
-                {"role": "button", "name": "Enviar"},
-            ]}
-        )
-        mock_context = AsyncMock()
-        mock_context.new_page = AsyncMock(return_value=mock_page)
-        mock_browser = AsyncMock()
-        mock_browser.new_context = AsyncMock(return_value=mock_context)
-        mock_pw_instance = AsyncMock()
-        mock_pw_instance.chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
-        mock_pw.return_value.__aenter__ = AsyncMock(return_value=mock_pw_instance)
-        mock_pw.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_page = _mock_cdp_playwright(mock_pw, [
+            _no_cdp("1", "WebArea", "Teste", filhos=["2"]),
+            _no_cdp("2", "button", "Enviar", pai="1"),
+        ])
 
         from backend.src.services.browser import fetch_accessibility_tree_snapshot
         result = await fetch_accessibility_tree_snapshot("https://example.com")
@@ -618,25 +651,12 @@ class TestFetchAccessibilityTreeNodes:
     async def test_flattens_tree_and_marks_interactive_roles(self, mock_pw, mock_settings):
         mock_settings.return_value.browserless_ws_url = "wss://fake-browserless"
 
-        mock_page = AsyncMock()
-        mock_page.accessibility.snapshot = AsyncMock(
-            return_value={
-                "role": "WebArea", "name": "Teste",
-                "children": [
-                    {"role": "heading", "name": "Titulo da pagina"},
-                    {"role": "button", "name": "Enviar formulario de contato"},
-                    {"role": "button", "name": ""},
-                ],
-            }
-        )
-        mock_context = AsyncMock()
-        mock_context.new_page = AsyncMock(return_value=mock_page)
-        mock_browser = AsyncMock()
-        mock_browser.new_context = AsyncMock(return_value=mock_context)
-        mock_pw_instance = AsyncMock()
-        mock_pw_instance.chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
-        mock_pw.return_value.__aenter__ = AsyncMock(return_value=mock_pw_instance)
-        mock_pw.return_value.__aexit__ = AsyncMock(return_value=None)
+        _mock_cdp_playwright(mock_pw, [
+            _no_cdp("1", "WebArea", "Teste", filhos=["2", "3", "4"]),
+            _no_cdp("2", "heading", "Titulo da pagina", pai="1"),
+            _no_cdp("3", "button", "Enviar formulario de contato", pai="1"),
+            _no_cdp("4", "button", "", pai="1"),
+        ])
 
         from backend.src.services.browser import fetch_accessibility_tree_nodes
         nodes = await fetch_accessibility_tree_nodes("https://example.com")
