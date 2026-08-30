@@ -1,7 +1,15 @@
-"""Coordenação de squad virtual especializada em acessibilidade digital."""
+"""Squad de acessibilidade: papéis reais, quadro com estado e portões que bloqueiam."""
 
-from .contracts import SquadPlan, SquadTask
-from .coordinator import build_squad_plan
+from .contracts import RoleDecision, SquadPlan, SquadTask, TaskStatus
+from .coordinator import SquadCoordinator, build_squad_plan
 from .roles import SquadRole
 
-__all__ = ["SquadPlan", "SquadRole", "SquadTask", "build_squad_plan"]
+__all__ = [
+    "RoleDecision",
+    "SquadCoordinator",
+    "SquadPlan",
+    "SquadRole",
+    "SquadTask",
+    "TaskStatus",
+    "build_squad_plan",
+]

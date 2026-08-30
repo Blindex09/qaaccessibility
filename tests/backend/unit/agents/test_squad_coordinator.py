@@ -14,12 +14,19 @@ def test_squad_plan_orders_analysis_fix_qa_and_documentation():
     plan = build_squad_plan("Auditar e corrigir uma URL")
     by_id = {task.id: task for task in plan.tasks}
 
-    assert by_id["a11y-analysis"].depends_on == ["product-scope"]
+    # A análise agora espera o planejamento inteiro (PO -> Tech Lead -> EM),
+    # não só o escopo: é o Engineering Manager quem fecha as dependências
+    # externas (aprovação, credencial, browser) antes de a squad executar.
+    assert by_id["product-scope"].depends_on == []
+    assert by_id["tech-approach"].depends_on == ["product-scope"]
+    assert by_id["cycle-planning"].depends_on == ["tech-approach"]
+    assert by_id["a11y-analysis"].depends_on == ["cycle-planning"]
     assert by_id["a11y-remediation"].depends_on == ["a11y-analysis"]
     # QA pende da análise, não da correção: auditoria sem correção aprovada
     # continua tendo validação e entrega.
     assert by_id["qa-validation"].depends_on == ["a11y-analysis"]
     assert by_id["documentation-release"].depends_on == ["qa-validation"]
+    assert by_id["release-readiness"].depends_on == ["documentation-release"]
     assert "live_preview_evidence" in by_id["qa-validation"].artifacts
 
 

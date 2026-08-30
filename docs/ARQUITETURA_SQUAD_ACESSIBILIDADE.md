@@ -28,15 +28,27 @@ hierarquia.
 
 ## Fluxo executado pelo chat
 
-Cada solicitação de análise pode gerar um `SquadPlan` com tarefas dependentes:
+Cada conversa tem um `SquadPlan` com tarefas dependentes, criado uma vez e
+avançado ao longo dos turnos:
 
-1. **Product scope** — entende o objetivo e mantém o trabalho dentro de acessibilidade.
-2. **A11y analysis** — delega a análise aos especialistas aplicáveis e ao orquestrador.
-3. **A11y remediation** — está sempre no plano e sempre nasce `BLOCKED`.
-4. **QA validation** — valida testes, renderização, axe-core e evidências. Depende
-   da análise, não da correção: uma auditoria sem correção aprovada continua
-   tendo QA e entrega.
-5. **Documentation release** — consolida checklist, relatório, links e documentação.
+| # | Tarefa | Papel | Depende de |
+|---|---|---|---|
+| 1 | `product-scope` | Product Owner | — |
+| 2 | `tech-approach` | Tech Lead | `product-scope` |
+| 3 | `cycle-planning` | Engineering Manager | `tech-approach` |
+| 4 | `a11y-analysis` | Especialista A11y | `cycle-planning` |
+| 5 | `a11y-remediation` | Developer | `a11y-analysis` |
+| 6 | `qa-validation` | QA Lead | `a11y-analysis` |
+| 7 | `documentation-release` | Documentation | `qa-validation` |
+| 8 | `release-readiness` | Release | `documentation-release` |
+
+As três primeiras são o planejamento da squad e rodam **antes** da análise: é o
+Engineering Manager quem fecha as dependências externas (aprovação do usuário,
+credencial, browser) antes de a squad executar.
+
+`a11y-remediation` nasce `BLOCKED` e só é liberada por aprovação explícita.
+`qa-validation` depende da **análise**, não da correção: uma auditoria sem
+correção aprovada continua tendo QA e entrega.
 
 ### Por que a correção é incondicional e bloqueada
 
@@ -87,16 +99,73 @@ testes, SARIF e live preview. A escolha de provider/modelo continua sob
 responsabilidade do `model_router`; os papéis da squad descrevem a tarefa e
 seu critério de qualidade, não forçam nomes de modelos.
 
-## Estado atual e limites conhecidos
+## Cada papel é um agente
 
-Está integrado hoje: geração do plano no runtime do chat, evento SSE,
-indicação de progresso na interface, dependências, portões e testes unitários
-do coordenador.
+Seis papéis são agentes com prompt e responsabilidade próprios, em
+`backend/src/agents/squad/role_agents/`. Um módulo por papel, sem sobreposição
+— é a separação de responsabilidades que distingue uma squad de um agente só
+com muitos prompts. A execução é compartilhada em `_runner.py`, para que a
+separação seja de responsabilidade e não de código duplicado.
 
-Ainda não existe um quadro persistente de backlog com cerimônias, histórico de
-cada tarefa e reatribuição manual por papel. Atualmente o plano é gerado por
-turno de conversa e seu progresso é exposto como estado do fluxo. Um quadro
-persistente pode ser adicionado depois sem alterar os contratos dos agentes.
+| Papel | Agente | Decide |
+|---|---|---|
+| Product Owner | `product_owner.py` | Escopo, público, prioridade, critérios de aceite |
+| Tech Lead | `tech_lead.py` | Abordagem técnica, áreas de expertise, riscos técnicos |
+| Engineering Manager | `engineering_manager.py` | Sequenciamento, dependências externas, risco de entrega |
+| QA Lead | `qa_lead.py` | Evidência, verificação manual, regressão, veredito |
+| Scrum Master | `scrum_master.py` | Triagem de bloqueios, rastreabilidade, saúde do fluxo |
+| Release | `release_manager.py` | Prontidão, artefatos, risco residual |
+
+Papéis que **já eram** agentes do pipeline não foram reimplementados (regra de
+zero duplicação): Developer é o `fixer`, A11y Specialist é o
+`a11y_expert_reviewer`, Documentation é `checklist`/`reporter`/`vpat_reporter`,
+e Cliente é o próprio usuário. O coordenador **registra** o que esses já fazem,
+em vez de duplicá-los.
+
+### O handoff é o que torna a squad real
+
+Cada papel devolve um `RoleDecision` com `summary`, `decisions`, `blockers` e
+`handoff`. O `handoff` de um papel é **literalmente a entrada do próximo**: o
+Tech Lead decide em cima do escopo que o PO fixou, o Engineering Manager
+sequencia em cima daquela abordagem, o QA Lead define evidência em cima do que
+foi realmente encontrado, o Release decide em cima do veredito do QA. Sem esse
+encadeamento seriam opiniões independentes, não uma squad — e é isso que o
+teste `test_o_proximo_papel_recebe_o_handoff_do_anterior` fixa.
+
+O planejamento (PO → Tech Lead → EM) é sequencial de propósito. Rodar em
+paralelo devolveria três pareceres que não se conhecem.
+
+## Estado atual
+
+- **Quadro persistente por conversa** (`squad_plan_store.py`): o ciclo é
+  planejado **uma vez** e avança ao longo dos turnos, sobrevivendo inclusive a
+  reinício do backend. Nenhuma squad real replaneja a sprint a cada frase dita.
+- **Estados transicionam de verdade**: `READY → IN_PROGRESS → DONE/BLOCKED`,
+  disparados por execução real. Tarefas executadas pelo pipeline existente
+  (análise, correção, documentação) são registradas via `record_started` /
+  `record_done` / `record_blocked` quando o trabalho de fato acontece.
+- **Portões bloqueiam**: `SquadPlan.dependencies_met` impede uma tarefa de
+  começar antes de as dependências fecharem. Entrega não fecha sem
+  documentação, que não fecha sem QA. O agente do papel **nem chega a ser
+  chamado** quando o portão está fechado.
+- **A interface mostra o quadro**: o `useChat` mantém `squadPlan` com tarefas,
+  papéis, estados e decisões, atualizado pelos eventos `squad_task` e
+  `squad_decision`. O resumo de cada papel é anunciado como linha de status,
+  então quem usa leitor de tela acompanha a squad trabalhando. Antes disso a
+  interface recebia o plano e imprimia apenas a contagem de etapas.
+
+### Degradação
+
+Um papel que falha nunca derruba o turno: devolve `succeeded=False` com um
+bloqueio legível, e o Scrum Master tria. O Scrum Master só é acionado quando há
+bloqueio de verdade — um papel falando sem impedimento é chamada de LLM
+desperdiçada.
+
+### O que ainda não existe
+
+Não há cerimônias com histórico por tarefa nem reatribuição manual de papel
+pela interface. O quadro é observável e persistente, mas não editável pelo
+usuário.
 
 ## Referências de processo
 
@@ -107,9 +176,9 @@ persistente pode ser adicionado depois sem alterar os contratos dos agentes.
 ## Verificação
 
 ```text
-python -m pytest tests/backend/unit/agents/test_squad_coordinator.py -q
+python -m pytest tests/backend/unit/agents/test_squad_coordinator.py                  tests/backend/unit/agents/test_squad_coordinator_state.py                  tests/backend/unit/services/test_squad_plan_store.py -q
 python -m ruff check backend/src/agents/squad backend/src/services/chat_runtime.py
 python -m mypy --config-file mypy.ini backend/src
-cd web && npx expo export:web
+cd web && npm run typecheck && npm run test:ci
 ```
 

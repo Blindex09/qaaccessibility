@@ -34,9 +34,16 @@ from typing import Any
 
 # Import com side-effect: registra o toolset 'a11y_chat' no registry local.
 import backend.src.services.chat_tools  # noqa: F401
-from backend.src.agents.squad import build_squad_plan
+from backend.src.agents.squad import SquadCoordinator
 from backend.src.config.settings import get_settings
-from backend.src.services import a11y_knowledge, chat_history_store, chat_progress, last_analysis_store, session_context
+from backend.src.services import (
+    a11y_knowledge,
+    chat_history_store,
+    chat_progress,
+    last_analysis_store,
+    session_context,
+    squad_plan_store,
+)
 from backend.src.services.chat_tools import A11Y_CHAT_TOOLSET, CLARIFY_TOOLSET
 from backend.src.services.telemetry import agent_span
 from backend.src.shared.error_formatter import format_human_friendly_error
@@ -434,13 +441,25 @@ async def stream_chat(
     api_key = cfg["api_key"]
     base_url = cfg["base_url"] or None
 
-    # A squad planeja o turno sem substituir o orchestrator especializado.
-    # O plano é enviado ao frontend para transparência e ao modelo como
-    # contrato de execução (escopo -> análise -> correção -> QA -> evidência).
-    # Sem adivinhar a intenção por palavra-chave: o plano traz sempre a etapa
-    # de correção, marcada como bloqueada até aprovação explícita. Ver o
-    # docstring de squad/coordinator.py para o porquê.
-    squad_plan = build_squad_plan(message)
+    # ── Squad de acessibilidade ──────────────────────────────────────────────
+    # O quadro persiste por conversa: o planejamento (Product Owner -> Tech
+    # Lead -> Engineering Manager) roda UMA vez por ciclo, não a cada mensagem
+    # -- nenhuma squad real replaneja a sprint a cada frase. Nos turnos
+    # seguintes o quadro é restaurado e apenas AVANÇA de estado.
+    #
+    # O gate é determinístico (estado do quadro), nunca uma leitura do texto do
+    # usuário: a decisão de ROTEAMENTO é do código, a de CONTEÚDO é dos papéis.
+    snapshot = squad_plan_store.load_squad_plan(conversation_id)
+    squad = SquadCoordinator.restore(snapshot) if snapshot else SquadCoordinator(message)
+
+    if not squad.planning_done:
+        async for evento in squad.run_planning():
+            yield evento
+        async for evento in squad.run_scrum_master():
+            yield evento
+        squad_plan_store.save_squad_plan(squad.plan.to_dict(), conversation_id)
+
+    squad_plan = squad.plan
     yield {"type": "squad_plan", "plan": squad_plan.to_dict()}
 
     # Triagem semântica no chat: roda apenas para o primeiro turno sem histórico.
@@ -566,7 +585,15 @@ async def stream_chat(
 
     dynamic_prompt = (
         SYSTEM_PROMPT + "\n\n### SQUAD DE ACESSIBILIDADE DIGITAL\n"
-        "Use o plano de squad abaixo como contrato de execução. Preserve o escopo de acessibilidade, respeite as dependências, peça aprovação antes de qualquer mutação e só conclua após QA/evidência.\n"
+        "Abaixo está o quadro REAL da squad nesta conversa. As entradas em `decisions` não são "
+        "sugestões: são as decisões que os papéis da squad já tomaram neste ciclo -- o Product Owner "
+        "definiu escopo e critérios de aceite, o Tech Lead definiu a abordagem, o Engineering Manager "
+        "sequenciou e nomeou dependências. Trate-as como contrato: trabalhe dentro do escopo que o PO "
+        "fixou, siga a abordagem do Tech Lead, respeite as dependências do EM e os `depends_on` das "
+        "tarefas.\n"
+        "Uma tarefa com status `blocked` NÃO pode ser executada: `a11y-remediation` nasce bloqueada e "
+        "só é liberada pela aprovação explícita do usuário. Nunca declare concluída uma etapa sem a "
+        "evidência que o critério de aceite dela exige, e nunca chame de verificado o que não foi.\n"
         f"{json.dumps(squad_plan.to_dict(), ensure_ascii=False)}\n"
         f"\n\n- The JSON results of the user's last audited URL/file are stored locally. If the user asks you to write a report or perform actions based on the previous audit results, you DO NOT need to run analyze_page again. You can read the JSON results directly using your file tools from this path: '{cache_path}'. This file contains a JSON object with 'url' and 'issues' keys (issues is a list of WCAG violations). Use it to generate reports instantly!"
         "\n- STRUCTURAL RULE, NOT OPTIONAL: once a URL/site has been analyzed in this conversation, NEVER call `analyze_page`/`analyze_site` again for that same target in a later turn -- not before `fix_and_zip_files`, not before `export_xlsx`, not before `generate_checklist`, not before `open_live_preview`. All of these already read from the same cache automatically; calling analyze_page again just re-runs the entire ~15-minute multi-agent pipeline for no benefit and makes the user wait for nothing new. The ONLY valid reason to analyze the same target again is the user explicitly asking for a fresh/new/updated scan (e.g. because they changed something and want it re-checked) -- a request for a deliverable (spreadsheet, checklist, PDF, preview, fix) is never that, on its own.\n"

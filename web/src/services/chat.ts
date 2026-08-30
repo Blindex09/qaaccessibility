@@ -42,11 +42,40 @@ export type ChatEvent =
     }
   | { type: "phase"; text: string }
   | { type: "agent"; phase: "start" | "done"; agent: string; ok?: boolean; issues?: number }
-  | { type: "squad_plan"; plan: { objective: string; tasks: { id: string; title: string; role: string; status: string }[] } }
+  | { type: "squad_plan"; plan: SquadPlan }
+  | { type: "squad_task"; task_id: string; role: string; title: string; status: SquadTaskStatus }
+  | { type: "squad_decision"; task_id: string; role: string; summary: string; decisions: string[]; blockers: string[] }
+  | { type: "squad_blocked"; task_id: string; reason: string }
   | { type: "clarify"; request_id: string; question: string; choices: string[] }
   | { type: "done"; final: string; usage?: TokenUsage }
   | { type: "cancelled" }
   | { type: "error"; error: string };
+
+/** Estados reais de uma tarefa no quadro da squad (espelha TaskStatus no backend). */
+export type SquadTaskStatus = "backlog" | "ready" | "in_progress" | "blocked" | "review" | "done";
+
+export interface SquadTask {
+  id: string;
+  title: string;
+  role: string;
+  status: SquadTaskStatus;
+  depends_on: string[];
+  acceptance_criteria: string[];
+}
+
+export interface SquadRoleDecision {
+  role: string;
+  summary: string;
+  decisions: string[];
+  blockers: string[];
+}
+
+export interface SquadPlan {
+  objective: string;
+  tasks: SquadTask[];
+  quality_gates: string[];
+  decisions: SquadRoleDecision[];
+}
 
 export interface ChatTurn {
   role: "user" | "assistant";

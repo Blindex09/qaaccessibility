@@ -8,11 +8,32 @@ import {
   sendClarify,
   streamChat,
   type ChatEvent,
+  type SquadPlan,
 } from "../services/chat";
 import { parseClarify } from "../services/clarifyModel";
 import { getToolGroupKey, getToolProgressText } from "../services/toolMeta";
 import { isDirectMediaOperation, toolStatusText, type ToolCallData } from "../services/toolPresentation";
 import { addUsage, EMPTY_USAGE, type TokenUsage } from "../services/usage";
+
+/** Nome legivel do papel da squad, para status e anuncio de leitor de tela.
+ * Os valores espelham `SquadRole` no backend; um papel desconhecido cai no
+ * proprio identificador em vez de sumir da interface. */
+const SQUAD_ROLE_LABELS: Record<string, string> = {
+  client: "Cliente",
+  product_owner: "Product Owner",
+  scrum_master: "Scrum Master",
+  engineering_manager: "Engineering Manager",
+  tech_lead: "Tech Lead",
+  developer: "Desenvolvimento",
+  qa_lead: "QA Lead",
+  a11y_specialist: "Especialista de acessibilidade",
+  documentation: "Documentação",
+  release: "Entrega",
+};
+
+function squadRoleLabel(role: string): string {
+  return SQUAD_ROLE_LABELS[role] ?? role;
+}
 
 /** Uma fonte real citada por uma ferramenta de pesquisa (deep_research,
  * tavily_search, exa_search) neste turno -- ver ToolResultSummary. */
@@ -188,6 +209,11 @@ export function useChat() {
   /** Fontes reais citadas pelas ferramentas de pesquisa neste turno (dedup
    * por URL), pra seção "Fontes consultadas". Reseta a cada novo `send()`. */
   const [turnSources, setTurnSources] = useState<ChatSource[]>([]);
+  // Quadro REAL da squad nesta conversa: chega em `squad_plan` e e atualizado
+  // por `squad_task`/`squad_decision` conforme os papeis executam. Antes daqui
+  // so existia uma linha de status com a contagem de etapas -- o quadro nunca
+  // chegava a interface.
+  const [squadPlan, setSquadPlan] = useState<SquadPlan | null>(null);
   const announceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const announcementClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -494,11 +520,56 @@ export function useChat() {
                 pushStatus(_agentLine(event), "agent", false);
                 break;
               case "squad_plan":
+                setSquadPlan(event.plan);
                 pushStatus(
-                  `Squad de acessibilidade: ${event.plan.tasks.length} etapas planejadas`,
+                  `Squad de acessibilidade: ${event.plan.tasks.length} etapas no quadro`,
                   "phase",
                   false,
                 );
+                break;
+              case "squad_task":
+                // Transicao real de estado: o quadro reflete a execucao em vez
+                // de descreve-la. Sem isto, os estados nasciam e morriam iguais.
+                setSquadPlan((current) =>
+                  current
+                    ? {
+                        ...current,
+                        tasks: current.tasks.map((task) =>
+                          task.id === event.task_id ? { ...task, status: event.status } : task,
+                        ),
+                      }
+                    : current,
+                );
+                if (event.status === "in_progress") {
+                  pushStatus(`${squadRoleLabel(event.role)}: ${event.title}`, "phase", false);
+                }
+                break;
+              case "squad_decision": {
+                setSquadPlan((current) =>
+                  current
+                    ? {
+                        ...current,
+                        decisions: [
+                          ...current.decisions.filter((d) => d.role !== event.role),
+                          {
+                            role: event.role,
+                            summary: event.summary,
+                            decisions: event.decisions,
+                            blockers: event.blockers,
+                          },
+                        ],
+                      }
+                    : current,
+                );
+                // O resumo do papel e anunciado: quem usa leitor de tela
+                // acompanha a squad trabalhando, nao so um contador mudo.
+                if (event.summary) {
+                  pushStatus(`${squadRoleLabel(event.role)}: ${event.summary}`, "phase", false);
+                }
+                break;
+              }
+              case "squad_blocked":
+                pushStatus(`Bloqueio no quadro (${event.task_id}): ${event.reason}`, "phase", false);
                 break;
               case "tool_start":
                 setToolStatus(event.name, "start", null, {
@@ -641,6 +712,8 @@ export function useChat() {
     durationMs,
     reasoningText,
     turnSources,
+    /** Quadro da squad: tarefas, papeis, estados, decisoes e portoes. */
+    squadPlan,
     pendingClarify,
     sessionUsage,
     send,
