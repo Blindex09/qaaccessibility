@@ -111,8 +111,18 @@ def main():
     assert vpat_resp.status_code == 200, f"/analyze/vpat falhou: {vpat_resp.status_code} {vpat_resp.text[:300]}"
     vpat_res = vpat_resp.json()
     vpat_data = vpat_res.get("data", {}).get("vpat", {})
-    print(f"[VPAT Gerado] Produto: {vpat_data.get('product_name', 'QA App')} | Critérios catalogados: {len(vpat_data.get('criteria', []))}\n")
-    assert vpat_data.get("criteria"), "VPAT sem criterio nenhum nao e um VPAT"
+    # `criteria` NUNCA existiu no VPATReport -- os campos sao
+    # `level_a_criteria` e `level_aa_criteria`. Por isso este print mostrava
+    # "Criterios catalogados: 0" mesmo com o VPAT gerado corretamente: o
+    # script lia uma chave inexistente e o `.get(..., [])` escondia o erro.
+    nivel_a = list(vpat_data.get("level_a_criteria") or [])
+    nivel_aa = list(vpat_data.get("level_aa_criteria") or [])
+    print(
+        f"[VPAT Gerado] Produto: {vpat_data.get('product_name', 'QA App')} | "
+        f"Criterios catalogados: {len(nivel_a) + len(nivel_aa)} "
+        f"(A: {len(nivel_a)}, AA: {len(nivel_aa)})" + chr(10)
+    )
+    assert nivel_a or nivel_aa, "VPAT sem criterio nenhum nao e um VPAT"
 
     # 4. Geração de Suíte de Testes Playwright + axe-core para CI/CD (POST /analyze/tests)
     print("--- ETAPA 4: Gerando Suíte de Testes Playwright + axe-core (POST /analyze/tests) ---")
