@@ -1,6 +1,6 @@
 import logging
 
-from backend.src.services.llm_client import call_llm, extract_json_object
+from backend.src.services.llm_client import call_llm_structured, extract_json_object
 from backend.src.shared.models import AgentResult
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,46 @@ Return ONLY raw JSON. No markdown fences, no formatting, no conversational text.
 """.strip()
 
 
+_INTENTS_VALIDOS = (
+    "analyze_url",
+    "analyze_code",
+    "chat_a11y",
+    "fix_code",
+    "out_of_scope",
+    "needs_clarification",
+)
+
+CLASSIFICACAO_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "intent": {"type": "string", "enum": list(_INTENTS_VALIDOS)},
+        "needs_clarification": {"type": "boolean"},
+        "question": {"type": "string"},
+        "explanation": {"type": "string"},
+    },
+    "required": ["intent", "needs_clarification", "question", "explanation"],
+    "additionalProperties": False,
+}
+
+
+def _construir_classificacao(raw: str) -> dict[str, object]:
+    """Parse + validacao da classificacao, usado por `call_llm_structured`.
+
+    Levantar aqui e o que dispara o retry/repair -- um `intent` fora da lista e
+    tao inutil quanto JSON quebrado, e antes passava direto para o roteamento.
+    """
+    data = extract_json_object(raw)
+    intent = str(data.get("intent") or "").strip()
+    if intent not in _INTENTS_VALIDOS:
+        raise ValueError(f"intent invalido: {intent!r}; esperado um de {_INTENTS_VALIDOS}")
+    return {
+        "intent": intent,
+        "needs_clarification": bool(data.get("needs_clarification", intent == "needs_clarification")),
+        "question": str(data.get("question") or ""),
+        "explanation": str(data.get("explanation") or ""),
+    }
+
+
 async def run_clarifier(user_message: str) -> AgentResult:
     """
     Analisa semanticamente o input do usuário para definir a intencao do chat.
@@ -54,15 +94,22 @@ async def run_clarifier(user_message: str) -> AgentResult:
         )
 
     try:
-        raw = await call_llm(
+        data = await call_llm_structured(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=f"Analyze this user message:\n\n{user_message}",
+            build=_construir_classificacao,
             temperature=0.0,
-            max_tokens=250,
+            # 250 tokens nao cabiam intent + question + explanation em portugues.
+            # Medido em 2026-08-30 com 10 prompts reais: 6 respostas vieram
+            # cortadas no meio do JSON -- e com a intencao JA correta no inicio
+            # da saida ('{"intent": "out_of_scope", ... "explanation": "O usuario')
+            # -- mas o objeto nao fechava, o parse falhava e a classificacao
+            # inteira era descartada. 4/10 de acerto. Mesma causa do estouro de
+            # orcamento ja corrigido no VPAT e no gerador de testes.
+            max_tokens=800,
             agent_label="clarifier",
-            model_tier="fast",
+            response_schema=CLASSIFICACAO_SCHEMA,
         )
-        data = extract_json_object(raw)
 
         # Garante fallback e chaves basicas
         intent = data.get("intent", "needs_clarification")
