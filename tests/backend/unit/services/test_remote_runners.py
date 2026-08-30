@@ -281,18 +281,18 @@ async def test_run_remote_postman_contract_returns_error_on_exception():
 
 
 # --------------------------------------------------------------------------- #
-# run_remote_cypress_simulation (axe-core real)
+# run_remote_accessibility_audit (axe-core real)
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_run_remote_cypress_simulation_returns_real_axe_violations_on_success():
+async def test_run_remote_accessibility_audit_returns_real_axe_violations_on_success():
     with patch(
         "backend.src.services.browser.run_axe_core_audit",
         new=AsyncMock(return_value=_fake_axe_results(_SAMPLE_VIOLATIONS)),
     ):
-        result = await remote_runners.run_remote_cypress_simulation("https://example.com")
+        result = await remote_runners.run_remote_accessibility_audit("https://example.com")
 
     assert result["status"] == "ok"
-    assert result["runner"] == "cypress_remote"
+    assert result["runner"] == "axe_core_remote"
     assert result["engine"] == "axe-core"
     assert result["total_violations"] == 2
     assert result["passed"] is False
@@ -300,37 +300,37 @@ async def test_run_remote_cypress_simulation_returns_real_axe_violations_on_succ
 
 
 @pytest.mark.asyncio
-async def test_run_remote_cypress_simulation_passes_when_no_violations():
+async def test_run_remote_accessibility_audit_passes_when_no_violations():
     with patch(
         "backend.src.services.browser.run_axe_core_audit",
         new=AsyncMock(return_value=_fake_axe_results([])),
     ):
-        result = await remote_runners.run_remote_cypress_simulation("https://example.com")
+        result = await remote_runners.run_remote_accessibility_audit("https://example.com")
 
     assert result["total_violations"] == 0
     assert result["passed"] is True
 
 
 @pytest.mark.asyncio
-async def test_run_remote_cypress_simulation_returns_error_on_exception():
+async def test_run_remote_accessibility_audit_returns_error_on_exception():
     with patch(
         "backend.src.services.browser.run_axe_core_audit",
         new=AsyncMock(side_effect=RuntimeError("boom")),
     ):
-        result = await remote_runners.run_remote_cypress_simulation("https://example.com")
+        result = await remote_runners.run_remote_accessibility_audit("https://example.com")
 
     assert result["status"] == "error"
     assert "boom" in result["error"]
 
 
 @pytest.mark.asyncio
-async def test_run_remote_cypress_simulation_uses_scope_selector_to_filter_violations():
+async def test_run_remote_accessibility_audit_uses_scope_selector_to_filter_violations():
     violations = _SAMPLE_VIOLATIONS  # image-alt em img.hero, color-contrast em p.muted
     with patch(
         "backend.src.services.browser.run_axe_core_audit",
         new=AsyncMock(return_value=_fake_axe_results(violations)),
     ):
-        result = await remote_runners.run_remote_cypress_simulation(
+        result = await remote_runners.run_remote_accessibility_audit(
             "https://example.com", scope_selector="img.hero"
         )
 
@@ -340,24 +340,24 @@ async def test_run_remote_cypress_simulation_uses_scope_selector_to_filter_viola
 
 
 @pytest.mark.asyncio
-async def test_run_remote_cypress_simulation_reports_cloud_sync_status(monkeypatch):
+async def test_run_remote_accessibility_audit_reports_cloud_sync_status(monkeypatch):
     monkeypatch.setenv("CYPRESS_PROJECT_ID", "proj-123")
     monkeypatch.setenv("CYPRESS_RECORD_KEY", "rec-key")
     with patch(
         "backend.src.services.browser.run_axe_core_audit",
         new=AsyncMock(return_value=_fake_axe_results([])),
     ):
-        result = await remote_runners.run_remote_cypress_simulation("https://example.com")
+        result = await remote_runners.run_remote_accessibility_audit("https://example.com")
 
     assert result["cypress_cloud_synced"] is True
     assert result["cypress_project_id"] == "proj-123"
 
 
 # --------------------------------------------------------------------------- #
-# run_remote_cypress_simulation -- decisão explícita local vs. nuvem (sem fallback silencioso)
+# run_remote_accessibility_audit -- decisão explícita local vs. nuvem (sem fallback silencioso)
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_run_remote_cypress_simulation_local_runs_real_binary_when_available():
+async def test_run_remote_accessibility_audit_local_runs_real_binary_when_available():
     """Achado real (2026-08-11, validação E2E com Cypress local recém
     instalado): _try_run_local_cypress passou a devolver o formato axe-core
     real (violations/incomplete/testEngine, via o callback de cy.checkA11y
@@ -368,7 +368,7 @@ async def test_run_remote_cypress_simulation_local_runs_real_binary_when_availab
         "backend.src.services.remote_runners._try_run_local_cypress",
         new=AsyncMock(return_value=_fake_axe_results(_SAMPLE_VIOLATIONS)),
     ):
-        result = await remote_runners.run_remote_cypress_simulation("https://example.com", location="local")
+        result = await remote_runners.run_remote_accessibility_audit("https://example.com", location="local")
 
     assert result["status"] == "ok"
     assert result["runner"] == "cypress_local"
@@ -378,7 +378,7 @@ async def test_run_remote_cypress_simulation_local_runs_real_binary_when_availab
 
 
 @pytest.mark.asyncio
-async def test_run_remote_cypress_simulation_local_never_falls_back_silently_to_cloud():
+async def test_run_remote_accessibility_audit_local_never_falls_back_silently_to_cloud():
     with patch(
         "backend.src.services.remote_runners._try_run_local_cypress",
         new=AsyncMock(return_value=None),
@@ -386,7 +386,7 @@ async def test_run_remote_cypress_simulation_local_never_falls_back_silently_to_
         "backend.src.services.browser.run_axe_core_audit",
         new=AsyncMock(return_value=_fake_axe_results([])),
     ) as mock_cloud:
-        result = await remote_runners.run_remote_cypress_simulation("https://example.com", location="local")
+        result = await remote_runners.run_remote_accessibility_audit("https://example.com", location="local")
 
     assert result["status"] == "error"
     assert "local" in result["error"].lower()
@@ -497,7 +497,7 @@ async def test_try_run_local_cypress_uses_override_even_with_multiple_found(monk
 
 
 @pytest.mark.asyncio
-async def test_run_remote_cypress_simulation_returns_needs_selection_with_real_candidates():
+async def test_run_remote_accessibility_audit_returns_needs_selection_with_real_candidates():
     """Achado real (pedido do usuário, 2026-08-11): o resultado propagado pro
     chat deve conter os caminhos REAIS encontrados (não um erro genérico),
     pra IA conseguir apresentar as opções de verdade ao usuário."""
@@ -506,7 +506,7 @@ async def test_run_remote_cypress_simulation_returns_needs_selection_with_real_c
         "backend.src.services.remote_runners._try_run_local_cypress",
         new=AsyncMock(side_effect=remote_runners.CypressMultipleInstallationsFoundError(candidates)),
     ):
-        result = await remote_runners.run_remote_cypress_simulation("https://example.com", location="local")
+        result = await remote_runners.run_remote_accessibility_audit("https://example.com", location="local")
 
     assert result["status"] == "needs_selection"
     assert result["candidates"] == candidates
@@ -518,7 +518,7 @@ async def test_run_remote_cypress_simulation_returns_needs_selection_with_real_c
 # location="install_local" -- instalação real (mockada aqui), só com consentimento explícito
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_run_remote_cypress_simulation_install_local_installs_then_runs():
+async def test_run_remote_accessibility_audit_install_local_installs_then_runs():
     with patch(
         "backend.src.services.remote_runners._install_local_cypress",
         new=AsyncMock(return_value="/fake/project/dir"),
@@ -526,7 +526,7 @@ async def test_run_remote_cypress_simulation_install_local_installs_then_runs():
         "backend.src.services.remote_runners._try_run_local_cypress",
         new=AsyncMock(return_value=_fake_axe_results([])),
     ):
-        result = await remote_runners.run_remote_cypress_simulation("https://example.com", location="install_local")
+        result = await remote_runners.run_remote_accessibility_audit("https://example.com", location="install_local")
 
     mock_install.assert_called_once()
     assert result["status"] == "ok"
@@ -534,7 +534,7 @@ async def test_run_remote_cypress_simulation_install_local_installs_then_runs():
 
 
 @pytest.mark.asyncio
-async def test_run_remote_cypress_simulation_install_local_failure_returns_clear_error():
+async def test_run_remote_accessibility_audit_install_local_failure_returns_clear_error():
     with patch(
         "backend.src.services.remote_runners._install_local_cypress",
         new=AsyncMock(return_value=None),
@@ -542,7 +542,7 @@ async def test_run_remote_cypress_simulation_install_local_failure_returns_clear
         "backend.src.services.browser.run_axe_core_audit",
         new=AsyncMock(return_value=_fake_axe_results([])),
     ) as mock_cloud:
-        result = await remote_runners.run_remote_cypress_simulation("https://example.com", location="install_local")
+        result = await remote_runners.run_remote_accessibility_audit("https://example.com", location="install_local")
 
     assert result["status"] == "error"
     mock_cloud.assert_not_called()  # instalação falhou -- não some sozinho pra nuvem

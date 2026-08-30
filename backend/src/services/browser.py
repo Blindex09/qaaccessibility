@@ -185,7 +185,8 @@ async def _fetch_via_direct_browser(
             screenshot_bytes = await page.screenshot(type="png", full_page=False)
             screenshot_base64 = base64.b64encode(screenshot_bytes).decode("utf-8")
 
-            # Simulacao de focus states se max_tabs for solicitado
+            # Estados de foco REAIS: pressiona Tab no navegador e captura o que
+            # recebe foco a cada passo -- nao e simulacao, e a ordem de foco real.
             focus_screenshots = None
             if max_tabs is not None:
                 focus_screenshots = []
@@ -631,10 +632,10 @@ async def run_axe_core_audit(url: str) -> dict[str, Any]:
     pagina renderizada via CDP/Browserless -- o MESMO motor que cypress-axe,
     axe-playwright e axe-selenium-python usam por baixo dos panos.
 
-    Achado real (auditoria 2026-08-10): os runners `run_remote_cypress_simulation`
+    Achado real (auditoria 2026-08-10): os runners `run_remote_accessibility_audit`
     e `run_remote_selenium` em remote_runners.py nao rodavam Cypress nem Selenium
     nenhum -- so re-executavam o orquestrador de IA proprio do projeto e devolviam
-    o resultado relabeled como "cypress_remote"/"selenium_remote". Esta funcao
+    o resultado relabeled como "axe_core_remote"/"selenium_remote". Esta funcao
     substitui isso por uma auditoria determinística e real, sem chamada de LLM.
     """
     settings = get_settings()

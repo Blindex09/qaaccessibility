@@ -867,7 +867,7 @@ class TestRunRemoteTestToolLocationDecision:
     handler bloqueia a chamada até `location` vir preenchido."""
 
     def test_cypress_without_location_asks_to_clarify_instead_of_running(self):
-        with patch("backend.src.services.remote_runners.run_remote_cypress_simulation") as mock_run:
+        with patch("backend.src.services.remote_runners.run_remote_accessibility_audit") as mock_run:
             out = json.loads(run_remote_test_tool({"runner": "cypress", "target_url": "https://example.com"}))
 
         assert "error" in out
@@ -884,8 +884,8 @@ class TestRunRemoteTestToolLocationDecision:
 
     def test_cypress_with_location_runs_immediately(self):
         with patch(
-            "backend.src.services.remote_runners.run_remote_cypress_simulation",
-            new=AsyncMock(return_value={"status": "ok", "runner": "cypress_remote"}),
+            "backend.src.services.remote_runners.run_remote_accessibility_audit",
+            new=AsyncMock(return_value={"status": "ok", "runner": "axe_core_remote"}),
         ) as mock_run:
             out = json.loads(run_remote_test_tool({
                 "runner": "cypress", "target_url": "https://example.com", "location": "cloud",
@@ -909,7 +909,7 @@ class TestRunRemoteTestToolLocationDecision:
         está instalado, a IA deve poder oferecer instalar de verdade -- não só
         recusar. `location='install_local'` passa direto, sem pedir clarify de novo."""
         with patch(
-            "backend.src.services.remote_runners.run_remote_cypress_simulation",
+            "backend.src.services.remote_runners.run_remote_accessibility_audit",
             new=AsyncMock(return_value={"status": "ok", "runner": "cypress_local"}),
         ) as mock_run:
             out = json.loads(run_remote_test_tool({
@@ -940,7 +940,7 @@ class TestRunRemoteTestToolLocationDecision:
         from backend.src.services import local_exec_consent_store
         local_exec_consent_store._sessions.clear()
         with patch(
-            "backend.src.services.remote_runners.run_remote_cypress_simulation",
+            "backend.src.services.remote_runners.run_remote_accessibility_audit",
             new=AsyncMock(return_value={"status": "ok", "runner": "cypress_local"}),
         ):
             run_remote_test_tool({
@@ -989,9 +989,9 @@ class TestRunRemoteTestToolFeedsDeliverables:
     def test_successful_cypress_run_populates_last_analysis_store(self):
         from backend.src.services import last_analysis_store
         with patch(
-            "backend.src.services.remote_runners.run_remote_cypress_simulation",
+            "backend.src.services.remote_runners.run_remote_accessibility_audit",
             new=AsyncMock(return_value={
-                "status": "ok", "runner": "cypress_remote", "total_violations": 1,
+                "status": "ok", "runner": "axe_core_remote", "total_violations": 1,
                 "_raw_violations": self._RAW_VIOLATIONS,
             }),
         ), patch(
@@ -1012,9 +1012,9 @@ class TestRunRemoteTestToolFeedsDeliverables:
 
     def test_raw_violations_field_never_leaks_into_the_response_sent_to_the_model(self):
         with patch(
-            "backend.src.services.remote_runners.run_remote_cypress_simulation",
+            "backend.src.services.remote_runners.run_remote_accessibility_audit",
             new=AsyncMock(return_value={
-                "status": "ok", "runner": "cypress_remote", "total_violations": 1,
+                "status": "ok", "runner": "axe_core_remote", "total_violations": 1,
                 "_raw_violations": self._RAW_VIOLATIONS,
             }),
         ), patch(
@@ -1046,9 +1046,9 @@ class TestRunRemoteTestToolFeedsDeliverables:
         do teste (que já rodou com sucesso) ainda deve chegar ao usuário --
         essa é só uma conveniência extra, nunca deve derrubar o turno."""
         with patch(
-            "backend.src.services.remote_runners.run_remote_cypress_simulation",
+            "backend.src.services.remote_runners.run_remote_accessibility_audit",
             new=AsyncMock(return_value={
-                "status": "ok", "runner": "cypress_remote", "total_violations": 1,
+                "status": "ok", "runner": "axe_core_remote", "total_violations": 1,
                 "_raw_violations": self._RAW_VIOLATIONS,
             }),
         ), patch(

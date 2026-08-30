@@ -3368,7 +3368,7 @@ def run_remote_test_tool(args: dict) -> str:
 
     from backend.src.services import local_exec_consent_store
     from backend.src.services.remote_runners import (
-        run_remote_cypress_simulation,
+        run_remote_accessibility_audit,
         run_remote_postman_contract,
         run_remote_selenium,
     )
@@ -3400,7 +3400,7 @@ def run_remote_test_tool(args: dict) -> str:
     else:
         chat_progress.emit_tool_progress(None, "run_remote_test", f"Executando Cypress ({location})...")
         res = _safe_async_run(
-            run_remote_cypress_simulation(target_url, scope, location=location, project_dir_override=local_project_dir)
+            run_remote_accessibility_audit(target_url, scope, location=location, project_dir_override=local_project_dir)
         )
 
     raw_violations = res.pop("_raw_violations", None)

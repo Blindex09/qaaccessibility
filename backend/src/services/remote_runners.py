@@ -4,7 +4,7 @@ Módulo de execução remota/local de testes de acessibilidade para Selenium, Po
 
 Achado real corrigido (auditoria 2026-08-10): os três runners não rodavam
 Selenium/Postman/Cypress nenhum -- `run_remote_selenium` e
-`run_remote_cypress_simulation` só reexecutavam o orquestrador de IA próprio
+`run_remote_accessibility_audit` só reexecutavam o orquestrador de IA próprio
 do projeto e devolviam o resultado relabeled como se fosse um runner externo;
 `run_remote_postman_contract` só reimplementava 3 checks fixos em Python.
 Agora todos rodam de verdade:
@@ -25,7 +25,7 @@ ver `chat_tools.py::_RUN_REMOTE_TEST_SCHEMA`):
    POSTMAN_API_KEY + POSTMAN_COLLECTION_ID estão configurados, ou uma gerada
    com pm.test() reais equivalentes ao contrato básico. Fallback honesto
    (`newman_ran: false`) se npx/newman não estiverem disponíveis.
-3. run_remote_cypress_simulation: `location="local"` roda o binário Cypress
+3. run_remote_accessibility_audit: `location="local"` roda o binário Cypress
    DE VERDADE (Test Runner + cypress-axe) via subprocess, se
    `CYPRESS_LOCAL_PROJECT_DIR` apontar para um projeto já instalado (nunca
    dispara uma instalação -- o binário tem ~300MB); sem isso, devolve erro
@@ -160,7 +160,7 @@ async def run_remote_selenium(url: str, location: str | None = None) -> dict[str
     """
     Roda uma auditoria de acessibilidade real com o motor axe-core, em UM dos
     lugares -- decisão explícita do USUÁRIO via `location`, mesmo padrão de
-    `run_remote_cypress_simulation` (ver docstring lá para o raciocínio completo):
+    `run_remote_accessibility_audit` (ver docstring lá para o raciocínio completo):
 
     - `location="local"`: Selenium WebDriver DE VERDADE (Chrome + chromedriver
       já instalados na máquina do backend). Sem isso disponível, devolve
@@ -878,16 +878,25 @@ async def _install_local_cypress(timeout_seconds: float = 300.0) -> str | None:
     return str(project_dir)
 
 
-async def run_remote_cypress_simulation(
+async def run_remote_accessibility_audit(
     url: str,
     scope_selector: str = "",
     location: str | None = None,
     project_dir_override: str | None = None,
 ) -> dict[str, Any]:
     """
-    Roda uma auditoria de acessibilidade real com o motor axe-core, em UM dos
+    Roda uma auditoria de acessibilidade REAL com o motor axe-core, em UM dos
     lugares -- decisão explícita do USUÁRIO via `location`, nunca uma escolha
-    silenciosa daqui:
+    silenciosa daqui.
+
+    O nome antigo desta função era `run_remote_cypress_simulation`, herdado de
+    quando ela de fato simulava: re-executava o orquestrador de IA do projeto e
+    devolvia o resultado com rótulo de Cypress (achado da auditoria 2026-08-10,
+    registrado em browser.run_axe_core_audit). A simulação foi removida naquela
+    correção, mas o nome sobreviveu a ela por mais tempo do que devia. Nada aqui
+    simula: o caminho local roda o binário do Cypress, e o remoto roda axe-core
+    no Chromium via CDP -- por isso o rótulo do runner remoto é `axe_core_remote`
+    e não `cypress_remote`, que prometia um Cypress que nunca esteve ali:
 
     - `location="local"`: roda o binário Cypress DE VERDADE (Test Runner +
       cypress-axe) na máquina onde o backend roda, via
@@ -976,7 +985,7 @@ async def run_remote_cypress_simulation(
         summary.update(
             {
                 "status": "ok",
-                "runner": "cypress_remote",
+                "runner": "axe_core_remote",
                 "cypress_cloud_synced": cypress_cloud_synced,
                 "cypress_project_id": project_id,
                 "url": url,

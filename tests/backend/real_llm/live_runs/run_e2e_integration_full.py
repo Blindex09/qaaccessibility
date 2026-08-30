@@ -91,9 +91,9 @@ async def main():
             record(fh, "GET /export/last_checklist_pdf (fim-a-fim)", t, ok, f"status={http_res.status_code} content-type={http_res.headers.get('content-type')} bytes={len(http_res.content)}")
 
             # 5. run_remote_test real (cypress, nuvem)
-            from backend.src.services.remote_runners import run_remote_cypress_simulation
+            from backend.src.services.remote_runners import run_remote_accessibility_audit
             t = time.monotonic()
-            res = await run_remote_cypress_simulation(TARGET_URL, location="cloud")
+            res = await run_remote_accessibility_audit(TARGET_URL, location="cloud")
             record(fh, "run_remote_test (cypress cloud, axe-core real)", t, res.get("status") == "ok", json.dumps({k: v for k, v in res.items() if k != "critical_issues"}))
 
             # 6. create_github_issue real, a partir de um achado real do passo 5
