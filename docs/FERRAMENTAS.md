@@ -2,13 +2,16 @@
 
 > Inventário completo das ferramentas (tools) que o agente de IA deste
 > projeto pode chamar. Gerado por exploração direta do código-fonte em
-> 2026-08-18 — cada entrada aqui corresponde a um `registry.register(...)`
+> 2026-08-18, corrigido e revalidado em 2026-08-29 (4 ferramentas do
+> toolset de chat estavam faltando: `create_jira_issue`,
+> `create_azure_devops_work_item`, `verify_screen_reader_announcements`,
+> `design_review`) — cada entrada aqui corresponde a um `registry.register(...)`
 > real em `tools/registry.py` (consumido por `backend/src/services/
 > chat_tools.py` e `backend/src/services/a11y_domain_tools.py`) ou a uma
 > `@mcp.tool()` real em `backend/src/services/mcp_server.py`. Nada nesta
 > lista é hipotético — se não está registrado no código, não está aqui.
 >
-> **Total: 34 ferramentas** — 27 no toolset de chat (`a11y_chat` +
+> **Total: 38 ferramentas** — 31 no toolset de chat (`a11y_chat` +
 > `clarify`), 1 ferramenta compartilhada pelos agentes especialistas
 > (`a11y_domain`), e 6 expostas via MCP (Model Context Protocol) para
 > clientes externos como Claude Desktop e VS Code Copilot.
@@ -74,6 +77,27 @@ Ferramenta compartilhada pelos agentes especialistas (não pelo chat
 diretamente): calcula a razão de contraste WCAG exata entre duas cores
 (hex, rgb()/rgba() ou nomes comuns), usada para VERIFICAR um achado 1.4.3/
 1.4.11 antes de reportá-lo — nunca estimado "no olho".
+
+### `verify_screen_reader_announcements` 🔒
+Verifica os anúncios de leitor de tela de uma URL cruzando a árvore de
+acessibilidade REAL computada pelo motor do navegador (Chromium/CDP — a
+mesma API que NVDA/JAWS/Narrator consultam no Windows) contra regras
+determinísticas de nome acessível ausente ou genérico. Diferente de
+`analyze_page` (que estima a partir do HTML bruto via LLM), aqui o achado é
+confirmado pelo próprio motor de acessibilidade do navegador — zero
+inferência de IA nessa etapa. Se `speak_via_nvda=true` e o NVDA real
+estiver rodando na máquina do usuário, os achados são lidos em voz alta
+para confirmação humana (por isso exige aprovação: mesma classe de efeito
+colateral audível do `nvda_speak`). Requer `BROWSERLESS_WS_URL`
+configurado; sem isso, devolve lista vazia (não falha).
+
+### `design_review`
+Único agente do projeto que não audita HTML/código já existente: recebe um
+requisito, user story ou trecho de PRD em texto livre e antecipa riscos de
+acessibilidade — com critérios WCAG 2.2 prováveis, severidade, motivo
+específico preso ao texto real do requisito e recomendação acionável —
+antes de qualquer linha de código ser escrita. Requisito sem risco real →
+lista vazia, resposta válida, não uma falha.
 
 ---
 
@@ -188,6 +212,18 @@ Cria uma nova Issue no repositório GitHub configurado, contendo o
 diagnóstico e a sugestão de correção de um problema de acessibilidade
 encontrado.
 
+### `create_jira_issue` 🔒
+Cria uma nova Issue no projeto Jira configurado (`summary`, `description`,
+`severity` mapeada para a prioridade do Jira, `project_key` opcional —
+usa `JIRA_PROJECT_KEY` se omitido), contendo o diagnóstico e a sugestão de
+correção de um problema de acessibilidade encontrado.
+
+### `create_azure_devops_work_item` 🔒
+Cria um novo Work Item no Azure DevOps configurado (`title`, `description`,
+`severity` mapeada para `Microsoft.VSTS.Common.Severity`, `project`
+opcional — usa `AZURE_DEVOPS_PROJECT` se omitido), contendo o diagnóstico e
+a sugestão de correção de um problema de acessibilidade encontrado.
+
 ### `nvda_speak` 🔒
 Envia um comando de voz diretamente para o leitor de tela NVDA ativo (via
 `nvdaControllerClient.dll`), para que ele fale um texto ao usuário — com
@@ -255,14 +291,14 @@ de `agents/` ou o `AI_MODULE_SPEC.md` inteiro.
 
 | Categoria | Qtd |
 |---|---|
-| Análise e auditoria | 8 |
+| Análise e auditoria | 10 |
 | Correção (remediação) | 3 |
 | Geração de entregáveis | 8 |
 | Visualização | 1 |
 | Pesquisa e RAG normativo | 4 |
-| Integração externa e infraestrutura | 3 |
+| Integração externa e infraestrutura | 5 |
 | Interação com o usuário | 1 |
 | Servidor MCP (clientes externos) | 6 |
-| **Total** | **34** |
+| **Total** | **38** |
 
-Ferramentas com 🔒 (exigem aprovação explícita do usuário): 17 de 34.
+Ferramentas com 🔒 (exigem aprovação explícita do usuário): 20 de 38.

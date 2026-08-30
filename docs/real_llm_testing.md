@@ -1,5 +1,9 @@
 # Testes reais contra Ollama Cloud (`tests/backend/real_llm/`)
 
+> Revisado em 2026-08-29: a suíte cresceu de 9 para 11 camadas
+> (`test_10_planning_real.py`, `test_11_multi_run_and_replay_real.py`) desde a
+> última revisão deste documento — corrigido abaixo.
+
 O resto de `tests/backend/` é 100% mockado/determinístico (AsyncMock no lugar do
 LLM) -- rápido e reprodutível, roda em todo CI. Esta suite é o oposto: chama o
 Ollama Cloud de verdade, tier "alto" (`model_router.resolve_alto_model`), para
@@ -17,9 +21,10 @@ Requer `OLLAMA_API_KEY` (ou `OLLAMA_CLOUD_API_KEY`) no ambiente. Sem
 explícito -- nunca rodam em CI por padrão (custam tempo e tokens reais).
 
 Para rodar só uma camada: aponte para o arquivo (`test_03_trajectory_evals_real.py`
-etc). Runtime total da suite completa: ~2-4 min, ~40-50 chamadas reais de LLM.
+etc). Runtime total da suite completa: ordem de poucos minutos, dezenas de
+chamadas reais de LLM (cresce com o número de camadas — ver nota acima).
 
-## As 9 camadas
+## As 11 camadas
 
 | # | Arquivo | O que valida |
 |---|---|---|
@@ -32,8 +37,10 @@ etc). Runtime total da suite completa: ~2-4 min, ~40-50 chamadas reais de LLM.
 | 7 | `test_07_regression_evals_real.py` | Compara execução de hoje contra `baseline_snapshot.json` gravado |
 | 8 | `test_08_online_evals_real.py` | `telemetry.score_trace` (LLM-as-judge) discrimina trace bom vs ruim de verdade |
 | 9 | `test_09_production_observability_real.py` | Falha de rede real vira erro humanizado; logs estruturados; JSON malformado do provider falha explícito, nunca silencioso |
+| 10 | `test_10_planning_real.py` | `self_healing.node_plan` contra o modelo real: ordem/agrupamento de correção decidido pelo modelo, nunca lista de prioridade fixa |
+| 11 | `test_11_multi_run_and_replay_real.py` | Multi-run/Statistical Evals (`eval_stats.run_multi_trial`, Pass@k/variância sobre N execuções reais do mesmo golden case) e Deterministic Replay (`trace_replay.py` reproduz o mesmo resultado sem rechamar o LLM) |
 
-A 10ª camada da pirâmide original ("Production") não é um teste -- é o estado
+A camada "Production" da pirâmide original não é um teste -- é o estado
 implantado do sistema; as camadas 8 e 9 são o proxy dela em ambiente de teste.
 
 ## Decisões de design

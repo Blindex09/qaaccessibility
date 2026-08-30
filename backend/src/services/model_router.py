@@ -31,11 +31,12 @@ ALTO_MODEL = "alto"
 _AUTO_PROVIDER_PRIORITY = ["openai", "anthropic", "gemini", "xai", "ollama-cloud", "ollama"]
 
 # OpenCode Go expõe uma cadeia de modelos verificados para Structured Outputs
-# garantidos (ver docs/auditoria-prompt-caching-structured-output-2026-08-26.md):
-# todos os 5 seguem json_schema estrito de verdade; os 4 seguintes tambem
-# confirmam prompt caching real no mesmo teste. gpt-5.6-luna primeiro (Responses
-# API, 99,9% de cache observado); os demais via Chat Completions padrao (ver
-# run_agent.py::run_conversation, que roteia por modelo, nao so por provider).
+# garantidos (achado documentado em docs/CAPACIDADES_E_COMPORTAMENTO_IA.md,
+# secoes 1/2/4): todos os 5 seguem json_schema estrito de verdade; os 4
+# seguintes tambem confirmam prompt caching real no mesmo teste. gpt-5.6-luna
+# primeiro (Responses API, 99,9% de cache observado); os demais via Chat
+# Completions padrao (ver run_agent.py::run_conversation, que roteia por
+# modelo, nao so por provider).
 # É um fallback opt-in: só entra no roteamento quando o usuário configurou a
 # chave correspondente, evitando chamadas inesperadas ou envio de dados para
 # um provedor não habilitado.

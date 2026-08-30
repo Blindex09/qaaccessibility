@@ -1,5 +1,12 @@
 # AI_MODULE_SPEC — Web
 
+> Revisado em 2026-08-29: adicionado `ConversationHistoryModal` à tabela de
+> Telas e a rota `POST /settings/service-key` (BYOK de chaves de serviço de
+> terceiros) à seção de Base URL/invariantes — ambos reais no código
+> (`web/src/screens/ConversationHistoryModal.tsx`,
+> `web/src/screens/SettingsScreen.tsx`) mas ausentes deste documento. Ver
+> `docs/CAPACIDADES_ACESSIBILIDADE.md` seção 11.
+
 ## Responsabilidade
 Interface React Native Web chat-first para o QA Accessibility. A tela principal é
 um assistente agêntico de acessibilidade que conversa por streaming SSE, aceita
@@ -11,7 +18,8 @@ resultados. A segunda tela configura provider, chave de API, modelo e URL base.
 | Tela | Arquivo | Responsabilidade |
 |------|---------|------------------|
 | ChatScreen | `web/src/screens/ChatScreen.tsx` | Chat com streaming token-a-token, anexos, eventos de progresso dos agentes e respostas de esclarecimento |
-| SettingsScreen | `web/src/screens/SettingsScreen.tsx` | Provider, chave de API, modelo `alto` ou modelo concreto, e Base URL opcional |
+| SettingsScreen | `web/src/screens/SettingsScreen.tsx` | Provider, chave de API, modelo `alto` ou modelo concreto, Base URL opcional e chaves de serviço próprias (BYOK) via `POST /settings/service-key` |
+| ConversationHistoryModal | `web/src/screens/ConversationHistoryModal.tsx` | Lista/abre/apaga conversas salvas via `GET /chat/conversations`, `GET /chat/history/{id}` e `DELETE /chat/history/{id}`; aberto a partir do `ChatScreen` |
 
 `web/App.tsx` faz a navegação simples entre `chat` e `settings`, define `lang="pt-BR"`,
 mantém um skip link e anuncia mudanças de tela para tecnologias assistivas.
@@ -22,8 +30,8 @@ mantém um skip link e anuncia mudanças de tela para tecnologias assistivas.
 |--------|------------------|
 | `web/src/hooks/useChat.ts` | Estado do chat, histórico, eventos SSE, anexos, clarify e o texto da live region (`announcement`) |
 | `web/src/hooks/useDialogFocus.ts` | Padrão WAI-ARIA Dialog partilhado para modais que realmente precisam de foco isolado, como a chave de API. Não é usado pelo live preview persistente nem pelo pedido de aprovação inline. |
-| `web/src/services/chat.ts` | Cliente `fetch` para `/chat/stream`, `/chat/clarify` e `/models` |
-| `web/src/services/api.ts` | Cliente Axios para `/settings/` |
+| `web/src/services/chat.ts` | Cliente `fetch` para `/chat/stream`, `/chat/clarify`, `/chat/cancel`, `/chat/conversations`, `/chat/history/{id}` (GET e DELETE) e `/models` |
+| `web/src/services/api.ts` | Cliente Axios para `/settings/` e `/settings/service-key` (BYOK) |
 | `web/src/design/tokens.ts` | Tokens visuais e helpers de acessibilidade compartilhados |
 | `web/src/design/helpers.ts` | Helpers de fonte/display usados pelas telas |
 

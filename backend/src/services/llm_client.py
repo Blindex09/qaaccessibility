@@ -383,10 +383,11 @@ async def call_llm(
 
     # Candidatos a tentar, em ordem. Por padrao, so o par ja resolvido. Quando o
     # roteamento caiu no fallback de Structured Outputs (provider="opencode-go"),
-    # troca por toda a cadeia verificada (ver docs/auditoria-prompt-caching-
-    # structured-output-2026-08-26.md): se o primeiro modelo estiver fora do ar,
-    # o proximo da cadeia e tentado automaticamente antes de desistir -- nunca
-    # fica sem garantia de JSON so porque um unico modelo falhou.
+    # troca por toda a cadeia verificada (achado documentado em
+    # docs/CAPACIDADES_E_COMPORTAMENTO_IA.md, secoes 1/2/4): se o primeiro
+    # modelo estiver fora do ar, o proximo da cadeia e tentado automaticamente
+    # antes de desistir -- nunca fica sem garantia de JSON so porque um unico
+    # modelo falhou.
     candidates: list[tuple[str, str, str | None, str | None]] = [(provider, model, api_key, base_url)]
     if provider == "opencode-go" and response_schema is not None:
         from backend.src.services.model_router import resolve_structured_output_chain
