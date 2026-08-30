@@ -250,7 +250,6 @@ export interface ClarifyPanelProps {
 export function ClarifyPanel({ question, choices, onAnswer }: ClarifyPanelProps) {
   const [draft, setDraft] = useState("");
   const view = parseClarify(question);
-  const isApproval = view.kind === "approval";
 
   function answer(value: string) {
     setDraft("");

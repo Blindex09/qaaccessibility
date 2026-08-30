@@ -15,10 +15,16 @@ import { ClarifyPanel } from "../ClarifyPanel";
  * que se verifica é o DOM e o foco resultantes — os atributos que o leitor de
  * tela lê e o `document.activeElement` que o teclado sente.
  *
- * O que está sendo corrigido: o pedido de aprovação é o ponto de decisão mais
- * arriscado da app (aprova uma ferramenta que reescreve o código do
- * usuário) e era a única superfície interativa sem tratamento de diálogo.
- * Plano e pergunta continuam a NÃO prender o teclado — são informativos.
+ * O pedido de aprovação é o ponto de decisão mais arriscado da app (aprova uma
+ * ferramenta que reescreve o código do usuário), e a decisão de design é que
+ * ele viva INLINE na conversa: `role="region"`, sem `aria-modal`, sem prender
+ * o teclado e sem roubar o foco de quem está lendo. Plano e pergunta seguem a
+ * mesma regra — são informativos.
+ *
+ * Cuidado ao mexer: por ser inline, a garantia de segurança não é "Escape
+ * fecha", é "nada além do botão explícito produz uma resposta". Um teste que
+ * exija foco preso ou fecho por teclado aqui está a descrever a versão modal
+ * antiga do componente, não a atual.
  */
 
 declare global {
@@ -104,24 +110,32 @@ describe("ClarifyPanel — aprovação inline na conversa", () => {
     expect(focusable.length).toBeGreaterThan(1);
   });
 
-  test("Escape nega a ação — sair pelo teclado nunca aprova nada", async () => {
+  test("nenhuma tecla aprova nada — só o botão explícito responde", async () => {
     const onAnswer = jest.fn();
     renderPanel(APPROVAL_QUESTION, onAnswer);
     await flushFrame();
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    });
-    // Resposta vazia = negar; o backend falha-fechado.
-    expect(onAnswer).toHaveBeenCalledWith("");
+    for (const key of ["Escape", "Enter", " ", "Tab"]) {
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+      });
+    }
+    // Sendo inline, o painel não tem "sair pelo teclado": ele fica na conversa
+    // até o usuário decidir. O que precisa continuar verdade é que nenhum
+    // atalho global produza uma resposta nas costas dele -- em especial uma
+    // aprovação de ferramenta que reescreve o código do usuário.
+    expect(onAnswer).not.toHaveBeenCalled();
   });
 
-  test("ao fechar devolve o foco a quem estava trabalhando antes", async () => {
+  test("montar e desmontar nunca deixa o foco perdido no body", async () => {
     outside.focus();
     renderPanel(APPROVAL_QUESTION);
     await flushFrame();
-    expect(document.activeElement).not.toBe(outside);
+    // Não rouba (coberto acima) e, ao sair, não devolve o foco ao body: quem
+    // estava a escrever na conversa continua exatamente onde estava.
+    expect(document.activeElement).toBe(outside);
     act(() => root.render(<></>));
     expect(document.activeElement).toBe(outside);
+    expect(document.activeElement).not.toBe(document.body);
   });
 
   test("não é live region: o foco já anuncia, duas vias falariam duas vezes", async () => {

@@ -85,3 +85,53 @@ jobs:
       - name: pytest
         # pytest.ini já aplica --cov=backend/src --cov-report=term-missing.
         run: pytest
+
+  web:
+    name: Web (lint, tipos, testes, Lighthouse)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # web/.npmrc fixa legacy-peer-deps: @expo/webpack-config@19 declara peer
+      # expo ^49||^50 e este app está no 51. Sem isso o install aborta inteiro.
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Type check (tsc)
+        run: npm run typecheck
+
+      # Sem --passWithNoTests: um jest que não acha teste nenhum tem de falhar,
+      # não passar em silêncio. Aqui vivem os testes de acessibilidade da
+      # própria interface -- contraste dos tokens, alvo de toque, live region,
+      # foco de diálogo e a aprovação inline que libera mutação de código.
+      - name: Jest
+        run: npm run test:ci
+
+      - name: Build web
+        run: npx expo export:web
+
+      # Auditoria de acessibilidade do build recém-gerado (não do artefato
+      # versionado em web/web-build, que pode estar velho). Falha abaixo de
+      # 0.9 em acessibilidade. Roda headless, sem extensão de browser.
+      - name: Lighthouse CI (acessibilidade)
+        run: npm run a11y:lighthouse
+
+      - name: Publicar relatório do Lighthouse
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: web/.lighthouseci/
+          if-no-files-found: ignore

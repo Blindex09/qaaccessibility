@@ -7,7 +7,10 @@
     "web": "expo start --web",
     "test": "jest --passWithNoTests",
     "test:coverage": "jest --coverage --passWithNoTests",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "a11y:lighthouse": "lhci autorun",
+    "test:ci": "jest --ci"
   },
   "jest": {
     "testEnvironment": "node",
@@ -31,11 +34,12 @@
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
+    "@lhci/cli": "^0.15.1",
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^12.4.3",
+    "@types/jest": "^29.5.14",
     "@types/react": "~18.2.0",
     "@types/react-native": "~0.73.0",
-    "@types/jest": "^29.5.14",
     "@types/wicg-file-system-access": "^2023.10.7",
     "eslint": "^8.57.0",
     "eslint-config-expo": "^7.1.2",

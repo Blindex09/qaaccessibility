@@ -205,7 +205,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 16,
     elevation: 10,
-  },
+    // `position: "fixed"` existe no react-native-web (vira CSS direto) mas não
+    // no `ViewStyle` do react-native, que só conhece absolute/relative/static.
+    // Mesmo escape hatch já usado em ChatScreen.styles.webSrOnly.
+  } as any,
   /* Mantido separado para o layout interno do painel. */
   overlay: {
     position: "absolute",

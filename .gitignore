@@ -56,3 +56,6 @@ Thumbs.db
 # Expo (cache de build local — nunca versionar)
 .expo/
 .expo-shared/
+
+# Lighthouse CI (relatorios locais)
+.lighthouseci/
