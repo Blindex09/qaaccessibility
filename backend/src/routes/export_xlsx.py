@@ -52,7 +52,6 @@ async def export_xlsx(payload: dict) -> StreamingResponse:
 
 
 @router.get("/last_xlsx")
-@router.get("/last_xlsx**")
 @router.get("/last_xlsx/")
 async def export_last_xlsx() -> StreamingResponse:
     """

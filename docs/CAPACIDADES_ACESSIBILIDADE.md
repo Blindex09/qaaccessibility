@@ -184,8 +184,12 @@ lista de keywords. Rodam em paralelo, coordenados pelo orquestrador (seção 3).
 
 - **Criação de ticket**: GitHub, Jira e Azure DevOps (`create_github_issue`,
   `create_jira_issue`, `create_azure_devops_work_item`) — severidade mapeada
-  para prioridade/campo de severidade de cada sistema; sem credenciais,
-  simula a criação em vez de falhar.
+  para prioridade/campo de severidade de cada sistema. **Sem credenciais,
+  falha explicitamente** (`status: "error"` + `missing_config` nomeando as
+  variáveis que faltam) e não inventa identificador nem URL. Até 2026-08-30
+  estas ferramentas devolviam `status: "simulated"` com um `issue_url`
+  plausível nos mesmos campos do caminho de sucesso, o que fazia o modelo
+  reportar um ticket que nunca existiu.
 - **Model Context Protocol (MCP)**: 6 tools expostos via stdio/FastMCP
   (`get_rendered_page`, `run_axe_audit`, `export_xlsx`, `analyze_page_full`,
   `analyze_site_full`, `describe_repository`) para uso por outros agentes/
@@ -196,6 +200,62 @@ lista de keywords. Rodam em paralelo, coordenados pelo orquestrador (seção 3).
   agentes de IA corporativos.
 - **Webhook assíncrono**: `POST /webhook/analyze` + `GET /webhook/result/{job_id}`
   para integração server-to-server sem manter conexão aberta.
+
+---
+
+## 10b. Fronteiras de segurança e memória entre sessões
+
+Capacidades reais que não estavam documentadas em nenhum arquivo até a
+auditoria de 2026-08-30.
+
+### Fronteira de escopo para execução local (`local_project_guard.py`)
+
+A IA pode ler, corrigir e rodar Cypress/Selenium em projetos **locais** do
+usuário — mas somente dentro de um diretório cujo caminho indique um projeto
+de acessibilidade (`acessibilidade`, `acessivel`, `accessibility`, `a11y` em
+qualquer segmento). Fora disso a resposta é uma recusa amigável, mesmo que o
+usuário insista.
+
+Isto **não** é uma blacklist de conteúdo ou de intenção (o projeto proíbe
+palavra-chave condicionando resposta de IA): é uma fronteira *estrutural*
+sobre **onde no disco** o agente pode agir, análoga a um usuário Unix só
+poder escrever no próprio `$HOME`. O que fazer dentro desse escopo continua
+livre. O diretório de instalação gerenciado pelo próprio projeto fica fora da
+checagem, porque ali o conteúdo é decidido por nós, não por um projeto de
+terceiros.
+
+### Consentimento de execução local (`local_exec_consent_store.py`)
+
+Rodar ou instalar Cypress/Selenium na máquina do backend exige confirmação. O
+usuário pode escolher "só desta vez" ou "sempre aprovar nesta conversa"; a
+segunda opção é guardada por sessão e por runner, evitando que o modelo
+repita a **pergunta** a cada turno.
+
+Não substitui o cartão de aprovação humana: `run_remote_test` continua com
+`requires_approval=True` e dispara em toda chamada. Este store só evita a
+pergunta redundante via `clarify`; o freio estrutural nunca é pulado.
+
+### Detecção de regressão entre análises (`url_scan_history_store.py`)
+
+Guarda a última análise real **por URL** — não por sessão. Isso permite
+comparar uma nova análise contra a anterior da **mesma URL**, mesmo vinda de
+outra conversa, dias depois, e detectar regressão de acessibilidade real.
+
+É "shift-right" sob demanda: roda quando o usuário reanalisa uma URL já vista,
+não por agendamento (sem scheduler, sem cron). Regressão encontrada é
+reportada para a IA **oferecer** `create_github_issue` — nunca cria a issue
+sozinha.
+
+### Compactação de conversas longas (`history_summarizer.py`)
+
+Quando o histórico do chat estoura o orçamento de contexto, os turnos antigos
+são sumarizados por LLM num bloco compacto e os turnos recentes ficam
+íntegros, preservando decisões, perguntas em aberto e detalhes técnicos.
+
+Substitui um corte cru por número de caracteres, que descartava em silêncio o
+que passasse do limite — o agente simplesmente esquecia o meio da conversa
+sem deixar rastro. Roda como sub-agente folha (sem tools, uma iteração) e só
+quando o orçamento é de fato excedido, porque custa dinheiro real.
 
 ---
 

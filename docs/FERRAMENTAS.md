@@ -286,6 +286,27 @@ fluxo antes de liberar a execução.
 
 ---
 
+## 7b. Rotas HTTP sem ferramenta de chat correspondente
+
+Endpoints que existem na API mas não são chamados pelo toolset do chat — a
+interface ou um integrador externo os consome diretamente. Não estavam
+documentados até a auditoria de 2026-08-30.
+
+| Rota | Para que serve |
+|---|---|
+| `POST /analyze/project/zip` | Analisa um projeto inteiro enviado como ZIP, sem exigir seleção de pasta |
+| `POST /fix/project/zip` | Corrige um projeto enviado como ZIP e devolve o resultado empacotado |
+| `POST /preview/create` | Registra uma sessão de live preview a partir das páginas corrigidas e devolve `session_id` |
+| `GET /preview/render/{session_id}/{page_index}` | Renderiza uma página da sessão de preview (`mode=fixed` por padrão) para comparação lado a lado |
+| `POST /a2a/v1/tasks/{task_id}/cancel` | Cancela uma tarefa delegada via A2A |
+| `POST /a2a/v1/tasks/{task_id}:cancel` | Mesma operação na forma `:cancel` do protocolo A2A |
+| `GET /a2a/v1/tasks/{task_id}/subscribe` | Stream de atualizações de uma tarefa A2A em andamento |
+
+Removido na mesma auditoria: `GET /last_xlsx**`, uma rota com asteriscos
+literais no caminho — registrada como URL literal, sem chamador nenhum.
+
+---
+
 ## 8. Servidor MCP (clientes externos: Claude Desktop, VS Code Copilot, etc.)
 
 Ferramentas expostas via `backend/src/services/mcp_server.py`
