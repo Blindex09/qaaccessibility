@@ -1,9 +1,17 @@
+import asyncio
 import json
 import logging
+from collections import Counter
 from datetime import date
 
-from backend.src.services.llm_client import call_llm_structured, extract_json_object
-from backend.src.shared.models import AccessibilityIssue, AgentResult, VPATReport
+from backend.src.services.llm_client import call_llm_structured, extract_json_array
+from backend.src.shared.models import (
+    AccessibilityIssue,
+    AgentResult,
+    ConformanceLevel,
+    VPATCriterion,
+    VPATReport,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +157,104 @@ Return ONLY valid JSON. No markdown fences.
 """.strip()
 
 
+SYSTEM_PROMPT_NIVEL = """
+You are a senior compliance auditor with expertise in WCAG 2.2, Section 508,
+EN 301 549, and VPAT (Voluntary Product Accessibility Template).
+
+You evaluate ONE WCAG conformance level at a time. You receive the audit
+findings and an explicit list of criteria, and you return the conformance
+declaration for EXACTLY those criteria -- no more, no fewer.
+
+## Conformance declarations
+For each criterion declare ONE of:
+- "Supports": No issues; product meets this criterion
+- "Partially Supports": Some issues or criterion partially met
+- "Does Not Support": Critical/high issues blocking conformance
+- "Not Applicable": Criterion does not apply to this content type
+- "Not Evaluated": Requires manual testing not yet performed
+
+## Decision rules based on issues
+- Criterion has CRITICAL issues -> "Does Not Support"
+- Criterion has HIGH issues -> "Partially Supports" or "Does Not Support"
+- Criterion has MEDIUM issues -> "Partially Supports"
+- Criterion has LOW issues only -> "Supports" with caveat note
+- No issues for this criterion -> "Supports"
+- Criterion requires AT/human testing (1.2.x audio/video, 2.3.1 flashes) -> "Not Evaluated"
+- Criterion clearly not applicable -> "Not Applicable"
+
+## Remarks (evidence-based)
+1. State what was found or why the declaration was made
+2. Reference specific issue IDs when applicable (e.g., "Issues: wcag-3, aria-7")
+3. For "Not Evaluated": state what manual test is recommended
+4. Be concise: 1-2 sentences max. Brevity matters -- the full report is large.
+
+## Output schema: a JSON ARRAY, one object per criterion given to you
+[
+  {
+    "criterion_id": "1.1.1",
+    "criterion_name": "Non-text Content",
+    "wcag_level": "A",
+    "conformance": "Supports|Partially Supports|Does Not Support|Not Applicable|Not Evaluated",
+    "remarks": "<evidence-based justification>",
+    "issues_found": ["issue-id-1"]
+  }
+]
+
+Return ONLY the JSON array. No markdown fences, no prose.
+""".strip()
+
+
+def _resumo_conformidade(contagem: Counter, total: int) -> str:
+    """Resumo executivo derivado da CONTAGEM real, nao pedido ao modelo.
+
+    Antes o `overall_conformance` vinha do LLM junto do resto do relatorio, o
+    que permitia o texto discordar dos numeros ao lado dele. Percentual e
+    aritmetica: calcular aqui elimina a chance de um VPAT afirmar conformidade
+    diferente da que os proprios criterios mostram -- e VPAT e documento de
+    licitacao.
+    """
+    if not total:
+        return "Nenhum criterio avaliado."
+    plenos = contagem[ConformanceLevel.SUPPORTS]
+    parciais = contagem[ConformanceLevel.PARTIALLY_SUPPORTS]
+    falhos = contagem[ConformanceLevel.DOES_NOT_SUPPORT]
+    pct = round(100 * plenos / total, 1)
+    return (
+        f"{plenos} de {total} criterios WCAG 2.2 A/AA atendidos ({pct}%): "
+        f"{parciais} com suporte parcial e {falhos} nao atendidos."
+    )
+
+
+async def _avaliar_nivel(
+    criterios: list[dict[str, str]],
+    nivel: str,
+    issues_summary: str,
+    total_issues: int,
+    product_name: str,
+    target: str,
+    today: str,
+) -> list[VPATCriterion]:
+    """Avalia os criterios de UM nivel WCAG (A ou AA) numa chamada dedicada."""
+    prompt = (
+        f"Product: {product_name}\n"
+        f"Target: {target or 'Not specified'}\n"
+        f"Evaluation date: {today}\n\n"
+        f"Issues found ({total_issues}):\n{issues_summary}\n\n"
+        f"Evaluate EXACTLY these {len(criterios)} WCAG 2.2 Level {nivel} criteria:\n"
+        f"{json.dumps(criterios, ensure_ascii=False)}"
+    )
+    avaliados = await call_llm_structured(
+        system_prompt=SYSTEM_PROMPT_NIVEL,
+        user_prompt=prompt,
+        build=lambda raw: [VPATCriterion(**c) for c in extract_json_array(raw)],
+        temperature=0.1,
+        max_tokens=16384,
+        agent_label=f"vpat_reporter_{nivel.lower()}",
+    )
+    logger.info("[VPATReporter] Nivel %s avaliado -- %d criterios", nivel, len(avaliados))
+    return avaliados
+
+
 async def run_vpat_reporter(
     issues: list[AccessibilityIssue],
     target: str = "",
@@ -186,31 +292,48 @@ async def run_vpat_reporter(
     )
 
     try:
-        vpat = await call_llm_structured(
-            system_prompt=SYSTEM_PROMPT,
-            user_prompt=(
-                f"Generate WCAG 2.2 VPAT:\n"
-                f"Product: {product_name}\n"
-                f"Target: {target or 'Not specified'}\n"
-                f"Evaluation date: {today}\n\n"
-                f"Issues found ({len(issues)}):\n{issues_summary}\n\n"
-                f"Criteria to evaluate ({len(all_criteria)}):\n"
-                f"{json.dumps(all_criteria, ensure_ascii=False)}"
-            ),
-            build=lambda raw: VPATReport(**extract_json_object(raw)),
-            temperature=0.1,
-            # 8192 dava ~148 tokens por criterio para os 55 criterios WCAG
-            # A+AA, incluindo o texto de `remarks` -- apertado demais. Com
-            # issues reais (descricoes longas) o modelo estourava e devolvia
-            # vazio, derrubando /analyze/vpat com 500. Mesmo teto ja usado
-            # pelo a11y_expert_reviewer, que enfrenta saida igualmente grande.
-            max_tokens=16384,
-            agent_label="vpat_reporter",
+        # Um VPAT completo sao 55 criterios (30 A + 25 AA), cada um com
+        # `remarks` em texto livre. Pedir os 55 numa unica resposta estourava o
+        # orcamento de saida de forma nao confiavel: medido em 2026-08-30, o
+        # modelo devolvia VAZIO com 16k e AINDA truncava com 32k (a escalada
+        # automatica de max_tokens em call_llm_structured levava mais longe,
+        # mas nao resolvia). Dobrar token e remedio fragil e dependente de
+        # provider -- falhou tanto em glm-5.3 quanto em gpt-oss:20b.
+        #
+        # A saida e a mesma que o a11y_expert_reviewer ja usa para o mesmo
+        # problema: lote. Aqui o corte natural e o proprio nivel WCAG, que ja e
+        # como o VPATReport separa os campos -- duas chamadas com metade da
+        # saida cada, em paralelo, e os totais recalculados em Python (numero
+        # derivado nao se pede a um LLM).
+        criterios_a = [c for c in all_criteria if c["level"] == "A"]
+        criterios_aa = [c for c in all_criteria if c["level"] == "AA"]
+
+        nivel_a, nivel_aa = await asyncio.gather(
+            _avaliar_nivel(criterios_a, "A", issues_summary, len(issues), product_name, target, today),
+            _avaliar_nivel(criterios_aa, "AA", issues_summary, len(issues), product_name, target, today),
+        )
+
+        avaliados = nivel_a + nivel_aa
+        contagem: Counter = Counter(c.conformance for c in avaliados)
+        vpat = VPATReport(
+            product_name=product_name,
+            target=target or "Not specified",
+            evaluation_date=today,
+            overall_conformance=_resumo_conformidade(contagem, len(avaliados)),
+            level_a_criteria=nivel_a,
+            level_aa_criteria=nivel_aa,
+            total_criteria_evaluated=len(avaliados),
+            total_supports=contagem[ConformanceLevel.SUPPORTS],
+            total_partially_supports=contagem[ConformanceLevel.PARTIALLY_SUPPORTS],
+            total_does_not_support=contagem[ConformanceLevel.DOES_NOT_SUPPORT],
+            total_not_applicable=contagem[ConformanceLevel.NOT_APPLICABLE],
         )
 
         logger.info(
-            "[VPATReporter] VPAT gerado -- %d criterios: %d Supports, %d Partially, %d DoesNot",
+            "[VPATReporter] VPAT gerado -- %d criterios (A=%d, AA=%d): %d Supports, %d Partially, %d DoesNot",
             vpat.total_criteria_evaluated,
+            len(nivel_a),
+            len(nivel_aa),
             vpat.total_supports,
             vpat.total_partially_supports,
             vpat.total_does_not_support,
