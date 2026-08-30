@@ -297,7 +297,20 @@ class SquadCoordinator:
             "task_id": task.id,
             **decision.to_dict(),
         }
-        yield self._transition(task, TaskStatus.BLOCKED if decision.blockers else TaskStatus.DONE)
+
+        # Levantar um impedimento NÃO é falhar a tarefa -- numa squad real,
+        # apontar o bloqueio É o trabalho. Observado ao vivo: o Product Owner
+        # quase sempre registra alguma ressalva (público não informado, URL
+        # ausente), e tratar isso como BLOCKED travava `tech-approach` e
+        # `cycle-planning` para sempre, porque o portão de dependência nunca
+        # abria. Pior: como `planning_done` exige as três DONE, o planejamento
+        # reexecutava a cada turno, anulando o quadro persistente.
+        #
+        # BLOCKED fica para quem realmente não entregou: o papel falhou
+        # (provider fora do ar) ou não produziu decisão nenhuma. Os bloqueios
+        # continuam visíveis no quadro e vão para a triagem do Scrum Master.
+        entregou = decision.succeeded and bool(decision.decisions)
+        yield self._transition(task, TaskStatus.DONE if entregou else TaskStatus.BLOCKED)
 
     async def run_planning(self) -> AsyncIterator[dict[str, Any]]:
         """Product Owner -> Tech Lead -> Engineering Manager, antes da análise.

@@ -89,7 +89,16 @@ async def test_papel_transiciona_in_progress_e_done_e_emite_a_decisao():
     assert squad.plan.task("cycle-planning").status is TaskStatus.DONE
 
 
-async def test_bloqueio_levantado_por_um_papel_bloqueia_a_tarefa_dele():
+async def test_papel_que_entrega_com_ressalva_conclui_e_nao_trava_a_cadeia():
+    """Achado da execucao real (2026-08-30): o Product Owner quase sempre
+    registra alguma ressalva (publico nao informado, URL ausente). Tratar isso
+    como BLOCKED travava tech-approach e cycle-planning para sempre -- o portao
+    de dependencia nunca abria -- e, como `planning_done` exige as tres DONE, o
+    planejamento reexecutava a cada turno, anulando o quadro persistente.
+
+    Levantar impedimento nao e falhar: numa squad real, apontar o bloqueio E o
+    trabalho. O bloqueio continua visivel e vai para a triagem do Scrum Master.
+    """
     squad = SquadCoordinator("auditar uma pagina atras de login")
     with patch(
         "backend.src.agents.squad.coordinator.run_product_owner",
@@ -101,12 +110,33 @@ async def test_bloqueio_levantado_por_um_papel_bloqueia_a_tarefa_dele():
         "backend.src.agents.squad.coordinator.run_engineering_manager",
         new=AsyncMock(return_value=_decisao(SquadRole.ENGINEERING_MANAGER)),
     ):
+        [evento async for evento in squad.run_planning()]
+
+    assert squad.plan.task("product-scope").status is TaskStatus.DONE
+    assert squad.plan.task("tech-approach").status is TaskStatus.DONE, "a cadeia nao pode travar"
+    assert squad.plan.task("cycle-planning").status is TaskStatus.DONE
+    assert squad.open_blockers() == ["falta credencial"], "o impedimento continua visivel"
+    assert squad.planning_done is True, "senao o planejamento reexecuta a cada turno"
+
+
+async def test_papel_que_nao_entrega_decisao_nenhuma_fica_bloqueado():
+    squad = SquadCoordinator("auditar")
+    sem_decisao = _decisao(SquadRole.PRODUCT_OWNER, decisions=[], blockers=["nao consegui definir escopo"])
+    with patch(
+        "backend.src.agents.squad.coordinator.run_product_owner", new=AsyncMock(return_value=sem_decisao)
+    ), patch(
+        "backend.src.agents.squad.coordinator.run_tech_lead",
+        new=AsyncMock(return_value=_decisao(SquadRole.TECH_LEAD)),
+    ), patch(
+        "backend.src.agents.squad.coordinator.run_engineering_manager",
+        new=AsyncMock(return_value=_decisao(SquadRole.ENGINEERING_MANAGER)),
+    ):
         eventos = [evento async for evento in squad.run_planning()]
-    eventos = [e for e in eventos if e.get("task_id") == "product-scope"]
 
     assert squad.plan.task("product-scope").status is TaskStatus.BLOCKED
-    assert eventos[-1]["status"] == "blocked"
-    assert squad.open_blockers() == ["falta credencial"]
+    # E o portao segura o proximo papel: sem escopo, nao ha o que projetar.
+    assert squad.plan.task("tech-approach").status is TaskStatus.BLOCKED
+    assert any(e["type"] == "squad_blocked" for e in eventos)
 
 
 async def test_papel_com_dependencia_aberta_nao_executa():

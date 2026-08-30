@@ -154,6 +154,23 @@ paralelo devolveria três pareceres que não se conhecem.
   então quem usa leitor de tela acompanha a squad trabalhando. Antes disso a
   interface recebia o plano e imprimia apenas a contagem de etapas.
 
+### Bloqueio não é falha
+
+Levantar um impedimento **não** marca a tarefa como `BLOCKED`. Numa squad
+real, apontar o bloqueio *é* o trabalho: o papel entregou sua decisão e
+registrou uma ressalva.
+
+`BLOCKED` fica para quem de fato não entregou — o papel falhou (provider fora
+do ar) ou não produziu decisão nenhuma. Os bloqueios continuam visíveis no
+quadro e vão para a triagem do Scrum Master.
+
+Isto veio de uma execução real (2026-08-30): o Product Owner quase sempre
+registra alguma ressalva (público não informado, URL ausente). Tratar isso
+como `BLOCKED` travava `tech-approach` e `cycle-planning` **para sempre** — o
+portão de dependência nunca abria — e, como `planning_done` exige as três
+`DONE`, o planejamento reexecutava a cada turno, anulando o quadro
+persistente e gastando três chamadas de LLM por mensagem.
+
 ### Degradação
 
 Um papel que falha nunca derruba o turno: devolve `succeeded=False` com um

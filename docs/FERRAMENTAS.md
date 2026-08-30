@@ -101,10 +101,23 @@ Devolve um resumo por engine mais o diff de quais violações aparecem só em
 alguns motores.
 
 ### `compute_contrast`
-Ferramenta compartilhada pelos agentes especialistas (não pelo chat
-diretamente): calcula a razão de contraste WCAG exata entre duas cores
-(hex, rgb()/rgba() ou nomes comuns), usada para VERIFICAR um achado 1.4.3/
-1.4.11 antes de reportá-lo — nunca estimado "no olho".
+Calcula a razão de contraste WCAG exata entre duas cores (hex, rgb()/rgba()
+ou nomes comuns) e devolve os veredictos por nível/tamanho de texto.
+
+**Como o contraste é realmente verificado hoje:** não por tool-call. O
+`contrast_verifier.py` recomputa o ratio exato dos achados 1.4.3/1.4.11 em
+Python puro, dentro do `orchestrator`, depois do merge/dedup — e remove os
+falsos positivos. A decisão foi deliberada e está registrada no próprio
+módulo: cálculo determinístico é robusto em qualquer provider, sem depender
+do loop de tool-call do modelo. Nunca estimado "no olho".
+
+A tool `compute_contrast` está registrada no toolset `a11y_tools`, que
+**nenhum agente habilita atualmente** (`enabled_toolsets` do chat é
+`a11y_chat` + `clarify`). O que está em uso são as funções
+`contrast_ratio_rgb`/`parse_color` do mesmo módulo, importadas diretamente
+pelo verificador. Até 2026-08-30 este documento dizia que a tool era
+"compartilhada pelos agentes especialistas", o que não corresponde ao
+roteamento real.
 
 ### `verify_screen_reader_announcements` 🔒
 Verifica os anúncios de leitor de tela de uma URL cruzando a árvore de
