@@ -3507,6 +3507,31 @@ def run_cross_browser_test_tool(args: dict) -> str:
             "`install_playwright_browsers`) para rodar o teste real nesses motores também."
         )
 
+    # Motor INSTALADO que mesmo assim não sobe. Sem isto, o modelo recebia só
+    # "spawn UNKNOWN" -- erro cru do Node, que não diz nada a quem lê -- e a
+    # única sugestão possível seria reinstalar, que não resolve e faz o usuário
+    # baixar centenas de MB à toa. Observado em 2026-08-30: o Firefox do
+    # Playwright falhava neste Windows por um assembly side-by-side (`mozglue`)
+    # que o pacote não registra; reinstalar (inclusive com --force e com o
+    # build beta) reproduzia o mesmo erro.
+    broken_engines = [
+        engine
+        for engine, data in per_engine_summary.items()
+        if isinstance(data.get("error"), str)
+        and engine not in missing_engines
+        and ("spawn" in data["error"].lower() or "side-by-side" in data["error"].lower())
+    ]
+    if broken_engines:
+        result["runtime_failure_note"] = (
+            f"Os motores {broken_engines} ESTÃO instalados mas não conseguem iniciar nesta máquina -- "
+            "é falha de runtime do sistema operacional, não de instalação. Reinstalar NÃO resolve; "
+            "não ofereça `install_playwright_browsers` para eles. No Windows, a causa usual é uma "
+            "dependência nativa ausente (Visual C++ Redistributable) ou um assembly side-by-side não "
+            "registrado; o Visualizador de Eventos, em Aplicativo, mostra a causa exata. "
+            "Os motores que subiram continuam válidos: reporte o resultado deles e diga explicitamente "
+            "quais motores NÃO foram verificados."
+        )
+
     union_violations = list(all_violations_union.values())
     if union_violations and diff["engines_succeeded"]:
         _cache_remote_test_result_for_deliverables("cross_browser_axe", target_url, union_violations)

@@ -1494,3 +1494,56 @@ class TestCrossBrowserAndPlaywrightInstallFlow:
         que exige aprovação explícita do usuário no registry de tools."""
         from tools.registry import registry
         assert registry.tools["install_playwright_browsers"]["requires_approval"] is True
+
+
+# ── Regressão: motor instalado que não sobe não é "falta instalar" ───────────
+
+
+class TestCrossBrowserDistingueInstalacaoDeRuntime:
+    """Achado real (2026-08-30): o Firefox do Playwright estava instalado mas
+    nao subia neste Windows -- assembly side-by-side (`mozglue`) nao registrado.
+    O erro cru era `spawn UNKNOWN`, que nao diz nada a quem le, e a unica
+    sugestao que existia era reinstalar -- que NAO resolve (reproduzido com
+    --force e com o build beta) e faz o usuario baixar centenas de MB a toa.
+    """
+
+    def _resultado(self, erro_firefox: str) -> dict:
+        import json
+
+        from backend.src.services.chat_tools import run_cross_browser_test_tool
+
+        # Shape real do per_engine: {"success": bool, "results": <axe>, "error": str}
+        ok = {"success": True, "results": {"violations": [], "incomplete": [], "testEngine": {"name": "axe-core"}}}
+        with patch(
+            "backend.src.services.browser.run_axe_core_cross_browser_audit",
+            new=AsyncMock(
+                return_value={
+                    "per_engine": {
+                        "chromium": ok,
+                        "webkit": ok,
+                        "firefox": {"success": False, "error": erro_firefox},
+                    }
+                }
+            ),
+        ):
+            return json.loads(run_cross_browser_test_tool({"target_url": "https://exemplo.com"}))
+
+    def test_binario_ausente_oferece_instalacao(self):
+        r = self._resultado("Executable doesn't exist. Please run playwright install")
+        assert "install_suggestion" in r
+        assert "runtime_failure_note" not in r
+
+    def test_falha_de_runtime_nao_oferece_instalacao(self):
+        r = self._resultado("BrowserType.launch: spawn UNKNOWN")
+        assert "install_suggestion" not in r, "reinstalar nao resolve falha de runtime do SO"
+        nota = r["runtime_failure_note"]
+        assert "ESTÃO instalados" in nota
+        assert "Reinstalar NÃO resolve" in nota
+        # E tem de mandar dizer o que NAO foi verificado.
+        assert "NÃO foram verificados" in nota
+
+    def test_motores_que_subiram_continuam_valendo(self):
+        r = self._resultado("BrowserType.launch: spawn UNKNOWN")
+        assert r["engines_succeeded"] == ["chromium", "webkit"]
+        assert r["engines_failed"] == ["firefox"]
+        assert r["status"] == "ok"
