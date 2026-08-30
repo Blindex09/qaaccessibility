@@ -137,3 +137,50 @@ class TestReportRoute:
             response = client.post("/report/", json={"html_content": "<html></html>"})
         assert response.status_code == 200
         assert response.json()["data"]["score"] == 95
+
+
+class TestFixTimeoutNaoViraSucesso:
+    """Regressao: timeout do self-healing devolvia HTTP 200 com corpo vazio.
+
+    `asyncio.TimeoutError` e subclasse de `Exception`, entao o `except
+    Exception` interno da rota o capturava ANTES do handler de 504 -- que
+    ficava inalcancavel nesse ramo. E como `str(TimeoutError())` e string
+    VAZIA, o cliente recebia 200, success=False, error="" e fixed_html vazio:
+    "sucesso" sem correcao nenhuma e sem uma unica pista do motivo.
+
+    Observado ao vivo em 2026-08-30, no log do backend:
+        [Route] Self-healing failed:            <- sem nada depois
+        [HTTP] POST /fix/ -> 200 (60028.0ms)
+    """
+
+    def test_timeout_no_self_healing_devolve_504(self):
+        with patch(
+            "backend.src.services.self_healing.run_self_healing_loop",
+            new=AsyncMock(side_effect=TimeoutError()),
+        ):
+            resposta = client.post(
+                "/fix/",
+                json={"html_content": "<html><body><img src='x.png'></body></html>", "issues": [], "self_healing": True},
+            )
+
+        assert resposta.status_code == 504, "timeout nao pode virar 200"
+        assert "timed out" in resposta.json()["detail"].lower()
+
+    def test_erro_sem_mensagem_nao_vira_erro_em_branco(self):
+        class FalhaSemMensagemError(Exception):
+            pass
+
+        with patch(
+            "backend.src.services.self_healing.run_self_healing_loop",
+            new=AsyncMock(side_effect=FalhaSemMensagemError()),
+        ):
+            resposta = client.post(
+                "/fix/",
+                json={"html_content": "<html><body></body></html>", "issues": [], "self_healing": True},
+            )
+
+        assert resposta.status_code == 200
+        corpo = resposta.json()
+        assert corpo["success"] is False
+        assert corpo["error"], "erro sem mensagem e indistinguivel de nao ter havido erro"
+        assert "FalhaSemMensagemError" in corpo["error"]

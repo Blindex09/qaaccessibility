@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/fix", tags=["fix"], dependencies=[Depends(rate_limit_dependency)])
 
 # Guardrail: hard wall-clock timeout para o agente fixer (iteration limit)
-_FIX_TIMEOUT_SECONDS = 60.0
+# 60s nao cobria o self-healing: ele e um grafo de ate `max_retries=3` rodadas,
+# cada uma com planner + fixer + verificacao axe-core no browser. Medido em
+# 2026-08-30, um /fix com 34 issues batia exatamente no limite (60028ms) e
+# morria no meio da primeira rodada. O fixer simples (self_healing=False)
+# termina em segundos e nao e afetado por um teto mais alto.
+_FIX_TIMEOUT_SECONDS = 420.0
 
 
 @router.post("/", response_model=AgentResult)
@@ -50,13 +55,25 @@ async def fix_html(body: FixRequest) -> AgentResult:
                         "enriched_issues": enriched_issues,
                     },
                 )
+            except asyncio.TimeoutError:
+                # `asyncio.TimeoutError` E subclasse de Exception, entao o
+                # `except Exception` abaixo o capturava ANTES do handler de 504
+                # la fora -- que ficava inalcancavel neste ramo. Como
+                # `str(TimeoutError())` e string VAZIA, o resultado era um
+                # HTTP 200 com success=False, error="" e fixed_html vazio: o
+                # cliente via "sucesso", nao recebia correcao nenhuma e nao
+                # tinha uma unica pista do motivo. Observado ao vivo em
+                # 2026-08-30 (`[Route] Self-healing failed: ` sem nada depois).
+                raise
             except Exception as exc:
-                logger.error("[Route] Self-healing failed: %s", exc)
+                # `or repr(exc)` porque varias excecoes tem str() vazio -- um
+                # erro sem mensagem e indistinguivel de "nao houve erro".
+                logger.error("[Route] Self-healing failed: %s", repr(exc))
                 result = AgentResult(
                     agent="fixer",
                     success=False,
                     data={},
-                    error=str(exc),
+                    error=str(exc) or repr(exc),
                 )
         else:
             result = await asyncio.wait_for(
