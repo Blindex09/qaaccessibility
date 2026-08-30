@@ -13,7 +13,6 @@ import pytest
 # ── browser.py ────────────────────────────────────────────────────────────────
 
 
-
 def _mock_cdp_playwright(mock_pw, nos_cdp):
     """Monta o encadeamento do Playwright com uma sessao CDP falsa.
 
@@ -24,6 +23,7 @@ def _mock_cdp_playwright(mock_pw, nos_cdp):
     espelha o caminho real: `context.new_cdp_session` +
     `Accessibility.getFullAXTree`.
     """
+
     async def _send(metodo, *_a, **_kw):
         if metodo == "Accessibility.getFullAXTree":
             return {"nodes": nos_cdp}
@@ -67,6 +67,7 @@ class TestFetchRenderedHtml:
         mock_settings.return_value.firecrawl_api_key = "fake_key"
 
         from backend.src.services.browser import fetch_rendered_html
+
         result = await fetch_rendered_html("https://example.com")
         assert result == mock_html
 
@@ -79,6 +80,7 @@ class TestFetchRenderedHtml:
         mock_settings.return_value.firecrawl_api_key = "fake_key"
 
         from backend.src.services.browser import fetch_rendered_html
+
         with pytest.raises(Exception, match="ERR_NAME_NOT_RESOLVED"):
             await fetch_rendered_html("https://não-existe-mesmo.xyz")
 
@@ -92,6 +94,7 @@ class TestFetchRenderedHtml:
         mock_settings.return_value.firecrawl_api_key = "fake_key"
 
         from backend.src.services.browser import fetch_rendered_html
+
         result = await fetch_rendered_html("https://spa-app.com")
         assert result == mock_html
 
@@ -131,6 +134,7 @@ class TestFetchRenderedHtmlAndScreenshot:
 
         with patch("backend.src.services.browser.async_playwright", return_value=mock_pw):
             from backend.src.services.browser import fetch_rendered_html_and_screenshot
+
             html, sshot = await fetch_rendered_html_and_screenshot("https://example.com")
 
         assert html == mock_html
@@ -167,16 +171,27 @@ class TestFetchRenderedHtmlScreenshotAndFocusStates:
         mock_page.content = AsyncMock(return_value=mock_html)
 
         # Mock evaluate para retornar primeiro None (injecao de script), depois um elemento valido, e depois None para encerrar o loop sem duplicados
-        mock_page.evaluate = AsyncMock(side_effect=[
-            None,
-            {
-                "tagName": "button",
-                "id": "b1",
-                "className": "btn",
-                "rect": {"x": 10, "y": 15, "width": 100, "height": 40}
-            },
-            None, None, None, None, None, None, None, None, None, None
-        ])
+        mock_page.evaluate = AsyncMock(
+            side_effect=[
+                None,
+                {
+                    "tagName": "button",
+                    "id": "b1",
+                    "className": "btn",
+                    "rect": {"x": 10, "y": 15, "width": 100, "height": 40},
+                },
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ]
+        )
         mock_page.evaluate_handle = AsyncMock(return_value=mock_active_el)
 
         mock_context = AsyncMock()
@@ -194,14 +209,15 @@ class TestFetchRenderedHtmlScreenshotAndFocusStates:
 
         with patch("backend.src.services.browser.async_playwright", return_value=mock_pw):
             from backend.src.services.browser import fetch_rendered_html_screenshot_and_focus_states
-            html, sshot, focus_sshots = await fetch_rendered_html_screenshot_and_focus_states("https://example.com", max_tabs=2)
+
+            html, sshot, focus_sshots = await fetch_rendered_html_screenshot_and_focus_states(
+                "https://example.com", max_tabs=2
+            )
 
         assert html == mock_html
         assert sshot == "ZmFrZV9wbmdfZGF0YQ=="
         assert len(focus_sshots) == 1
         assert focus_sshots[0] == "Y3JvcF9kYXRh"
-
-
 
 
 # ── crawler.py ────────────────────────────────────────────────────────────────
@@ -288,6 +304,7 @@ class TestCrawlSite:
     async def test_crawl_max_pages_capped_at_50(self):
         """max_pages acima de 50 deve ser reduzido para 50."""
         call_count = 0
+
         async def mock_fetch_impl(url):
             nonlocal call_count
             call_count += 1
@@ -329,21 +346,27 @@ class TestCrawlSiteWithFirecrawl:
     async def test_crawl_site_with_firecrawl_success(self):
         """Deve usar Firecrawl para descobrir os links e buscar HTML via fetch_rendered_html."""
         from backend.src.config.settings import Settings
+
         fake_settings = Settings(secret_key="test_secret", firecrawl_api_key="fc-test-key")
 
         mock_links = ["https://example.com/1", "https://example.com/2"]
 
-        with patch(
-            "backend.src.config.settings.get_settings",
-            return_value=fake_settings,
-        ), patch(
-            "backend.src.services.crawler._discover_site_links_firecrawl",
-            return_value=mock_links,
-        ) as map_mock, patch(
-            "backend.src.services.browser.fetch_rendered_html",
-            new=AsyncMock(return_value="<html>OK</html>"),
-        ) as fetch_mock:
+        with (
+            patch(
+                "backend.src.config.settings.get_settings",
+                return_value=fake_settings,
+            ),
+            patch(
+                "backend.src.services.crawler._discover_site_links_firecrawl",
+                return_value=mock_links,
+            ) as map_mock,
+            patch(
+                "backend.src.services.browser.fetch_rendered_html",
+                new=AsyncMock(return_value="<html>OK</html>"),
+            ) as fetch_mock,
+        ):
             from backend.src.services.crawler import crawl_site
+
             results = await crawl_site("https://example.com/1", max_pages=2)
 
         map_mock.assert_called_once_with("https://example.com/1", "fc-test-key", 2)
@@ -357,20 +380,26 @@ class TestCrawlSiteWithFirecrawl:
     async def test_crawl_site_with_firecrawl_fallback(self):
         """Deve cair de volta para o Playwright se o Firecrawl retornar None."""
         from backend.src.config.settings import Settings
+
         fake_settings = Settings(secret_key="test_secret", firecrawl_api_key="fc-test-key")
 
-        with patch(
-            "backend.src.config.settings.get_settings",
-            return_value=fake_settings,
-        ), patch(
-            "backend.src.services.crawler._discover_site_links_firecrawl",
-            return_value=None,
-        ) as map_mock, patch(
-            "backend.src.services.browser.fetch_rendered_html",
-            new_callable=AsyncMock,
-        ) as mock_fetch:
+        with (
+            patch(
+                "backend.src.config.settings.get_settings",
+                return_value=fake_settings,
+            ),
+            patch(
+                "backend.src.services.crawler._discover_site_links_firecrawl",
+                return_value=None,
+            ) as map_mock,
+            patch(
+                "backend.src.services.browser.fetch_rendered_html",
+                new_callable=AsyncMock,
+            ) as mock_fetch,
+        ):
             mock_fetch.return_value = "<html>Fallback</html>"
             from backend.src.services.crawler import crawl_site
+
             results = await crawl_site("https://example.com/1", max_pages=1)
 
         map_mock.assert_called_once()
@@ -390,20 +419,11 @@ class TestFetchRenderedHtmlWithAuthenticationAndActions:
         headers = {"Authorization": "Bearer test"}
         actions = [{"type": "click", "selector": "button"}]
 
-        res = await fetch_rendered_html(
-            "https://example.com",
-            cookies=cookies,
-            auth_headers=headers,
-            actions=actions
-        )
+        res = await fetch_rendered_html("https://example.com", cookies=cookies, auth_headers=headers, actions=actions)
 
         assert res == "<html>authenticated</html>"
         mock_direct.assert_called_once_with(
-            url="https://example.com",
-            ws_url=ANY,
-            cookies=cookies,
-            auth_headers=headers,
-            actions=actions
+            url="https://example.com", ws_url=ANY, cookies=cookies, auth_headers=headers, actions=actions
         )
 
     @pytest.mark.asyncio
@@ -414,19 +434,12 @@ class TestFetchRenderedHtmlWithAuthenticationAndActions:
 
         cookies = [{"name": "test", "value": "123"}]
 
-        html, sshot = await fetch_rendered_html_and_screenshot(
-            "https://example.com",
-            cookies=cookies
-        )
+        html, sshot = await fetch_rendered_html_and_screenshot("https://example.com", cookies=cookies)
 
         assert html == "<html>authenticated</html>"
         assert sshot == "fake_screenshot"
         mock_direct.assert_called_once_with(
-            url="https://example.com",
-            ws_url=ANY,
-            cookies=cookies,
-            auth_headers=None,
-            actions=None
+            url="https://example.com", ws_url=ANY, cookies=cookies, auth_headers=None, actions=None
         )
 
     @pytest.mark.asyncio
@@ -438,21 +451,14 @@ class TestFetchRenderedHtmlWithAuthenticationAndActions:
         cookies = [{"name": "test", "value": "123"}]
 
         html, sshot, focus = await fetch_rendered_html_screenshot_and_focus_states(
-            "https://example.com",
-            max_tabs=5,
-            cookies=cookies
+            "https://example.com", max_tabs=5, cookies=cookies
         )
 
         assert html == "<html>authenticated</html>"
         assert sshot == "fake_screenshot"
         assert focus == ["focus1"]
         mock_direct.assert_called_once_with(
-            url="https://example.com",
-            ws_url=ANY,
-            cookies=cookies,
-            auth_headers=None,
-            actions=None,
-            max_tabs=5
+            url="https://example.com", ws_url=ANY, cookies=cookies, auth_headers=None, actions=None, max_tabs=5
         )
 
     @pytest.mark.asyncio
@@ -483,7 +489,7 @@ class TestFetchRenderedHtmlWithAuthenticationAndActions:
             {"type": "click", "selector": "#btn"},
             {"type": "type", "selector": "#input", "text": "hello"},
             {"type": "wait", "selector": "#loaded"},
-            {"type": "wait_time", "ms": 500}
+            {"type": "wait_time", "ms": 500},
         ]
 
         html, screenshot, focus = await _fetch_via_direct_browser(
@@ -492,16 +498,16 @@ class TestFetchRenderedHtmlWithAuthenticationAndActions:
             cookies=cookies,
             auth_headers=headers,
             actions=actions,
-            max_tabs=None
+            max_tabs=None,
         )
 
         assert html == "<html>loaded</html>"
         assert screenshot == "ZmFrZV9wbmc="
         assert focus is None
 
-        mock_context.add_cookies.assert_called_once_with([
-            {"name": "test", "value": "123", "url": "https://example.com"}
-        ])
+        mock_context.add_cookies.assert_called_once_with(
+            [{"name": "test", "value": "123", "url": "https://example.com"}]
+        )
         mock_context.set_extra_http_headers.assert_called_once_with(headers)
         mock_page.goto.assert_called_once_with("https://example.com", timeout=30000, wait_until="load")
         mock_page.click.assert_called_once_with("#btn", timeout=5000)
@@ -520,20 +526,10 @@ class TestCrawlSiteWithAuthentication:
         cookies = [{"name": "session", "value": "abc"}]
         headers = {"Authorization": "Token 123"}
 
-        results = await crawl_site(
-            "https://example.com",
-            max_pages=2,
-            cookies=cookies,
-            auth_headers=headers
-        )
+        results = await crawl_site("https://example.com", max_pages=2, cookies=cookies, auth_headers=headers)
 
         assert len(results) >= 1
-        mock_fetch.assert_any_call(
-            "https://example.com",
-            cookies=cookies,
-            auth_headers=headers
-        )
-
+        mock_fetch.assert_any_call("https://example.com", cookies=cookies, auth_headers=headers)
 
 
 class TestFormatAccessibilityNode:
@@ -563,7 +559,8 @@ class TestFormatAccessibilityNode:
         from backend.src.services.browser import _format_accessibility_node
 
         node = {
-            "role": "WebArea", "name": "Página",
+            "role": "WebArea",
+            "name": "Página",
             "children": [
                 {"role": "button", "name": "OK"},
                 {"role": "link", "name": ""},
@@ -580,9 +577,11 @@ class TestFormatAccessibilityNode:
     def test_truncates_at_max_lines(self):
         from backend.src.services.browser import _A11Y_SNAPSHOT_MAX_LINES, _format_accessibility_node
 
-        node = {"role": "list", "name": "", "children": [
-            {"role": "listitem", "name": f"item {i}"} for i in range(_A11Y_SNAPSHOT_MAX_LINES + 20)
-        ]}
+        node = {
+            "role": "list",
+            "name": "",
+            "children": [{"role": "listitem", "name": f"item {i}"} for i in range(_A11Y_SNAPSHOT_MAX_LINES + 20)],
+        }
         lines: list[str] = []
         _format_accessibility_node(node, 0, lines)
         assert len(lines) <= _A11Y_SNAPSHOT_MAX_LINES + 1  # +1 pela linha de truncamento
@@ -596,6 +595,7 @@ class TestFetchAccessibilityTreeSnapshot:
         mock_settings.return_value.browserless_ws_url = None
 
         from backend.src.services.browser import fetch_accessibility_tree_snapshot
+
         result = await fetch_accessibility_tree_snapshot("https://example.com")
         assert result == ""
 
@@ -605,12 +605,16 @@ class TestFetchAccessibilityTreeSnapshot:
     async def test_returns_formatted_tree_on_success(self, mock_pw, mock_settings):
         mock_settings.return_value.browserless_ws_url = "wss://fake-browserless"
 
-        mock_page = _mock_cdp_playwright(mock_pw, [
-            _no_cdp("1", "WebArea", "Teste", filhos=["2"]),
-            _no_cdp("2", "button", "Enviar", pai="1"),
-        ])
+        mock_page = _mock_cdp_playwright(
+            mock_pw,
+            [
+                _no_cdp("1", "WebArea", "Teste", filhos=["2"]),
+                _no_cdp("2", "button", "Enviar", pai="1"),
+            ],
+        )
 
         from backend.src.services.browser import fetch_accessibility_tree_snapshot
+
         result = await fetch_accessibility_tree_snapshot("https://example.com")
 
         assert '"Teste"' in result
@@ -627,6 +631,7 @@ class TestFetchAccessibilityTreeSnapshot:
         mock_pw.return_value.__aenter__ = AsyncMock(side_effect=RuntimeError("conexao recusada"))
 
         from backend.src.services.browser import fetch_accessibility_tree_snapshot
+
         result = await fetch_accessibility_tree_snapshot("https://example.com")
         assert result == ""
 
@@ -642,6 +647,7 @@ class TestFetchAccessibilityTreeNodes:
         mock_settings.return_value.browserless_ws_url = None
 
         from backend.src.services.browser import fetch_accessibility_tree_nodes
+
         result = await fetch_accessibility_tree_nodes("https://example.com")
         assert result == []
 
@@ -651,14 +657,18 @@ class TestFetchAccessibilityTreeNodes:
     async def test_flattens_tree_and_marks_interactive_roles(self, mock_pw, mock_settings):
         mock_settings.return_value.browserless_ws_url = "wss://fake-browserless"
 
-        _mock_cdp_playwright(mock_pw, [
-            _no_cdp("1", "WebArea", "Teste", filhos=["2", "3", "4"]),
-            _no_cdp("2", "heading", "Titulo da pagina", pai="1"),
-            _no_cdp("3", "button", "Enviar formulario de contato", pai="1"),
-            _no_cdp("4", "button", "", pai="1"),
-        ])
+        _mock_cdp_playwright(
+            mock_pw,
+            [
+                _no_cdp("1", "WebArea", "Teste", filhos=["2", "3", "4"]),
+                _no_cdp("2", "heading", "Titulo da pagina", pai="1"),
+                _no_cdp("3", "button", "Enviar formulario de contato", pai="1"),
+                _no_cdp("4", "button", "", pai="1"),
+            ],
+        )
 
         from backend.src.services.browser import fetch_accessibility_tree_nodes
+
         nodes = await fetch_accessibility_tree_nodes("https://example.com")
 
         assert len(nodes) == 4  # WebArea + heading + 2 buttons
@@ -676,6 +686,7 @@ class TestFetchAccessibilityTreeNodes:
         mock_pw.return_value.__aenter__ = AsyncMock(side_effect=RuntimeError("conexao recusada"))
 
         from backend.src.services.browser import fetch_accessibility_tree_nodes
+
         result = await fetch_accessibility_tree_nodes("https://example.com")
         assert result == []
 
@@ -790,3 +801,85 @@ class TestRunAxeCoreCrossBrowserAudit:
         assert result["per_engine"]["webkit"]["success"] is True
         assert result["per_engine"]["firefox"]["success"] is False
         assert "Executable" in result["per_engine"]["firefox"]["error"]
+
+
+class TestCrawlerDescobertaDeLinks:
+    """Regressao dos dois bugs medidos em 2026-08-30 no crawl real do W3C BAD."""
+
+    def test_href_relativo_resolve_contra_a_pagina_nao_contra_a_raiz(self):
+        """Bug 1: base unica quebrava a descoberta a partir do 2o nivel.
+
+        Um href relativo numa subpagina de outro diretorio era resolvido contra
+        a URL INICIAL do crawl, produzindo caminhos que nao existem.
+        """
+        from backend.src.services.crawler import _extract_links_soup
+
+        html = '<html><body><a href="../c.html">C</a><a href="vizinho.html">V</a></body></html>'
+        links = _extract_links_soup(
+            html,
+            "https://exemplo.com/a/b/pagina.html",
+            "https://exemplo.com/",
+        )
+        assert "https://exemplo.com/a/c.html" in links
+        assert "https://exemplo.com/a/b/vizinho.html" in links
+
+    def test_link_de_outro_dominio_continua_fora(self):
+        from backend.src.services.crawler import _extract_links_soup
+
+        html = '<html><body><a href="https://outro.com/x.html">X</a><a href="/y.html">Y</a></body></html>'
+        links = _extract_links_soup(html, "https://exemplo.com/a/p.html", "https://exemplo.com/")
+        assert "https://exemplo.com/y.html" in links
+        assert not any("outro.com" in link for link in links)
+
+    def test_base_unica_continua_valendo_quando_site_url_e_omitido(self):
+        from backend.src.services.crawler import _extract_links_soup
+
+        html = '<html><body><a href="/z.html">Z</a></body></html>'
+        assert _extract_links_soup(html, "https://exemplo.com/p.html") == ["https://exemplo.com/z.html"]
+
+    @pytest.mark.asyncio
+    async def test_firecrawl_so_com_a_semente_nao_impede_a_varredura_local(self):
+        """Bug 2: descoberta vazia passava por sucesso.
+
+        `_discover_site_links_firecrawl` insere a propria URL semente no
+        resultado, entao a lista nunca vinha vazia e o `if links:` desviava
+        SEMPRE para o caminho do Firecrawl -- o crawl local virava codigo morto.
+        Pedindo 3 paginas, o crawl entregava 1, calado.
+        """
+        html = '<html><body><a href="/p1">1</a><a href="/p2">2</a><a href="/p3">3</a></body></html>'
+
+        with (
+            patch("backend.src.services.browser.fetch_rendered_html", new_callable=AsyncMock) as mock_fetch,
+            patch(
+                "backend.src.services.crawler._discover_site_links_firecrawl",
+                return_value=["https://exemplo.com"],  # so a semente: descoberta nenhuma
+            ),
+            patch("backend.src.config.settings.get_settings") as mock_settings,
+        ):
+            mock_fetch.return_value = html
+            mock_settings.return_value.firecrawl_api_key = "chave-de-teste"
+            from backend.src.services.crawler import crawl_site
+
+            results = await crawl_site("https://exemplo.com", max_pages=3)
+
+        assert len(results) == 3, f"esperava 3 paginas, veio {len(results)}"
+
+    @pytest.mark.asyncio
+    async def test_links_do_firecrawl_entram_na_fila_e_sao_visitados(self):
+        """O que o Firecrawl mapeia continua sendo usado -- agora somando, nao substituindo."""
+        with (
+            patch("backend.src.services.browser.fetch_rendered_html", new_callable=AsyncMock) as mock_fetch,
+            patch(
+                "backend.src.services.crawler._discover_site_links_firecrawl",
+                return_value=["https://exemplo.com", "https://exemplo.com/a", "https://exemplo.com/b"],
+            ),
+            patch("backend.src.config.settings.get_settings") as mock_settings,
+        ):
+            mock_fetch.return_value = "<html><body>sem links</body></html>"
+            mock_settings.return_value.firecrawl_api_key = "chave-de-teste"
+            from backend.src.services.crawler import crawl_site
+
+            results = await crawl_site("https://exemplo.com", max_pages=3)
+
+        visitadas = {r.url for r in results}
+        assert visitadas == {"https://exemplo.com", "https://exemplo.com/a", "https://exemplo.com/b"}

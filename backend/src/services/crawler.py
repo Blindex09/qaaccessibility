@@ -72,10 +72,21 @@ def _normalize(url: str) -> str:
     return clean.geturl().rstrip("/")
 
 
-def _extract_links_soup(html_content: str, base_url: str) -> list[str]:
-    """Extrai todos os links internos de uma página HTML usando BeautifulSoup."""
+def _extract_links_soup(html_content: str, page_url: str, site_url: str | None = None) -> list[str]:
+    """Extrai os links internos de uma página HTML usando BeautifulSoup.
+
+    `page_url` e a URL DA PAGINA onde o link aparece -- e a base correta para
+    resolver href relativo. `site_url` e a raiz do crawl, usada so para decidir
+    se o link continua no mesmo dominio.
+
+    A distincao importa: com uma base unica, um href relativo (`../c.html`) numa
+    subpagina de outro diretorio resolvia contra a URL INICIAL do crawl, gerando
+    caminhos que nao existem -- as paginas descobertas a partir do segundo nivel
+    saiam erradas.
+    """
     from bs4 import BeautifulSoup
 
+    dominio = site_url or page_url
     try:
         soup = BeautifulSoup(html_content, "html.parser")
         links: list[str] = []
@@ -83,8 +94,8 @@ def _extract_links_soup(html_content: str, base_url: str) -> list[str]:
             href = a["href"]
             if not href or href.startswith("javascript:") or href.startswith("mailto:") or href.startswith("#"):
                 continue
-            full = _normalize(urljoin(base_url, href))
-            if _is_internal(base_url, full) and not _should_skip(full):
+            full = _normalize(urljoin(page_url, href))
+            if _is_internal(dominio, full) and not _should_skip(full):
                 links.append(full)
         return links
     except Exception as exc:
@@ -167,30 +178,41 @@ async def crawl_site(
     ):
         is_public = False
 
+    # Descoberta pelo Firecrawl SEMEIA a fila do crawl local, em vez de
+    # substitui-lo.
+    #
+    # Antes era um ou-exclusivo: se o /v2/map devolvesse qualquer coisa, essas
+    # URLs eram as unicas visitadas e a descoberta local nunca rodava. Como
+    # `_discover_site_links_firecrawl` insere a propria URL semente no
+    # resultado, a lista NUNCA vinha vazia -- entao `if links:` era sempre
+    # verdadeiro e o fallback era codigo morto. Medido em 2026-08-30 com
+    # https://www.w3.org/WAI/demos/bad/before/home.html: o /v2/map devolveu 1
+    # link (so a semente) enquanto a mesma pagina tinha 42 links internos no
+    # HTML. O pedido era max_pages=3 e o crawl entregou 1 pagina, calado --
+    # falha passando por sucesso.
+    #
+    # Semeando a fila, os dois caminhos se somam: o que o Firecrawl mapeia entra
+    # primeiro, e a varredura local continua descobrindo ate atingir max_pages.
+    fila_inicial: list[str] = [_normalize(start_url)]
     firecrawl_key = getattr(settings, "firecrawl_api_key", None)
     if firecrawl_key and is_public:
         logger.info("[Crawler] Usando Firecrawl /v2/map para descoberta de links de %s", start_url)
         import asyncio
 
         links = await asyncio.to_thread(_discover_site_links_firecrawl, start_url, firecrawl_key, max_pages)
-        if links:
-            logger.info("[Crawler] Firecrawl encontrou %d links: %s", len(links), links)
-            results: list[CrawlPageResult] = []
-            from backend.src.services.browser import fetch_rendered_html
-
-            for link in links:
-                try:
-                    html = await fetch_rendered_html(link, cookies=cookies, auth_headers=auth_headers)
-                    results.append(CrawlPageResult(url=link, html=html))
-                except Exception as exc:
-                    logger.error("[Crawler] Falha ao renderizar link do Firecrawl %s: %s", link, exc)
-                    results.append(CrawlPageResult(url=link, html="", error=str(exc)))
-            return results
-        logger.warning("[Crawler] Firecrawl não retornou links. Caindo de volta para o crawl local.")
+        descobertos = [_normalize(link) for link in (links or []) if _normalize(link) not in fila_inicial]
+        if descobertos:
+            logger.info("[Crawler] Firecrawl acrescentou %d links alem da semente.", len(descobertos))
+            fila_inicial.extend(descobertos)
+        else:
+            logger.warning(
+                "[Crawler] Firecrawl nao descobriu nenhum link alem da propria URL inicial -- "
+                "a varredura local segue a partir dos links do HTML."
+            )
 
     results = []
     visited: set[str] = set()
-    queue: list[str] = [_normalize(start_url)]
+    queue: list[str] = fila_inicial
 
     from backend.src.services.browser import fetch_rendered_html
 
@@ -205,7 +227,7 @@ async def crawl_site(
             results.append(CrawlPageResult(url=url, html=html))
             logger.info("[Crawler] OK: %s (%d chars)", url, len(html))
             if len(visited) < max_pages:
-                for link in _extract_links_soup(html, start_url):
+                for link in _extract_links_soup(html, url, start_url):
                     if link not in visited and link not in queue:
                         queue.append(link)
         except Exception as exc:
