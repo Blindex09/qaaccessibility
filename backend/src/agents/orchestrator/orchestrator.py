@@ -128,9 +128,37 @@ def _has_mobile_surface(html_content: str) -> bool:
     )
 
 
+# Estruturas que o agente cognitivo de fato audita (ver cognitive.py): campos de
+# autenticacao (3.3.8/3.3.9), formulario e recuperacao de erro (3.3.x), prosa
+# para nivel de leitura e jargao (3.1.3-3.1.5), navegacao e orientacao (2.4.8,
+# 3.2.3), distracao (2.2.2) e limite de tempo (2.2.1).
+_PROSA_RE = re.compile(
+    r"<(p|li|td|h[1-6]|dd|blockquote|figcaption)\b[^>]*>\s*[^<\s]", re.I
+)  # `[^<\s]`: `\S` casava com o `<` de </p>, e um paragrafo vazio contava como prosa
+_AUTENTICACAO_RE = re.compile(r"type\s*=\s*['\"]?password|\bcaptcha\b|autocomplete\s*=\s*['\"]?(new-)?password", re.I)
+_ORIENTACAO_RE = re.compile(r"<nav\b|role\s*=\s*['\"]?navigation|aria-current\s*=", re.I)
+_DISTRACAO_RE = re.compile(r"<(marquee|blink)\b|\bautoplay\b|<meta\b[^>]*http-equiv\s*=\s*['\"]?refresh", re.I)
+
+
 def _has_cognitive_surface(html_content: str) -> bool:
-    text_len = len(re.sub(r"<[^>]+>", " ", html_content))
-    return _has_form_controls(html_content) or text_len > 1200
+    """Presenca das estruturas que o agente cognitivo audita -- nunca um limiar.
+
+    Antes: `_has_form_controls(...) or text_len > 1200`. O numero era um palpite
+    de complexidade a partir do TAMANHO, exatamente o que o complexity_router
+    documenta como proibido pela regra do projeto ("um `if len(html) > 50000` e
+    o tipo de heuristica fixa que a regra proibe"): 1200 caracteres de menu
+    repetido nao exigem avaliacao cognitiva, e um formulario de login com 300
+    caracteres exige. Dois modulos com criterios opostos.
+
+    Agora o gatilho e a mesma coisa que os outros: a estrutura existe ou nao.
+    """
+    return bool(
+        _has_form_controls(html_content)
+        or _PROSA_RE.search(html_content)
+        or _AUTENTICACAO_RE.search(html_content)
+        or _ORIENTACAO_RE.search(html_content)
+        or _DISTRACAO_RE.search(html_content)
+    )
 
 
 def _has_data_table(html_content: str) -> bool:

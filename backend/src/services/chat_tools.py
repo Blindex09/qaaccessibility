@@ -102,6 +102,29 @@ def _summarize_issues(issues: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _issues_do_arquivo(issues: list[dict[str, Any]], path: str) -> list[dict[str, Any]]:
+    """Restringe os issues do cache aos que vieram DESTE arquivo.
+
+    A analise de ZIP grava a procedencia de cada issue (`issue["url"] = nome do
+    arquivo`, ver routes/analyze.py), mas o corretor entregava a lista INTEIRA a
+    cada pagina HTML do projeto -- `sobre.html` era corrigido contra os
+    problemas encontrados em `index.html` -- e depois `_normalize_issue_for_fixer`
+    sobrescrevia `url` com o arquivo corrente, apagando a evidencia de onde o
+    problema realmente estava. O resumo de mudancas atribuia todo issue ao
+    arquivo que estivesse sendo processado.
+
+    O filtro so age quando a procedencia casa de fato com o arquivo: no fluxo de
+    pagina unica (analise por URL e correcao depois), o `url` do issue e a URL
+    auditada e nao bate com o caminho do arquivo -- ali a lista inteira continua
+    valendo, que e o comportamento correto e o historico.
+    """
+    procedencias = {str(issue.get("url") or "").strip() for issue in issues}
+    procedencias.discard("")
+    if path not in procedencias:
+        return issues
+    return [issue for issue in issues if str(issue.get("url") or "").strip() == path]
+
+
 def _normalize_issue_for_fixer(issue: dict[str, Any], path: str) -> dict[str, Any]:
     """Completa campos mínimos de issues legados antes do fixer.
 
@@ -1828,10 +1851,11 @@ async def _run_fixes_and_generate_zip(
                 #    re-auditados pois nao ha cache de issues.
                 file_issues_raw: list[dict[str, Any]] = []
                 if existing_issues:
-                    file_issues_raw = existing_issues
+                    file_issues_raw = _issues_do_arquivo(existing_issues, path)
                     logger.info(
-                        "[a11y_chat] Usando %d issue(s) pre-existente(s) do cache de analise para %s",
+                        "[a11y_chat] Usando %d de %d issue(s) do cache de analise para %s",
                         len(file_issues_raw),
+                        len(existing_issues),
                         path,
                     )
                 else:
