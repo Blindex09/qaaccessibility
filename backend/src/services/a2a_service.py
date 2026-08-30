@@ -51,7 +51,7 @@ def generate_agent_card(base_url: str = "http://localhost:8000") -> dict[str, An
             {
                 "id": "accessibility_analysis",
                 "name": "Web Accessibility Audit",
-                "description": "Audits HTML content or URLs across 25 parallel specialized subagents against WCAG 2.2 AA, WAI-ARIA 1.2/1.3, ADA Section 508, EAA EN 301 549, and WebXR XAUR standards.",
+                "description": "Audits HTML content or URLs across 27 parallel specialized subagents against WCAG 2.2 AA, WAI-ARIA 1.2/1.3, ADA Section 508, EAA EN 301 549, and WebXR XAUR standards.",
                 "tags": ["wcag22", "wai-aria", "accessibility", "a11y", "section508", "eaa"],
                 "examples": ["Audit the following HTML markup for accessibility barriers"],
                 "inputSchema": {

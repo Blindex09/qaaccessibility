@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -221,3 +222,27 @@ async def test_skill_desconhecida_falha_em_vez_de_dizer_sucesso():
 
     assert estado["status"] == "failed", "skill inexistente nao pode terminar como completed"
     assert "nao e suportada" in (estado.get("error") or "")
+
+
+def test_card_nao_pode_anunciar_um_numero_de_agentes_desatualizado():
+    """O Agent Card e contrato PUBLICO: outros agentes leem essa descricao para
+    decidir se delegam. Ele anunciava "25 parallel specialized subagents"
+    enquanto o catalogo do orquestrador ja tinha 27 -- numero que envelhece em
+    silencio a cada agente novo. Este teste amarra os dois.
+    """
+    import re
+
+    from backend.src.agents.orchestrator import orchestrator as orch
+
+    fonte = inspect.getsource(orch)
+    bloco = fonte[fonte.find("all_available_agents = {") :]
+    bloco = bloco[: bloco.find("\n    }")]
+    catalogo = set(re.findall(r'"([a-z0-9_]+)":\s*lambda', bloco))
+    catalogo |= set(re.findall(r'all_available_agents\["([a-z0-9_]+)"\]', fonte))
+
+    descricao = generate_agent_card("")["skills"][0]["description"]
+    anunciado = int(re.search(r"across (\d+) parallel", descricao).group(1))
+    assert anunciado == len(catalogo), (
+        f"o Agent Card anuncia {anunciado} subagentes paralelos, mas o catalogo "
+        f"do orquestrador tem {len(catalogo)}: {sorted(catalogo)}"
+    )
