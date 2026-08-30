@@ -162,6 +162,18 @@ function plainTextForAnnouncement(markdown: string): string {
  * aberturas do app, igual ao comportamento de antes desta mudança. */
 const CONVERSATION_ID_STORAGE_KEY = "qa_a11y_conversation_id";
 
+/** Ferramentas cuja execucao SIGNIFICA "uma auditoria nova comecou".
+ *
+ * Fato observado no backend (evento `tool_start`), nao palpite sobre a frase do
+ * usuario. Nomes espelham `backend/src/services/chat_tools.py`; um nome fora
+ * desta lista simplesmente nao reinicia a sessao de preview -- degradacao
+ * silenciosa e por escolha, nunca uma limpeza indevida do painel. */
+const AUDIT_STARTING_TOOLS = new Set([
+  "analyze_page",
+  "analyze_site",
+  "analyze_document",
+]);
+
 function generateConversationId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -194,6 +206,18 @@ export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [activity, setActivity] = useState<string>("");
+  /** Contador de auditorias iniciadas neste chat.
+   *
+   * Serve para a UI saber que uma auditoria NOVA comecou (e um preview antigo
+   * ficou obsoleto) sem adivinhar isso do texto do usuario. Antes a ChatScreen
+   * testava palavras-chave em portugues na mensagem
+   * (/analise|audite|auditoria|verifique|examinar|scan/), o que errava nos dois
+   * sentidos: nao reconhecia um pedido em ingles ou com outra palavra ("roda o
+   * axe nesse site"), e disparava a limpeza num acompanhamento sobre a MESMA
+   * auditoria ("verifique se o botao ficou certo"), fechando o painel do nada.
+   * Quem sabe que uma auditoria comecou e o backend, e ele ja diz: o evento
+   * `tool_start` da ferramenta de analise e o fato. */
+  const [auditRunCount, setAuditRunCount] = useState(0);
   const [pendingClarify, setPendingClarify] = useState<PendingClarify | null>(null);
   const [sessionUsage, setSessionUsage] = useState<TokenUsage>(EMPTY_USAGE);
   const [announcement, setAnnouncement] = useState<string>("");
@@ -572,6 +596,9 @@ export function useChat() {
                 pushStatus(`Bloqueio no quadro (${event.task_id}): ${event.reason}`, "phase", false);
                 break;
               case "tool_start":
+                if (AUDIT_STARTING_TOOLS.has(event.name)) {
+                  setAuditRunCount((c) => c + 1);
+                }
                 setToolStatus(event.name, "start", null, {
                   id: event.tool_call_id,
                   params: event.arguments,
@@ -711,6 +738,8 @@ export function useChat() {
     messages,
     streaming,
     activity,
+    /** Incrementa a cada auditoria iniciada -- ver `AUDIT_STARTING_TOOLS`. */
+    auditRunCount,
     announcement,
     elapsedMs,
     durationMs,

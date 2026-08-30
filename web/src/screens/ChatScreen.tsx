@@ -419,6 +419,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
     messages,
     streaming,
     activity,
+    auditRunCount,
     announcement,
     elapsedMs,
     durationMs,
@@ -454,7 +455,6 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [previewSessionId, setPreviewSessionId] = useState("");
   const [previewTotalPages, setPreviewTotalPages] = useState(1);
-  const lastAuditRequestRef = useRef<string | null>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
@@ -517,21 +517,19 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
   }, [messages]);
 
   // Uma nova auditoria começa uma sessão limpa, sem misturar previews de páginas.
+  //
+  // O gatilho é o fato de o backend ter DISPARADO uma ferramenta de análise
+  // (`auditRunCount`, alimentado pelo evento `tool_start`), nunca uma leitura da
+  // frase do usuário. A versão anterior testava palavras-chave em português e
+  // errava dos dois lados: não reconhecia "roda o axe nesse site" nem um pedido
+  // em inglês, e fechava o painel num acompanhamento sobre a MESMA auditoria
+  // ("verifique se o botão ficou certo").
   useEffect(() => {
-    const latestUser = [...messages].reverse().find((message) => message.role === "user");
-    const content = latestUser?.content || "";
-    const startsAudit = /https?:\/\/|\b(analise|audite|auditoria|verifique|examinar|scan)\b/i.test(content);
-    if (
-      lastAuditRequestRef.current !== null &&
-      content !== lastAuditRequestRef.current &&
-      startsAudit
-    ) {
-      setPreviewModalVisible(false);
-      setPreviewSessionId("");
-      setPreviewTotalPages(1);
-    }
-    lastAuditRequestRef.current = content;
-  }, [messages]);
+    if (auditRunCount === 0) return;
+    setPreviewModalVisible(false);
+    setPreviewSessionId("");
+    setPreviewTotalPages(1);
+  }, [auditRunCount]);
 
   // Registra a sessão criada pela IA e abre automaticamente o painel após uma
   // correção concluída. O painel permanece aberto enquanto a sessão avança.
