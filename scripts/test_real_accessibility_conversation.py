@@ -11,7 +11,12 @@ import urllib.error
 import urllib.request
 
 # Garantir env var
-API_KEY = os.getenv("OLLAMA_CLOUD_API_KEY") or os.getenv("OLLAMA_API_KEY") or "56fe647438c0474babb266897d888f95.BgnWogEAJIRSEjTtRydKTyVP"
+API_KEY = os.getenv("OLLAMA_CLOUD_API_KEY") or os.getenv("OLLAMA_API_KEY")
+if not API_KEY:
+    raise SystemExit(
+        "Defina OLLAMA_CLOUD_API_KEY (ou OLLAMA_API_KEY) antes de rodar este script. "
+        "Nenhuma chave fica embutida no repositorio."
+    )
 os.environ["OLLAMA_CLOUD_API_KEY"] = API_KEY
 os.environ["OLLAMA_API_KEY"] = API_KEY
 

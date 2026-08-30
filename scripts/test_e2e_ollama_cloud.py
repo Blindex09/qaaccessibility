@@ -23,7 +23,7 @@ import urllib.error
 import urllib.request
 
 # Garantir PYTHONPATH
-sys.path.insert(0, r"C:\qaaccessibility")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # A suíte E2E exige uma chave fornecida pelo ambiente; nunca manter credenciais
 # ou fallbacks embutidos no repositório.
