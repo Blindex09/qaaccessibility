@@ -103,3 +103,30 @@ class TestExportXlsxRoute:
             response = client.get("/export/last_accessibility_statement_pdf")
         assert response.status_code == 400
         assert "Nenhuma auditoria recente" in response.json()["detail"]
+
+
+def test_sarif_com_issue_invalido_devolve_400_e_nao_500(client):
+    """Payload invalido e erro do CLIENTE.
+
+    Antes, um `guideline` fora do enum caia no `except Exception` generico e
+    virava 500 "Falha ao gerar relatorio SARIF." -- o integrador recebia "o
+    servidor quebrou" sem saber qual campo tinha mandado errado, e o erro
+    ficava indistinguivel de uma falha real do exportador.
+    """
+    invalido = {
+        "id": "i1",
+        "criterion": "1.1.1 Non-text Content",
+        "severity": "high",
+        "element": "<img src='x.png'>",
+        "description": "imagem sem alt",
+        "description_technical": "img sem alt",
+        "why_simple": "a",
+        "why_technical": "b",
+        "suggestion": "add alt",
+        "guideline": "perceivable",  # fora do enum
+    }
+    resposta = client.post("/export/sarif", json={"issues": [invalido], "url": "https://exemplo.com"})
+
+    assert resposta.status_code == 400
+    detalhe = resposta.json()["detail"]
+    assert "guideline" in detalhe, "o erro tem de dizer QUAL campo esta errado"

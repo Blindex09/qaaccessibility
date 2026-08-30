@@ -6,6 +6,7 @@ import tempfile
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import ValidationError
 
 from backend.src.services.sarif_exporter import export_to_sarif
 from backend.src.services.xlsx_exporter import export_issues_xlsx
@@ -230,6 +231,13 @@ async def export_sarif(payload: dict) -> dict:
 
     try:
         issues = [AccessibilityIssue(**i) for i in issues_raw]
+    except ValidationError as exc:
+        # Payload invalido e erro do CLIENTE. Antes caia no `except Exception`
+        # abaixo e virava 500 "Falha ao gerar relatorio SARIF." -- o chamador
+        # recebia "o servidor quebrou" sem saber qual campo enviou errado.
+        logger.warning("[Export] Payload SARIF invalido: %s", exc)
+        raise HTTPException(status_code=400, detail=f"Issue invalido no payload: {exc}") from exc
+    try:
         return export_to_sarif(issues, url)
     except Exception as exc:
         logger.error("[Export] Falha ao gerar SARIF: %s", exc)
