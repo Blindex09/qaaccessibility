@@ -437,8 +437,10 @@ async def stream_chat(
     # A squad planeja o turno sem substituir o orchestrator especializado.
     # O plano é enviado ao frontend para transparência e ao modelo como
     # contrato de execução (escopo -> análise -> correção -> QA -> evidência).
-    wants_implementation = bool(re.search(r"\b(corrig|remedi|fix|implementar|aplicar)\w*\b", message, re.IGNORECASE))
-    squad_plan = build_squad_plan(message, include_implementation=wants_implementation)
+    # Sem adivinhar a intenção por palavra-chave: o plano traz sempre a etapa
+    # de correção, marcada como bloqueada até aprovação explícita. Ver o
+    # docstring de squad/coordinator.py para o porquê.
+    squad_plan = build_squad_plan(message)
     yield {"type": "squad_plan", "plan": squad_plan.to_dict()}
 
     # Triagem semântica no chat: roda apenas para o primeiro turno sem histórico.

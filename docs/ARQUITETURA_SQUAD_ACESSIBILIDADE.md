@@ -32,9 +32,30 @@ Cada solicitação de análise pode gerar um `SquadPlan` com tarefas dependentes
 
 1. **Product scope** — entende o objetivo e mantém o trabalho dentro de acessibilidade.
 2. **A11y analysis** — delega a análise aos especialistas aplicáveis e ao orquestrador.
-3. **A11y remediation** — só aparece quando a solicitação pede correção/implementação.
-4. **QA validation** — valida testes, renderização, axe-core e evidências.
+3. **A11y remediation** — está sempre no plano e sempre nasce `BLOCKED`.
+4. **QA validation** — valida testes, renderização, axe-core e evidências. Depende
+   da análise, não da correção: uma auditoria sem correção aprovada continua
+   tendo QA e entrega.
 5. **Documentation release** — consolida checklist, relatório, links e documentação.
+
+### Por que a correção é incondicional e bloqueada
+
+Antes, o `chat_runtime` decidia por regex de palavras-chave
+(`corrig|remedi|fix|implementar|aplicar`) se a etapa 3 entrava no plano. Isso
+quebrava de dois jeitos:
+
+- **Violava a regra do README** ("zero keywords hardcoded que bloqueiem ou
+  condicionem o comportamento da LLM"): o plano é injetado no prompt como
+  contrato de execução, então a regex condicionava o modelo.
+- **Errava em pedidos comuns.** "melhore o contraste", "ajuste os rótulos",
+  "deixe acessível" não casam com nenhuma daquelas raízes — o plano chegava ao
+  modelo sem etapa de correção justamente quando o usuário pediu correção.
+
+Hoje a etapa existe sempre, visível e explicitamente inalcançável sem
+aprovação. A autorização real nunca esteve no plano: está no
+`requires_approval` das ferramentas de mutação e na regra 13 do prompt do chat
+(checkpoint de remediação). Regressão coberta em
+`tests/backend/unit/agents/test_squad_coordinator.py`.
 
 As tarefas usam estados `BACKLOG`, `READY`, `IN_PROGRESS`, `BLOCKED`, `REVIEW` e
 `DONE`. O plano também informa dependências, critérios de aceite e portões de
@@ -87,7 +108,8 @@ persistente pode ser adicionado depois sem alterar os contratos dos agentes.
 
 ```text
 python -m pytest tests/backend/unit/agents/test_squad_coordinator.py -q
-python -m compileall -q backend/src/agents/squad backend/src/services/chat_runtime.py
+python -m ruff check backend/src/agents/squad backend/src/services/chat_runtime.py
+python -m mypy --config-file mypy.ini backend/src
 cd web && npx expo export:web
 ```
 
