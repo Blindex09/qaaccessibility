@@ -47,11 +47,15 @@ def main():
     print("  INICIANDO AUDITORIA REAL DE ACESSIBILIDADE DE PONTA A PONTA (E2E)")
     print("======================================================================")
 
-    # 300s nao bastava: medido em 2026-08-30, um POST /analyze/file real leva
-    # ~5 min (27 agentes em paralelo + delegacao + revisao do especialista +
-    # verificacao de contraste), e o cliente estourava ReadTimeout com a
-    # analise ainda rodando no servidor -- parecia falha do produto.
-    client = httpx.Client(base_url=BASE_URL, timeout=900.0, follow_redirects=True)
+    # Duracoes reais medidas de POST /analyze/file em 2026-08-30, na mesma
+    # maquina e sem concorrencia: 358s, 892s, 378s, 887s. A analise alterna
+    # entre ~6 e ~15 min conforme a latencia do provider -- 27 agentes em
+    # paralelo + delegacao + revisao do especialista + verificacao de
+    # contraste. 900s caia EXATAMENTE na borda dessa distribuicao (892s passa
+    # raspando; a execucao seguinte estourou), fazendo um ReadTimeout do
+    # cliente parecer falha do produto enquanto o servidor seguia trabalhando.
+    # 1800s da folga de ~2x sobre o pior caso observado.
+    client = httpx.Client(base_url=BASE_URL, timeout=1800.0, follow_redirects=True)
 
     # 1. Análise Completa de Acessibilidade (POST /analyze/file)
     print("\n--- ETAPA 1: Executando Análise Completa (POST /analyze/file) ---")
