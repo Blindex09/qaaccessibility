@@ -59,3 +59,7 @@ Thumbs.db
 
 # Lighthouse CI (relatorios locais)
 .lighthouseci/
+
+# Artefatos do Playwright (regenerados a cada execucao)
+tests/web/e2e/test-results/
+tests/web/e2e/playwright-report/
