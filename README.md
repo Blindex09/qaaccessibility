@@ -392,6 +392,39 @@ cd web && npm ci && npm test
 cd tests/web/e2e && npx playwright test
 ```
 
+#### Windows: `PLAYWRIGHT_BROWSERS_PATH` é obrigatório para o Firefox
+
+O cache padrão do Playwright fica em `%LOCALAPPDATA%\ms-playwright`, e
+`AppData\Local` herda uma ACE de AppContainer (`S-1-15-3-...`). Com ela, o
+Windows não consegue gerar o **contexto de ativação side-by-side** do assembly
+`mozglue`, e o `firefox.exe` do Playwright falha ao iniciar com um
+`spawn UNKNOWN` que não diz nada:
+
+```text
+Assembly dependente mozglue, type="win32", version="1.0.0.0"
+não pôde ser localizado
+```
+
+Chromium e WebKit não usam esse mecanismo e não são afetados — só o Firefox.
+Verificado em 2026-08-30: os **mesmos bytes** num caminho sem essa ACE sobem
+normalmente. Não é bug do Playwright nem do projeto, e não ocorre no CI
+(Linux não tem AppContainer).
+
+Solução — mover o cache para um caminho fora de `AppData\Local`:
+
+```bash
+# uma vez
+mkdir "%USERPROFILE%\pw-browsers"
+set PLAYWRIGHT_BROWSERS_PATH=%USERPROFILE%\pw-browsers
+npx playwright install chromium firefox webkit
+
+# e manter a variável no ambiente que roda os testes e o backend
+```
+
+Sem isso, `run_cross_browser_test` roda em 2 dos 3 motores e reporta
+`runtime_failure_note` explicando que o Firefox está instalado mas não sobe --
+nunca fingindo que os 3 rodaram.
+
 ### Verificação estática + dinâmica (rodar antes de qualquer entrega)
 
 Três ferramentas com pontos cegos diferentes — nenhuma sozinha basta:

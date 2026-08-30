@@ -100,6 +100,21 @@ entre engines (WebKit é o motor real por trás do VoiceOver, por exemplo).
 Devolve um resumo por engine mais o diff de quais violações aparecem só em
 alguns motores.
 
+**Degradação honesta por motor.** A resposta traz `engines_succeeded` e
+`engines_failed`, e o erro real de cada motor que não rodou. Dois casos são
+distinguidos, porque a orientação certa é oposta em cada um:
+
+- `install_suggestion` — o binário **não está instalado**. Aí faz sentido
+  oferecer `install_playwright_browsers`.
+- `runtime_failure_note` — o motor **está instalado mas não inicia**
+  (`spawn UNKNOWN` e afins). Reinstalar não resolve, e oferecer instalação
+  faria o usuário baixar centenas de MB à toa. A nota manda declarar
+  explicitamente quais motores **não** foram verificados, para um resultado
+  parcial nunca passar por cobertura completa.
+
+No Windows, a causa usual do segundo caso é o cache do Playwright estar sob
+`AppData\Local` — ver a seção de testes do README (`PLAYWRIGHT_BROWSERS_PATH`).
+
 ### `compute_contrast`
 Calcula a razão de contraste WCAG exata entre duas cores (hex, rgb()/rgba()
 ou nomes comuns) e devolve os veredictos por nível/tamanho de texto.
