@@ -116,11 +116,22 @@ def test_4_web_search_native():
 
 # 5. Extração Nativa Web Fetch (POST /api/web_fetch)
 def test_5_web_fetch_native():
-    target_url = "https://www.w3.org/WAI/standards-guidelines/wcag/"
+    # A URL anterior era https://www.w3.org/WAI/standards-guidelines/wcag/, que o
+    # fetcher do Ollama Cloud recusa com 404 (o w3.org bloqueia o crawler dele).
+    # Combinada com `assert isinstance(fetched, dict)` -- que um dict VAZIO
+    # satisfaz -- o teste imprimia "Status: False" e mesmo assim declarava
+    # APROVADO. Provava o oposto do que o nome dele diz.
+    target_url = "https://example.com"
     fetched = ollama_cloud_web_fetch(target_url, api_key=API_KEY)
     print(f"Status da busca nativa de URL: {bool(fetched)}")
 
     assert isinstance(fetched, dict), "Web Fetch deve retornar um dicionário com metadados/conteúdo"
+    assert fetched, (
+        "Web Fetch devolveu vazio: o adaptador engole a falha e retorna {} -- "
+        "dict vazio nao pode contar como capacidade funcionando"
+    )
+    assert fetched.get("content"), "Web Fetch deve trazer o conteudo extraido da pagina"
+    print(f"  conteudo extraido: {len(fetched['content'])} chars; chaves: {sorted(fetched)}")
 
 
 # 6. Execução de LLM Estruturada com Validação em Python

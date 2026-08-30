@@ -8,9 +8,17 @@ import sys
 
 
 async def main():
-    key = getpass.getpass("")
+    # Ambiente primeiro: `getpass` bloqueia esperando stdin interativo, entao
+    # rodar este script de forma nao-interativa (CI, agente, nohup) travava
+    # para sempre sem imprimir nada. So cai no prompt quando ha terminal.
+    key = os.getenv("OPENCODE_GO_API_KEY") or os.getenv("OPENCODE_API_KEY")
+    if not key and sys.stdin is not None and sys.stdin.isatty():
+        key = getpass.getpass("OPENCODE_GO_API_KEY: ")
     if not key:
-        raise RuntimeError("chave não recebida via stdin")
+        raise SystemExit(
+            "Defina OPENCODE_GO_API_KEY (ou OPENCODE_API_KEY) no ambiente antes de rodar "
+            "este script, ou execute-o num terminal interativo."
+        )
     os.environ["OPENCODE_GO_API_KEY"] = key
 
     from backend.src.services.llm_client import call_llm_structured
