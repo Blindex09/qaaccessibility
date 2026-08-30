@@ -610,6 +610,22 @@ def _md5(text: str) -> str:
     return hashlib.md5(text.encode("utf-8", errors="replace"), usedforsecurity=False).hexdigest()
 
 
+# Entrada reservada do cache de projeto para os issues que nao pertencem a um
+# arquivo especifico. O nome comeca e termina com "__" para nunca colidir com um
+# caminho real dentro do ZIP.
+_CHAVE_CACHE_SEM_ARQUIVO = "__issues_sem_arquivo__"
+
+
+def _impressao_do_projeto(file_hashes: dict[str, str]) -> str:
+    """Impressao digital do conjunto de arquivos aceitos.
+
+    Os issues sem arquivo atribuido so podem ser reaproveitados quando NADA no
+    projeto mudou -- nao ha como saber a qual arquivo cada um pertencia, entao
+    tambem nao ha como invalida-los seletivamente.
+    """
+    return _md5("|".join(f"{nome}:{h}" for nome, h in sorted(file_hashes.items())))
+
+
 def _map_issues_to_files(issues: list[dict], accepted_files: list[tuple[str, str]]) -> None:
     """Tenta mapear cada issue de volta para o arquivo de origem correspondente no projeto."""
     import re
@@ -1105,6 +1121,17 @@ async def analyze_project_zip(
             else:
                 to_analyze.append((name, text))
 
+        # Issues que `_map_issues_to_files` nao conseguiu atribuir a um arquivo
+        # tambem voltam do cache. Sem isto eles nao eram gravados em lugar
+        # nenhum -- o cache so guardava, por arquivo, os issues cujo `url` batia
+        # com aquele nome -- e reanalisar o MESMO projeto devolvia menos
+        # problemas do que a primeira vez, calado. Medido em 2026-08-30 num ZIP
+        # de 2 paginas: 17 issues na analise inicial, 12 na releitura do cache.
+        impressao = _impressao_do_projeto(file_hashes)
+        entrada_projeto = cache.get(_CHAVE_CACHE_SEM_ARQUIVO) or {}
+        if entrada_projeto.get("hash") == impressao:
+            cached_issues.extend(entrada_projeto.get("issues", []))
+
         logger.info(
             "[Route] Cache hit: %d arquivos. Cache miss (para analisar): %d arquivos",
             len(accepted) - len(to_analyze),
@@ -1129,9 +1156,19 @@ async def analyze_project_zip(
             _map_issues_to_files(new_issues, to_analyze)
 
             # Atualiza o cache para os arquivos recém-analisados
+            nomes_do_projeto = {nome for nome, _ in accepted}
             for name, _ in to_analyze:
                 file_issues = [issue for issue in new_issues if issue.get("url") == name]
                 cache[name] = {"hash": file_hashes[name], "issues": file_issues}
+            # ... e o que nao pertence a nenhum arquivo conhecido, que antes se
+            # perdia entre uma analise e a releitura do cache.
+            sem_arquivo = [
+                issue for issue in new_issues if str(issue.get("url") or "").strip() not in nomes_do_projeto
+            ]
+            cache[_CHAVE_CACHE_SEM_ARQUIVO] = {
+                "hash": _impressao_do_projeto(file_hashes),
+                "issues": sem_arquivo,
+            }
             _save_cache(cache)
 
             # Mescla questões novas e antigas
