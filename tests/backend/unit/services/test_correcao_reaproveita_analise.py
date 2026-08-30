@@ -38,6 +38,16 @@ class TestReaproveitamentoDaAnalise:
         with _com_analise("  " + _HTML + "\n"):
             assert _mesmo_conteudo_ja_analisado([{"path": "loja.html", "content": _HTML}])
 
+    def test_modelo_reescrevendo_o_html_ainda_reaproveita(self):
+        """Observado ao vivo: ao repassar o HTML numa chamada de ferramenta, o
+        modelo reescreve o texto -- aspas simples viram duplas, atributo sem
+        aspas ganha aspas, quebra de linha entre tags. Nada disso muda o
+        documento, mas quebrava a igualdade de string e mandava tudo para a
+        re-auditoria, que e justamente o bug que este arquivo cobre."""
+        reescrito = '<html lang="pt"><body>\n  <img src="b.png">\n  <button></button>\n</body></html>'
+        with _com_analise(_HTML):
+            assert _mesmo_conteudo_ja_analisado([{"path": "loja.html", "content": reescrito}])
+
     def test_conteudo_diferente_exige_auditoria_nova(self):
         """O outro lado do risco: reaproveitar analise de OUTRO arquivo daria
         correcao baseada em problema que nao existe neste."""

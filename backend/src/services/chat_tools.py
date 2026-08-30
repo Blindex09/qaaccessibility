@@ -2133,6 +2133,7 @@ def _mesmo_conteudo_ja_analisado(files: list[dict[str, Any]] | None) -> bool:
     diferente do analisado PRECISA de auditoria nova.
     """
     if not files or len(files) != 1:
+        logger.info("[a11y_chat] sem reaproveitamento: %d arquivo(s) nesta correcao", len(files or []))
         return False
     from backend.src.services.last_analyzed_content_store import get_last_analyzed_content
 
@@ -2143,10 +2144,49 @@ def _mesmo_conteudo_ja_analisado(files: list[dict[str, Any]] | None) -> bool:
         analisado = str(get_last_analyzed_content()[0] or "")
     except (ValueError, IndexError, TypeError):
         return False
-    if not analisado:
-        return False
     enviado = str(files[0].get("content") or "")
-    return bool(enviado) and enviado.strip() == analisado.strip()
+    if not analisado or not enviado:
+        logger.info(
+            "[a11y_chat] sem reaproveitamento: analisado=%d chars, enviado=%d chars",
+            len(analisado),
+            len(enviado),
+        )
+        return False
+
+    igual = _mesma_marcacao(enviado, analisado)
+    if not igual:
+        # Diagnostico: sem isto, uma re-auditoria inesperada era invisivel --
+        # foi preciso cruzar tres logs para descobrir por que o preview ficou
+        # vazio.
+        logger.info(
+            "[a11y_chat] sem reaproveitamento: marcacao difere da analisada (%d vs %d chars)",
+            len(enviado),
+            len(analisado),
+        )
+    return igual
+
+
+def _mesma_marcacao(um: str, outro: str) -> bool:
+    """Os dois textos descrevem o MESMO documento HTML?
+
+    Comparacao estrutural, nao byte a byte: ao repassar o HTML numa chamada de
+    ferramenta o modelo reescreve o texto -- troca aspas simples por duplas,
+    reindenta, quebra linhas diferente. Nada disso muda o documento, mas
+    quebrava a igualdade de string e mandava tudo para a re-auditoria.
+    """
+    from bs4 import BeautifulSoup
+
+    def _normalizar(texto: str) -> str:
+        # O parser ja uniformiza aspas e fecha tags ("src=b.png" -> src="b.png").
+        # Falta o espaco em branco: reindentar ou quebrar linha entre tags nao
+        # muda o documento.
+        marcacao = str(BeautifulSoup(texto, "html.parser"))
+        return re.sub(r"\s+", " ", re.sub(r">\s+<", "><", marcacao)).strip()
+
+    try:
+        return _normalizar(um) == _normalizar(outro)
+    except Exception:  # parser nunca deve derrubar uma correcao
+        return um.strip() == outro.strip()
 
 
 def fix_and_zip_files(args: dict[str, Any], **_kw: Any) -> str:
