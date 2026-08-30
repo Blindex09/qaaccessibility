@@ -2820,7 +2820,17 @@ def exa_search(args: dict[str, Any], **_kw: Any) -> str:
         response = httpx.post(
             "https://api.exa.ai/search",
             headers={"x-api-key": api_key, "content-type": "application/json"},
-            json={"query": query, "num_results": limit, "use_autoprompt": True},
+            # `contents` e obrigatorio para o Exa devolver o TEXTO da pagina.
+            # Sem ele a resposta traz so titulo e url, e os campos `text` e
+            # `highlights` que lemos abaixo vinham vazios em todo resultado --
+            # a ferramenta reportava `success: True` entregando zero conteudo
+            # para o agente raciocinar. Medido em 2026-08-30 contra a API real.
+            json={
+                "query": query,
+                "num_results": limit,
+                "use_autoprompt": True,
+                "contents": {"text": {"maxCharacters": 2000}, "highlights": {"numSentences": 3}},
+            },
             timeout=15.0,
         )
         response.raise_for_status()
@@ -2832,7 +2842,7 @@ def exa_search(args: dict[str, Any], **_kw: Any) -> str:
                 {
                     "title": r.get("title", ""),
                     "url": r.get("url", ""),
-                    "content": r.get("text", "") or r.get("highlights", [""])[0],
+                    "content": r.get("text") or " ".join(r.get("highlights") or []),
                 }
             )
         return json.dumps({"success": True, "data": {"web": results}}, ensure_ascii=False)
