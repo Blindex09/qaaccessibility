@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -175,3 +176,48 @@ async def test_worker_self_healing_fix_skill_calls_run_self_healing_loop():
     assert status["status"] == "completed"
     assert status["output"]["fixed_html"] == "<button>Fixed</button>"
     assert status["output"]["changes_summary"] == ["added aria-label"]
+
+
+# ── Regressão: card e executor não podem divergir ────────────────────────────
+
+
+def test_toda_skill_anunciada_no_card_tem_execucao_real():
+    """Bug real: o Agent Card publico anunciava SETE skills e o worker
+    implementava TRES. As outras quatro (vpat_generation,
+    playwright_test_generation, screen_reader_verification, design_review)
+    caiam num fallback generico que marcava a tarefa como `completed` e
+    devolvia "Skill 'X' executada com sucesso." sem executar coisa alguma.
+
+    Um agente federado delegava `vpat_generation`, lia "sucesso" e ficava sem
+    VPAT nenhum -- a pior forma de prometer o que nao se faz, porque afirma
+    explicitamente ter feito.
+    """
+    import inspect
+
+    from backend.src.services.a2a_service import _execute_a2a_task_worker, supported_skill_ids
+
+    corpo = inspect.getsource(_execute_a2a_task_worker)
+    nao_executaveis = [
+        skill_id for skill_id in supported_skill_ids() if f'skill_id == "{skill_id}"' not in corpo
+    ]
+    assert not nao_executaveis, (
+        "skills anunciadas no Agent Card sem ramo de execucao no worker: "
+        f"{sorted(nao_executaveis)}"
+    )
+
+
+async def test_skill_desconhecida_falha_em_vez_de_dizer_sucesso():
+    from backend.src.services import a2a_service
+
+    resposta = await a2a_service.submit_a2a_task("skill_que_nao_existe", {})
+    task_id = resposta["task_id"]
+
+    # O worker roda em background; aguarda o estado final.
+    for _ in range(50):
+        estado = a2a_service.get_a2a_task_status(task_id)
+        if estado["status"] in ("completed", "failed"):
+            break
+        await asyncio.sleep(0.1)
+
+    assert estado["status"] == "failed", "skill inexistente nao pode terminar como completed"
+    assert "nao e suportada" in (estado.get("error") or "")

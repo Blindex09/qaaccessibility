@@ -20,6 +20,32 @@ Requer `OLLAMA_API_KEY` (ou `OLLAMA_CLOUD_API_KEY`) no ambiente. Sem
 `RUN_REAL_LLM_TESTS=1`, todos os testes desta suite são pulados com motivo
 explícito -- nunca rodam em CI por padrão (custam tempo e tokens reais).
 
+### Atenção: `OPENCODE_API_KEY` muda o provider que a suite exercita
+
+Se `OPENCODE_API_KEY` também estiver no ambiente, os agentes que exigem
+**Structured Outputs garantidos** deixam de ir para o Ollama Cloud e passam a
+ser roteados para `opencode-go`, porque o Ollama Cloud não os garante. É o
+fallback opt-in documentado em `model_router.resolve_structured_output_chain`
+-- comportamento correto e desejado em produção, mas com uma consequência
+prática aqui: **a suite deixa de medir só o Ollama Cloud**.
+
+Nos logs isso aparece como:
+
+```text
+[ModelRouter] Structured Outputs indisponível no Ollama Cloud;
+              roteando para opencode-go/gpt-5.6-luna
+```
+
+Isso já custou um falso negativo real: `test_hooks_fire_during_a_real_call`
+fixava `assert provider == "ollama-cloud"` e passava apenas enquanto
+`OPENCODE_API_KEY` estivesse ausente. Ao configurar a segunda chave, o teste
+quebrou sem que nada no produto tivesse regredido. A asserção passou a
+verificar o que realmente importa ali: que o pre-hook e o post-hook descrevam
+**a mesma chamada**, qualquer que seja o provider que a serviu.
+
+Para medir exclusivamente o Ollama Cloud, rode com `OPENCODE_API_KEY`
+desconfigurada.
+
 Para rodar só uma camada: aponte para o arquivo (`test_03_trajectory_evals_real.py`
 etc). Runtime total da suite completa: ordem de poucos minutos, dezenas de
 chamadas reais de LLM (cresce com o número de camadas — ver nota acima).

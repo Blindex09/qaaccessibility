@@ -128,3 +128,35 @@ class TestPIIMiddlewareRecursive:
         data = {"message": "No personal data here"}
         result = _redact_recursive(data)
         assert result == data
+
+
+# ── Regressão: content-length obsoleto quebrava toda resposta redigida ───────
+
+
+def test_resposta_redigida_pelo_pii_chega_inteira_ao_cliente():
+    """Bug real: o PIIRedactionMiddleware reconstruia a resposta com
+    `headers=dict(response.headers)`, carregando o `content-length` do corpo
+    ORIGINAL. Como a redacao muda o tamanho, o Starlette abortava com
+    "Response content longer than Content-Length" e o cliente recebia
+    HTTP 200 com ZERO byte.
+
+    Isso derrubou `/.well-known/agent-card.json` -- o endpoint publico de
+    descoberta A2A, que o README anuncia para federacao com outros agentes --
+    e valia para qualquer resposta JSON que disparasse o detector de PII.
+    """
+    from fastapi.testclient import TestClient
+
+    from backend.src.main import app
+
+    with TestClient(app) as client:
+        resposta = client.get("/.well-known/agent-card.json")
+
+    assert resposta.status_code == 200
+    corpo = resposta.content
+    assert corpo, "corpo vazio: o content-length obsoleto voltou"
+    assert len(corpo) == int(resposta.headers["content-length"]), (
+        "content-length declarado nao bate com o corpo entregue"
+    )
+    card = resposta.json()
+    assert card["name"] == "QAAccessibilityAgent"
+    assert len(card["skills"]) >= 7

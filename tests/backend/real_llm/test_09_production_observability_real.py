@@ -104,7 +104,19 @@ async def test_hooks_fire_during_a_real_call(alto_model_id: str) -> None:
     assert len(pre_calls) == 1, f"PRE_LLM_CALL não disparou (ou disparou {len(pre_calls)}x) numa chamada real"
     assert len(post_calls) == 1
     provider, model, task_id, label, success, duration_ms = post_calls[0]
-    assert provider == "ollama-cloud"
+
+    # O provider NÃO pode ser fixado em "ollama-cloud". Quando OPENCODE_API_KEY
+    # está configurada, o `model_router` roteia agentes que exigem Structured
+    # Outputs para opencode-go, porque o Ollama Cloud não os garante -- é o
+    # fallback opt-in documentado em model_router.resolve_structured_output_chain,
+    # não um desvio. Este teste existe para provar que os HOOKS disparam com
+    # dados reais; o que importa aqui é que o hook reporte o provider que
+    # SERVIU a chamada, e o pre-hook e o post-hook concordem entre si.
+    assert provider, "hook recebeu provider vazio"
+    assert provider == pre_calls[0][0], (
+        f"PRE_LLM_CALL reportou provider={pre_calls[0][0]!r} e POST_LLM_CALL "
+        f"reportou {provider!r} -- os dois hooks têm de descrever a mesma chamada"
+    )
     assert model == alto_model_id or model  # modelo real resolvido, não vazio
     assert success is True
     assert duration_ms > 0, "hook recebeu duracao real da chamada, nao um valor zerado"

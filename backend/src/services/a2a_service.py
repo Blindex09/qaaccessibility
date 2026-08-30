@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import datetime
 import logging
 import uuid
@@ -133,6 +134,20 @@ def generate_agent_card(base_url: str = "http://localhost:8000") -> dict[str, An
     }
 
 
+
+
+def supported_skill_ids() -> frozenset[str]:
+    """Skills que o worker A2A sabe executar de verdade.
+
+    Derivado do proprio Agent Card em vez de uma lista paralela: o card e o
+    executor divergiram uma vez -- o card anunciava sete skills e o worker
+    implementava tres, e as outras quatro caiam num fallback que marcava a
+    tarefa como `completed` com "executada com sucesso" sem executar nada.
+    Com uma fonte unica, `test_a2a_protocol` consegue provar que toda skill
+    anunciada tem execucao real.
+    """
+    return frozenset(skill["id"] for skill in generate_agent_card("")["skills"])
+
 async def submit_a2a_task(
     skill_id: str,
     input_data: dict[str, Any],
@@ -227,9 +242,62 @@ async def _execute_a2a_task_worker(
             fixed_html, changes_summary, _enriched_issues = await run_self_healing_loop(html_content, issues)
             _a2a_tasks_store[task_id]["output"] = {"fixed_html": fixed_html, "changes_summary": changes_summary}
 
+        elif skill_id == "vpat_generation":
+            from backend.src.agents.vpat_reporter.vpat_reporter import run_vpat_reporter
+            from backend.src.shared.models import AccessibilityIssue
+
+            issues = [AccessibilityIssue(**i) for i in input_data.get("issues", [])]
+            result = await run_vpat_reporter(
+                issues=issues,
+                target=input_data.get("url", ""),
+                product_name=input_data.get("product_name", "Produto Avaliado"),
+            )
+            if not result.success:
+                raise RuntimeError(result.error or "Falha ao gerar o VPAT.")
+            _a2a_tasks_store[task_id]["output"] = result.data
+
+        elif skill_id == "playwright_test_generation":
+            from backend.src.agents.test_generator.test_generator import run_test_generator
+            from backend.src.shared.models import AccessibilityIssue
+
+            issues = [AccessibilityIssue(**i) for i in input_data.get("issues", [])]
+            result = await run_test_generator(issues=issues, target=input_data.get("url", ""))
+            if not result.success:
+                raise RuntimeError(result.error or "Falha ao gerar a suite de testes.")
+            _a2a_tasks_store[task_id]["output"] = result.data
+
+        elif skill_id == "screen_reader_verification":
+            from backend.src.services.screen_reader_verification import verify_screen_reader_announcements
+
+            url = input_data.get("url", "")
+            if not url:
+                raise ValueError("screen_reader_verification exige 'url' no input.")
+            verificacao = await verify_screen_reader_announcements(url)
+            # ScreenReaderVerificationResult e dataclass, nao modelo Pydantic.
+            _a2a_tasks_store[task_id]["output"] = dataclasses.asdict(verificacao)
+
+        elif skill_id == "design_review":
+            from backend.src.agents.design_review.design_review import run_design_review
+
+            requisito = input_data.get("requirement_text", "")
+            if not requisito:
+                raise ValueError("design_review exige 'requirement_text' no input.")
+            result = await run_design_review(requisito, input_data.get("component_type"))
+            if not result.success:
+                raise RuntimeError(result.error or "Falha na revisao de design.")
+            _a2a_tasks_store[task_id]["output"] = result.data
+
         else:
-            # Fallback para skills genericas
-            _a2a_tasks_store[task_id]["output"] = {"result": f"Skill '{skill_id}' executada com sucesso."}
+            # Skill desconhecida FALHA. Antes caia num fallback generico que
+            # marcava a tarefa como completed e devolvia "Skill 'X' executada
+            # com sucesso." sem executar nada -- inclusive para as quatro
+            # skills que o Agent Card publico anuncia e que agora estao
+            # implementadas acima. Um agente federado delegava vpat_generation,
+            # recebia "sucesso" e ficava sem VPAT nenhum.
+            raise ValueError(
+                f"Skill '{skill_id}' nao e suportada por este agente. "
+                f"Skills disponiveis: {', '.join(sorted(supported_skill_ids()))}."
+            )
 
         end_time = asyncio.get_event_loop().time()
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()

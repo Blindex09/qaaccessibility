@@ -48,10 +48,18 @@ class PIIRedactionMiddleware(BaseHTTPMiddleware):
                 # Fallback: redact the raw text
                 body_bytes = redact_pii(body_text).encode("utf-8")
 
+        # `content-length` NAO pode ser copiado do response original: a redacao
+        # muda o tamanho do corpo, e o Starlette so recalcula o header quando
+        # ele nao vem pronto. Com o valor velho, o ASGI aborta com
+        # "Response content longer than Content-Length" e o cliente recebe
+        # zero byte -- foi assim que /.well-known/agent-card.json, o endpoint
+        # publico de descoberta A2A, ficou devolvendo 200 com corpo vazio para
+        # qualquer cliente. Vale para toda resposta JSON que dispare o detector.
+        headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
         return Response(
             content=body_bytes,
             status_code=response.status_code,
-            headers=dict(response.headers),
+            headers=headers,
             media_type=response.media_type,
         )
 
