@@ -199,7 +199,12 @@ async def run_vpat_reporter(
             ),
             build=lambda raw: VPATReport(**extract_json_object(raw)),
             temperature=0.1,
-            max_tokens=8192,
+            # 8192 dava ~148 tokens por criterio para os 55 criterios WCAG
+            # A+AA, incluindo o texto de `remarks` -- apertado demais. Com
+            # issues reais (descricoes longas) o modelo estourava e devolvia
+            # vazio, derrubando /analyze/vpat com 500. Mesmo teto ja usado
+            # pelo a11y_expert_reviewer, que enfrenta saida igualmente grande.
+            max_tokens=16384,
             agent_label="vpat_reporter",
         )
 

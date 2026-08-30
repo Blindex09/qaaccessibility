@@ -677,11 +677,25 @@ async def call_llm_structured(
             # VPAT normalmente). Erro de provider (401/429/timeout) continua
             # subindo na hora, sem retry cego -- so a resposta vazia reentra.
             last_error = exc
+            # Resposta vazia quase sempre e o mesmo fenomeno do JSON truncado
+            # visto de outro angulo: o modelo gastou o orcamento de saida e nao
+            # devolveu nada aproveitavel. Mas `_is_json_truncated("")` e False,
+            # entao a escalada de max_tokens logo abaixo nunca disparava aqui --
+            # o retry repetia com o MESMO teto e falhava igual.
+            #
+            # Medido no vpat_reporter: 8192 tokens para 55 criterios WCAG da
+            # ~148 tokens por criterio, incluindo o texto de `remarks`. Com
+            # issues reais (descricoes longas, "[SYSTEMIC PATTERN] ...") o
+            # modelo estoura isso e devolve vazio -- em glm-5.3 e em
+            # gpt-oss:20b igualmente, ou seja, nao e porte de modelo.
+            current_max_tokens = min(current_max_tokens * 2, 32768)
             logger.warning(
-                "[AIAgent] %s resposta vazia do provider (tentativa %d/%d): %s",
+                "[AIAgent] %s resposta vazia do provider (tentativa %d/%d); "
+                "aumentando max_tokens para %d e refazendo: %s",
                 agent_label or "leaf",
                 attempt,
                 attempts,
+                current_max_tokens,
                 exc,
             )
             if attempt >= attempts:

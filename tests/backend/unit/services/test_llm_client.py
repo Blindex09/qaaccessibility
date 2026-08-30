@@ -719,6 +719,32 @@ async def test_resposta_vazia_do_provider_e_repetida_e_nao_derruba_o_agente():
 
 
 @pytest.mark.asyncio
+async def test_resposta_vazia_aumenta_o_orcamento_de_saida_no_retry():
+    """Repetir com o MESMO max_tokens falha igual.
+
+    Resposta vazia quase sempre e JSON truncado visto de outro angulo: o
+    modelo gastou o orcamento de saida. Mas `_is_json_truncated("")` e False,
+    entao a escalada de max_tokens que existe para o caso truncado nunca
+    disparava aqui. Medido no vpat_reporter: 8192 tokens para 55 criterios
+    WCAG da ~148 por criterio, e com issues reais o modelo estoura e devolve
+    vazio -- em glm-5.3 e em gpt-oss:20b igualmente, logo nao e porte de
+    modelo.
+    """
+    orcamentos: list[int] = []
+
+    async def _registra(*_args, **kwargs):
+        orcamentos.append(kwargs["max_tokens"])
+        if len(orcamentos) == 1:
+            raise ValueError("AIAgent returned an empty final response after recovery retry")
+        return '{"ok": true}'
+
+    with patch("backend.src.services.llm_client.call_llm", new=_registra):
+        await call_llm_structured("sys", "user", build=lambda raw: json.loads(raw), max_tokens=8192)
+
+    assert orcamentos == [8192, 16384], f"o retry tem de dobrar o orcamento, veio {orcamentos}"
+
+
+@pytest.mark.asyncio
 async def test_resposta_vazia_persistente_ainda_falha_explicito():
     """O retry nao pode mascarar um provider consistentemente quebrado."""
 
