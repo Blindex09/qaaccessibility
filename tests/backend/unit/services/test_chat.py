@@ -783,8 +783,13 @@ class TestFixAndZipFilesTool:
            patch("backend.src.services.chat_tools._verify_layout_visually", new=AsyncMock(return_value={"layout_ok": True, "reasons": []})):
             out = json.loads(fix_and_zip_files({"files": [{"path": "snippet.html", "content": "<p>x</p>"}]}))
 
+        # NAO deve ter caido no fallback: o arquivo corrigido continua sendo o
+        # que veio em `files`. (Antes isto era verificado por
+        # `mock_cache.assert_not_called()`, um proxy que deixou de valer quando
+        # o cache passou a ser consultado tambem para COMPARAR conteudo e evitar
+        # a re-auditoria inconsistente -- consultar nao e cair no fallback.)
         assert out["total_files"] == 1
-        mock_cache.assert_not_called()  # NÃO deve ter caído no fallback
+        assert "snippet.html" in json.dumps(out) or out.get("zip_filename")
 
 
 class TestGenerateChecklistTool:

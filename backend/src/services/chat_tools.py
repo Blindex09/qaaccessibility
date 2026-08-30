@@ -2114,6 +2114,41 @@ def _looks_like_placeholder_file_list(files: list) -> bool:
     return len(content) < _MIN_PLAUSIBLE_FILE_CONTENT_CHARS and not _CODE_STRUCTURE_CHARS_RE.search(content)
 
 
+def _mesmo_conteudo_ja_analisado(files: list[dict[str, Any]] | None) -> bool:
+    """O arquivo a corrigir e exatamente o que acabou de ser analisado?
+
+    A protecao contra re-auditoria existia, mas so valia quando o modelo OMITIA
+    `files` (`files_from_fallback`). Quando ele mandava o HTML -- o caso normal
+    de um anexo, porque o conteudo esta no proprio prompt -- o codigo re-auditava
+    do zero, que e literalmente o que o comentario ao lado adverte: "re-auditoria
+    inconsistente, que frequentemente deixa o live preview sem paginas".
+
+    Observado ponta a ponta em 2026-08-30: `analyze_page` achou 7 problemas e
+    anunciou isso ao usuario; `fix_and_zip_files` re-auditou o MESMO HTML e achou
+    0 (18/18 agentes, todos vazios); sem issues o fixer nao roda, nao ha paginas
+    de preview e `open_live_preview` falha. O usuario aprova a correcao e o
+    painel nao abre.
+
+    A comparacao e por conteudo, nao por "o modelo mandou arquivo": conteudo
+    diferente do analisado PRECISA de auditoria nova.
+    """
+    if not files or len(files) != 1:
+        return False
+    from backend.src.services.last_analyzed_content_store import get_last_analyzed_content
+
+    # Leitura defensiva: uma correcao do usuario nao pode quebrar porque o cache
+    # de conteudo devolveu algo inesperado. Sem conteudo conhecido, o caminho
+    # seguro e re-auditar (comportamento historico), nunca estourar.
+    try:
+        analisado = str(get_last_analyzed_content()[0] or "")
+    except (ValueError, IndexError, TypeError):
+        return False
+    if not analisado:
+        return False
+    enviado = str(files[0].get("content") or "")
+    return bool(enviado) and enviado.strip() == analisado.strip()
+
+
 def fix_and_zip_files(args: dict[str, Any], **_kw: Any) -> str:
     files = args.get("files")
     if files is not None and not isinstance(files, list):
@@ -2158,13 +2193,13 @@ def fix_and_zip_files(args: dict[str, Any], **_kw: Any) -> str:
     # Reaproveitamos os issues já detectados para evitar re-auditoria
     # inconsistente, que frequentemente deixa o live preview sem páginas.
     existing_issues = None
-    if files_from_fallback:
+    if files_from_fallback or _mesmo_conteudo_ja_analisado(files):
         from backend.src.services.last_analysis_store import get_last_analysis
 
         issues_raw, _ = get_last_analysis()
         existing_issues = [dict(issue) for issue in issues_raw]
         logger.info(
-            "[a11y_chat] fix_and_zip_files usando fallback de analise: %d issue(s) carregado(s)",
+            "[a11y_chat] fix_and_zip_files reaproveitando a analise da conversa: %d issue(s)",
             len(existing_issues),
         )
 
