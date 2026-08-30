@@ -305,7 +305,7 @@ export function useChat() {
   );
 
   const send = useCallback(
-    async (text: string, displayText?: string) => {
+    async (text: string, displayText?: string, attachments?: { name: string; content: string }[]) => {
       const trimmed = text.trim();
       if (!trimmed || streaming) return;
 
@@ -641,7 +641,11 @@ export function useChat() {
                 break;
             }
           },
-          { signal: controller.signal, conversationId: conversationIdRef.current },
+          {
+            signal: controller.signal,
+            conversationId: conversationIdRef.current,
+            attachments: attachments ?? [],
+          },
         );
       } catch (err) {
         const isAbort = err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted"));

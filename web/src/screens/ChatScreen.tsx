@@ -644,22 +644,21 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
     const text = input.trim();
     if ((!text && attachments.length === 0) || streaming) return;
 
-    let message = text;
-    let displayText = text;
-    if (attachments.length > 0) {
-      const blocks = attachments
-        .map((a) => `=== ${a.name} ===\n${a.content}`)
-        .join("\n\n");
-      const intro = text || "Analise a acessibilidade dos arquivos anexados.";
-      message = `${intro}\n\n[Arquivos anexados para análise]\n${blocks}`;
-      displayText = intro;
-    }
+    // Os anexos viajam como DADO estruturado; quem serializa o prompt e o
+    // backend (`_compor_mensagem_com_anexos`). Antes esta tela montava o blob
+    // de texto e o backend reconhecia o anexo por substring ("===" na
+    // mensagem), o que dava falso positivo em qualquer texto colado com
+    // separador markdown, diff ou tabela ASCII -- e pulava a triagem em silencio.
+    const anexosDoTurno = attachments.map((a) => ({ name: a.name, content: a.content }));
+    const message =
+      text || (anexosDoTurno.length > 0 ? "Analise a acessibilidade dos arquivos anexados." : text);
+    const displayText = message;
 
     setInput("");
     setAttachments([]);
     // Sem override de provider/modelo: o chat usa a configuração salva em
     // /settings (provider + chave + modelo "Alto"). Config única, sem duplicação.
-    void send(message, displayText);
+    void send(message, displayText, anexosDoTurno);
   }
 
   return (

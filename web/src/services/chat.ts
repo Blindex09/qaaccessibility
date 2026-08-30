@@ -193,7 +193,17 @@ export async function streamChat(
   message: string,
   history: ChatTurn[],
   onEvent: (event: ChatEvent) => void,
-  opts: { provider?: string; model?: string; conversationId?: string; signal?: AbortSignal } = {},
+  opts: {
+    provider?: string;
+    model?: string;
+    conversationId?: string;
+    signal?: AbortSignal;
+    /** Anexos do turno como DADO. O backend monta o prompt (ver
+     * `_compor_mensagem_com_anexos`); o cliente nao serializa arquivo dentro
+     * do texto -- fazia disso um contrato implicito que o backend precisava
+     * reconhecer por substring. */
+    attachments?: { name: string; content: string }[];
+  } = {},
 ): Promise<void> {
   const resp = await fetch(`${BASE_URL}/chat/stream`, {
     method: "POST",
@@ -201,6 +211,7 @@ export async function streamChat(
     body: JSON.stringify({
       message,
       history,
+      attachments: opts.attachments ?? [],
       provider: opts.provider,
       model: opts.model,
       conversation_id: opts.conversationId,

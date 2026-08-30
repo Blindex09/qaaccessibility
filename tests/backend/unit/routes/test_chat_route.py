@@ -9,6 +9,7 @@ async def _fake_stream(
     provider: Any = None,
     model: Any = None,
     conversation_id: Any = None,
+    attachments: Any = None,
 ) -> AsyncIterator[dict[str, Any]]:
     yield {"type": "thinking", "text": "analisando"}
     yield {"type": "token", "text": "Ola"}
@@ -29,6 +30,43 @@ class TestChatStreamRoute:
     def test_validation_error_without_message(self, client):
         resp = client.post("/chat/stream", json={})
         assert resp.status_code == 422
+
+    def test_anexos_chegam_estruturados_no_stream_chat(self, client):
+        """Regressao: anexo e campo do request, nao substring da mensagem.
+
+        O backend nao pode voltar a inferir "tem anexo" lendo o texto -- ver
+        test_chat_runtime_anexos.py."""
+        capturado: dict[str, Any] = {}
+
+        async def _captura(message, history, **kwargs) -> AsyncIterator[dict[str, Any]]:
+            capturado["message"] = message
+            capturado["attachments"] = kwargs.get("attachments")
+            yield {"type": "done", "final": "ok"}
+
+        with patch("backend.src.routes.chat.stream_chat", new=_captura):
+            resp = client.post(
+                "/chat/stream",
+                json={
+                    "message": "analisa",
+                    "attachments": [{"name": "index.html", "content": "<img src=x>"}],
+                },
+            )
+        assert resp.status_code == 200
+        assert capturado["attachments"] == [{"name": "index.html", "content": "<img src=x>"}]
+        # a mensagem chega LIMPA: quem serializa o prompt e o chat_runtime
+        assert capturado["message"] == "analisa"
+
+    def test_request_sem_anexos_manda_lista_vazia(self, client):
+        capturado: dict[str, Any] = {}
+
+        async def _captura(message, history, **kwargs) -> AsyncIterator[dict[str, Any]]:
+            capturado["attachments"] = kwargs.get("attachments")
+            yield {"type": "done", "final": "ok"}
+
+        with patch("backend.src.routes.chat.stream_chat", new=_captura):
+            resp = client.post("/chat/stream", json={"message": "=== olha isso ==="})
+        assert resp.status_code == 200
+        assert capturado["attachments"] == []
 
 
 class TestChatClarifyRoute:
@@ -52,6 +90,7 @@ class TestChatHistoryRoutes:
     def test_get_history_returns_persisted_messages(self, client, tmp_path, monkeypatch):
         monkeypatch.setattr("tempfile.gettempdir", lambda: str(tmp_path))
         from backend.src.services import chat_history_store
+
         chat_history_store.append_message("user", "oi", session_id="conv-teste")
         chat_history_store.append_message("assistant", "olá!", session_id="conv-teste")
 
@@ -70,6 +109,7 @@ class TestChatHistoryRoutes:
     def test_list_conversations_returns_recent_first(self, client, tmp_path, monkeypatch):
         monkeypatch.setattr("tempfile.gettempdir", lambda: str(tmp_path))
         from backend.src.services import chat_history_store
+
         chat_history_store.append_message("user", "primeira", session_id="conv-a")
         chat_history_store.append_message("user", "segunda", session_id="conv-b")
 
@@ -82,6 +122,7 @@ class TestChatHistoryRoutes:
     def test_delete_history_clears_the_conversation(self, client, tmp_path, monkeypatch):
         monkeypatch.setattr("tempfile.gettempdir", lambda: str(tmp_path))
         from backend.src.services import chat_history_store
+
         chat_history_store.append_message("user", "para apagar", session_id="conv-del")
 
         resp = client.delete("/chat/history/conv-del")

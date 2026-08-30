@@ -25,8 +25,29 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class ChatAttachment(BaseModel):
+    """Arquivo anexado no chat, entregue como DADO estruturado -- nunca embutido
+    na prosa da mensagem.
+
+    Antes deste campo o frontend serializava os anexos dentro do próprio texto
+    (``[Arquivos anexados para análise]`` + blocos ``=== nome ===``) e o backend
+    tentava RECUPERAR esse fato com substring (``"===" in message``). O fato
+    "tem anexo" é conhecido com certeza no cliente; adivinhá-lo de volta a
+    partir do texto dava falso positivo em qualquer mensagem contendo um
+    separador markdown, um diff ou uma tabela ASCII -- exatamente o que um QA
+    cola no chat -- e nesses casos a triagem do clarifier era pulada em
+    silêncio."""
+
+    name: str = Field(..., max_length=255, description="Nome do arquivo anexado")
+    content: str = Field(..., description="Conteúdo textual do arquivo")
+
+
 class ChatRequest(BaseModel):
     message: str = Field(..., description="Mensagem do usuário")
+    attachments: list[ChatAttachment] = Field(
+        default_factory=list,
+        description="Arquivos anexados a este turno (estruturado, não embutido em `message`)",
+    )
     history: list[ChatMessage] = Field(default_factory=list, description="Historico do dialogo")
     provider: str | None = Field(default=None, description="Provider escolhido (ex.: openai, anthropic)")
     model: str | None = Field(default=None, description="Modelo escolhido (ex.: gpt-5.2)")
@@ -71,6 +92,7 @@ async def chat_stream(body: ChatRequest) -> StreamingResponse:
                 provider=body.provider,
                 model=body.model,
                 conversation_id=body.conversation_id,
+                attachments=[a.model_dump() for a in body.attachments],
             ):
                 yield _sse(event)
         except Exception as exc:  # pragma: no cover - defensivo

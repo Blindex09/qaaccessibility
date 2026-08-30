@@ -88,6 +88,29 @@ _DEFAULT_CLARIFY_QUESTION = (
     "você quer que eu audite, que eu já começo."
 )
 
+# Marcador que clientes ANTIGOS embutiam na prosa para sinalizar anexo. Mantido
+# só para compatibilidade: o caminho atual é `ChatRequest.attachments`, campo
+# estruturado. Ver `_compor_mensagem_com_anexos`.
+_LEGACY_ATTACHMENT_MARKER = "[Arquivos anexados"
+
+
+def _compor_mensagem_com_anexos(texto: str, anexos: list[dict[str, str]] | None) -> str:
+    """Monta o prompt que o modelo recebe a partir do texto do usuário mais os
+    anexos ESTRUTURADOS do turno.
+
+    A serialização vive aqui, no backend, e não no cliente: quando cada cliente
+    montava o próprio blob de texto, o formato virava um contrato implícito que
+    o backend tinha de reconhecer por substring -- e qualquer mudança de um
+    lado quebrava o outro em silêncio. Agora o cliente manda o fato (nome +
+    conteúdo) e o formato é responsabilidade de um lugar só.
+    """
+    if not anexos:
+        return texto
+    blocos = "\n\n".join(f"=== {a.get('name', 'arquivo')} ===\n{a.get('content', '')}" for a in anexos)
+    intro = texto.strip() or "Analise a acessibilidade dos arquivos anexados."
+    return f"{intro}\n\n{_LEGACY_ATTACHMENT_MARKER} para análise]\n{blocos}"
+
+
 RESEARCH_PROTOCOL = """
 
 ### PROTOCOLO DE PESQUISA ITERATIVA (Agentic RAG — ReAct 2026)
@@ -389,6 +412,7 @@ async def stream_chat(
     provider: str | None = None,
     model: str | None = None,
     conversation_id: str | None = None,
+    attachments: list[dict[str, str]] | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """
     Executa um turno do chat agentico e produz eventos de streaming.
@@ -409,11 +433,17 @@ async def stream_chat(
     # So o turno ATUAL extrai imagem de verdade (Multimodal 2026, ver
     # preprocess_base64_attachments) -- historico so guarda a nota textual.
     message, images = extract_message_with_images(message)
+    # O histórico guarda o que o usuário DIGITOU; o conteúdo dos anexos vai só
+    # para o prompt do turno. Antes, com os arquivos embutidos na prosa pelo
+    # cliente, cada anexo era persistido inteiro no histórico -- inflando o
+    # arquivo da conversa e reenviando o conteúdo em todo turno seguinte.
+    texto_do_usuario = message
+    message = _compor_mensagem_com_anexos(message, attachments)
     # Histórico persistido no backend (chat_history_store.py) -- grava a mensagem
     # do usuário TAL COMO enviada neste turno, antes de qualquer merge com um
     # item residual do array `history` do cliente (linha abaixo), para nunca
     # gravar um blob duplicado/concatenado no histórico autoritativo do servidor.
-    chat_history_store.append_message("user", message, session_id=conversation_id)
+    chat_history_store.append_message("user", texto_do_usuario, session_id=conversation_id)
     if history:
         for h in history:
             h["content"] = preprocess_base64_attachments(h.get("content", ""))
@@ -466,7 +496,13 @@ async def stream_chat(
     # Quando já existe histórico de conversa (diálogo em andamento), o clarifier não deve
     # interceptar confirmações ou respostas curtas do usuário (ex.: "pode analisar", "sim", "corrija").
     is_first_turn = not (history or cleaned_history)
-    has_attachments = "[Arquivos anexados" in message or "===" in message
+    # Fato estrutural vindo do cliente (ChatRequest.attachments), nunca inferido
+    # do texto. O `_LEGACY_ATTACHMENT_MARKER` cobre clientes antigos que ainda
+    # embutem os anexos na prosa; note que o separador de bloco ("===") NAO
+    # entra aqui -- sozinho ele nao distingue um anexo de um separador markdown
+    # ou de um diff colado pelo usuario, e era a metade do teste que gerava o
+    # falso positivo (clarifier pulado em silencio no primeiro turno).
+    has_attachments = bool(attachments) or _LEGACY_ATTACHMENT_MARKER in message
     if is_first_turn and not has_attachments and "PYTEST_CURRENT_TEST" not in os.environ:
         from backend.src.agents.clarifier import run_clarifier
 
