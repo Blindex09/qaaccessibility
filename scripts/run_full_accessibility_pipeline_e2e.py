@@ -101,9 +101,14 @@ def main():
         "model": "alto"
     })
     print(f"Status HTTP /analyze/vpat: {vpat_resp.status_code}")
+    # Sem esta checagem, um 500 seguia adiante e o script imprimia
+    # "[VPAT Gerado] ... Criterios catalogados: 0" e terminava com
+    # "SUCESSO TOTAL" -- observado de verdade em 2026-08-30.
+    assert vpat_resp.status_code == 200, f"/analyze/vpat falhou: {vpat_resp.status_code} {vpat_resp.text[:300]}"
     vpat_res = vpat_resp.json()
     vpat_data = vpat_res.get("data", {}).get("vpat", {})
     print(f"[VPAT Gerado] Produto: {vpat_data.get('product_name', 'QA App')} | Critérios catalogados: {len(vpat_data.get('criteria', []))}\n")
+    assert vpat_data.get("criteria"), "VPAT sem criterio nenhum nao e um VPAT"
 
     # 4. Geração de Suíte de Testes Playwright + axe-core para CI/CD (POST /analyze/tests)
     print("--- ETAPA 4: Gerando Suíte de Testes Playwright + axe-core (POST /analyze/tests) ---")
