@@ -634,6 +634,7 @@ async def call_llm_structured(
     request_id: str = "",
     agent_label: str = "",
     response_schema: dict[str, Any] | None = None,
+    model_tier: str | None = None,
 ) -> T:
     """
     Chama o LLM e constroi um objeto tipado via `build(raw)`, com retry/repair.
@@ -655,6 +656,10 @@ async def call_llm_structured(
     current_max_tokens = max_tokens
     for attempt in range(1, attempts + 1):
         try:
+            # `model_tier` repassado: sem ele, um chamador que rodava de
+            # proposito no tier barato (clarifier, complexity_router -- decidir
+            # se vale economizar nao pode custar caro) passava a usar o padrao
+            # ao migrar de `call_llm` para ca. Regressao de custo silenciosa.
             raw = await call_llm(
                 system_prompt=system_prompt,
                 user_prompt=prompt,
@@ -663,6 +668,7 @@ async def call_llm_structured(
                 request_id=request_id,
                 agent_label=agent_label,
                 response_schema=response_schema,
+                model_tier=model_tier or "alto",
             )
         except ValueError as exc:
             # `call_llm` levanta ValueError quando o provider devolve resposta

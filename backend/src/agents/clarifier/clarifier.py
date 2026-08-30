@@ -109,6 +109,7 @@ async def run_clarifier(user_message: str) -> AgentResult:
             max_tokens=800,
             agent_label="clarifier",
             response_schema=CLASSIFICACAO_SCHEMA,
+            model_tier="fast",
         )
 
         # Garante fallback e chaves basicas

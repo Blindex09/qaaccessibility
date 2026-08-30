@@ -117,3 +117,12 @@ class TestOrcamentoEValidacao:
         for intent in _INTENTS_VALIDOS:
             assert intent in SYSTEM_PROMPT, f"{intent} validado mas ausente do prompt"
             assert _construir_classificacao(json.dumps({"intent": intent}))["intent"] == intent
+
+    def test_tier_barato_preservado_ao_migrar_para_structured(self):
+        """Regressao introduzida na propria migracao: `call_llm_structured` nao
+        tinha `model_tier`, entao a triagem -- que existe para EVITAR chamada
+        cara -- passaria a rodar no modelo caro. Pego pelo teste equivalente do
+        complexity_router, que ja cobria isso."""
+        import inspect
+
+        assert 'model_tier="fast"' in inspect.getsource(run_clarifier)

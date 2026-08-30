@@ -1,5 +1,6 @@
 """Testes do classificador de complexidade (dial custo/qualidade decidido pelo
 modelo, nunca por heurística fixa de tamanho -- ver complexity_router.py)."""
+
 import json
 from unittest.mock import AsyncMock, patch
 
@@ -33,9 +34,7 @@ class TestGetSetCurrentTradeoff:
 class TestClassifyAndSetTradeoff:
     @pytest.mark.asyncio
     async def test_empty_content_uses_default_without_calling_llm(self):
-        with patch(
-            "backend.src.services.llm_client.call_llm", new=AsyncMock()
-        ) as mock_call:
+        with patch("backend.src.services.llm_client.call_llm", new=AsyncMock()) as mock_call:
             result = await complexity_router.classify_and_set_tradeoff("")
         assert result == complexity_router.DEFAULT_TRADEOFF
         mock_call.assert_not_called()
@@ -97,3 +96,59 @@ class TestClassifyAndSetTradeoff:
             await complexity_router.classify_and_set_tradeoff("<p>content</p>")
         _, kwargs = mock_call.call_args
         assert kwargs.get("model_tier") == "fast"
+
+
+class TestOrcamentoDoRoteador:
+    """Regressao: 3 de 20 chamadas reais eram descartadas por JSON cortado.
+
+    Medido nos logs de 2026-08-30 (15% de falha). A saida vinha truncada no meio
+    e o tradeoff JA estava decidido; cada falha caia no DEFAULT_TRADEOFF, que
+    favorece QUALIDADE -- a otimizacao de custo desligava calada, justamente na
+    feature que existe para economizar. Mesma causa do clarifier, do VPAT e do
+    gerador de testes.
+    """
+
+    def test_orcamento_comporta_o_reasoning_em_prosa(self):
+        import inspect
+
+        from backend.src.services.complexity_router import classify_and_set_tradeoff
+
+        fonte = inspect.getsource(classify_and_set_tradeoff)
+        assert "max_tokens=150" not in fonte, "150 tokens truncavam o JSON no meio"
+        assert "call_llm_structured" in fonte, "sem retry/repair, um JSON cortado vira fallback silencioso"
+
+    def test_json_cortado_levanta_para_disparar_o_repair(self):
+        from backend.src.services.complexity_router import _extrair_tradeoff
+
+        with pytest.raises((ValueError, TypeError, KeyError)):
+            _extrair_tradeoff('{"tradeoff": 9, "reasoning": "Conteudo muito simples: entao uma analise de ba')
+
+    def test_tradeoff_fora_da_escala_e_limitado_nao_rejeitado(self):
+        """Um 42 diz claramente "maximizar economia"; rejeitar pagaria um retry
+        para descartar um sinal usavel. O que precisa levantar e o JSON cortado."""
+        from backend.src.services.complexity_router import _extrair_tradeoff
+
+        assert _extrair_tradeoff('{"tradeoff": 42, "reasoning": "x"}') == 10
+        assert _extrair_tradeoff('{"tradeoff": -5, "reasoning": "x"}') == 0
+
+    def test_tier_barato_preservado_ao_migrar_para_structured(self):
+        """Regressao introduzida na propria migracao: `call_llm_structured` nao
+        tinha `model_tier`, entao decidir SE vale economizar passaria a rodar no
+        modelo caro."""
+        import inspect
+
+        from backend.src.services.complexity_router import classify_and_set_tradeoff
+
+        assert 'model_tier="fast"' in inspect.getsource(classify_and_set_tradeoff)
+
+    def test_resposta_sem_tradeoff_e_rejeitada(self):
+        from backend.src.services.complexity_router import _extrair_tradeoff
+
+        with pytest.raises(ValueError, match="sem o campo"):
+            _extrair_tradeoff('{"reasoning": "so a justificativa"}')
+
+    def test_resposta_valida_devolve_o_inteiro(self):
+        from backend.src.services.complexity_router import _extrair_tradeoff
+
+        assert _extrair_tradeoff('{"tradeoff": 8, "reasoning": "markup simples"}') == 8
+        assert _extrair_tradeoff('{"tradeoff": 0, "reasoning": "widgets ARIA densos"}') == 0

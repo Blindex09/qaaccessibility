@@ -59,6 +59,37 @@ No markdown fences, no prose outside the JSON.
 """.strip()
 
 
+TRADEOFF_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "tradeoff": {"type": "integer", "minimum": 0, "maximum": 10},
+        "reasoning": {"type": "string"},
+    },
+    "required": ["tradeoff", "reasoning"],
+    "additionalProperties": False,
+}
+
+
+def _extrair_tradeoff(raw: str) -> int:
+    """Parse + validacao, usado por `call_llm_structured` para disparar o repair.
+
+    Levantar aqui e o que faz um JSON cortado ser REFEITO, em vez de virar
+    fallback silencioso para o default.
+    """
+    from backend.src.services.llm_client import extract_json_object
+
+    data = extract_json_object(raw)
+    if "tradeoff" not in data:
+        raise ValueError("resposta sem o campo 'tradeoff'")
+    # Fora da escala e LIMITADO, nao rejeitado: um 42 diz claramente
+    # "maximizar economia", e `set_current_tradeoff` ja limita de qualquer
+    # forma -- levantar aqui pagaria um retry para descartar um sinal usavel.
+    # O que precisa levantar e o JSON cortado, que e o bug de verdade.
+    valor = max(0, min(10, int(data["tradeoff"])))
+    logger.info("[ComplexityRouter] %s", str(data.get("reasoning", ""))[:200])
+    return valor
+
+
 def set_current_tradeoff(tradeoff: int) -> contextvars.Token:
     """Define o tradeoff corrente (0-10). Devolve o token para reset."""
     clamped = max(0, min(10, int(tradeoff)))
@@ -91,21 +122,27 @@ async def classify_and_set_tradeoff(content: str) -> int:
         return DEFAULT_TRADEOFF
 
     try:
-        from backend.src.services.llm_client import call_llm, extract_json_object
+        from backend.src.services.llm_client import call_llm_structured
 
-        raw = await call_llm(
+        tradeoff = await call_llm_structured(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=f"Classify the complexity of this content for accessibility analysis:\n\n{content[:15000]}",
+            build=_extrair_tradeoff,
             temperature=0.0,
-            max_tokens=150,
+            # 150 tokens nao cabiam o JSON com o `reasoning` em prosa. Medido nos
+            # logs de 2026-08-30: 3 falhas em 20 chamadas reais (15%), todas com a
+            # saida cortada no meio e o tradeoff JA decidido ('off": 9,
+            # "reasoning": "Conteudo muito simples: ... entao uma analise de ba').
+            # Cada falha caia no DEFAULT_TRADEOFF, que favorece QUALIDADE: a
+            # otimizacao de custo desligava calada, justamente na feature que
+            # existe para economizar.
+            max_tokens=400,
             agent_label="complexity_router",
+            response_schema=TRADEOFF_SCHEMA,
             model_tier="fast",
         )
-        data = extract_json_object(raw)
-        tradeoff = int(data.get("tradeoff", DEFAULT_TRADEOFF))
-        tradeoff = max(0, min(10, tradeoff))
         set_current_tradeoff(tradeoff)
-        logger.info("[ComplexityRouter] tradeoff=%d (%s)", tradeoff, data.get("reasoning", ""))
+        logger.info("[ComplexityRouter] tradeoff=%d", tradeoff)
         return tradeoff
     except Exception as exc:
         logger.warning(
