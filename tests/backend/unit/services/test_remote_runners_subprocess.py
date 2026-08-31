@@ -56,6 +56,19 @@ def _fake_exec(proc: _FakeProc, capture: list | None = None):
 # -- _run_newman --------------------------------------------------------------
 
 
+def _grava_relatorio_como_o_spec_faz(projeto, args, violations=None):
+    """O spec gerado grava o relatorio SEMPRE, inclusive vazio (ver
+    `_CYPRESS_SPEC_TEMPLATE`). A simulacao precisa fazer o mesmo, senao exercita
+    um cenario que nao existe mais: hoje a ausencia de relatorio significa que a
+    execucao falhou, e o codigo cai para o motor via nuvem."""
+    spec = Path(args[args.index("--spec") + 1])
+    run_id = spec.name.removeprefix("a11y_audit_").removesuffix(".cy.js")
+    (projeto / f"a11y_report_{run_id}.json").write_text(
+        json.dumps({"violations": violations or [], "incomplete": [], "testEngine": {"name": "axe-core"}}),
+        encoding="utf-8",
+    )
+
+
 async def test_newman_sem_npx_no_path_devolve_none(monkeypatch):
     monkeypatch.setattr("shutil.which", lambda _name: None)
     assert await remote_runners._run_newman({"info": {}}) is None
@@ -197,9 +210,7 @@ async def test_selenium_sem_chromedriver_so_roda_se_a_instalacao_foi_autorizada(
     chamou.assert_not_awaited()
 
     # Com autorizacao explicita: deixa o Selenium Manager resolver o driver.
-    resultado = await remote_runners._try_run_local_selenium(
-        "https://exemplo.com", allow_driver_auto_install=True
-    )
+    resultado = await remote_runners._try_run_local_selenium("https://exemplo.com", allow_driver_auto_install=True)
     assert resultado == {"violations": [], "incomplete": []}
     chamou.assert_awaited_once()
 
@@ -241,21 +252,30 @@ async def test_cypress_local_nao_instalado_cai_para_a_nuvem(projeto_cypress_pron
     assert await remote_runners._try_run_local_cypress("https://exemplo.com") is None
 
 
-async def test_cypress_local_sem_relatorio_significa_zero_violacoes(projeto_cypress_pronto, monkeypatch):
-    # Com skipFailures=true o cy.checkA11y so escreve o arquivo quando HA
-    # violacoes: pagina limpa nunca gera relatorio, e isso e resultado valido.
+async def test_cypress_local_sem_relatorio_e_falha_de_execucao(projeto_cypress_pronto, monkeypatch):
+    """Comportamento INVERTIDO em 2026-08-31, depois de medir contra a pagina real.
+
+    Este teste afirmava que ausencia de relatorio significava "zero violacoes".
+    O raciocinio tinha fundamento (com skipFailures=true o cy.checkA11y so
+    escrevia o arquivo quando havia achados), mas "sem arquivo" tambem acontece
+    quando nenhum spec roda, quando o --record e recusado, ou quando a pagina
+    nao carrega.
+
+    Medido contra https://www.w3.org/WAI/demos/bad/before/home.html -- a pagina
+    que o W3C publica DE PROPOSITO cheia de violacoes: o Cypress local devolveu
+    0 violacoes e passed=True enquanto o mesmo axe-core pela nuvem achava 8.
+    Certificar como limpa uma pagina quebrada e o pior modo de falha de uma
+    ferramenta de acessibilidade.
+
+    O spec agora grava o relatorio SEMPRE, inclusive vazio, entao a ausencia
+    virou sinal inequivoco de falha. `None` faz o chamador cair no motor via
+    nuvem -- degradacao para um resultado real, nao para um veredito inventado.
+    """
     monkeypatch.setattr(asyncio, "create_subprocess_exec", _fake_exec(_FakeProc(returncode=0)))
 
     resultado = await remote_runners._try_run_local_cypress("https://exemplo.com")
 
-    assert resultado == {
-        "violations": [],
-        "incomplete": [],
-        "testEngine": {"name": "axe-core"},
-        # Chave reservada: carrega a URL do run gravado no Cypress Cloud ate o
-        # chamador. None aqui porque as chaves de gravacao nao estao setadas.
-        "_cypress_dashboard_url": None,
-    }
+    assert resultado is None
 
 
 async def test_cypress_local_le_o_relatorio_e_limpa_os_artefatos(projeto_cypress_pronto, monkeypatch):
@@ -298,6 +318,7 @@ async def test_cypress_local_grava_no_cloud_e_devolve_a_url_do_run(projeto_cypre
         ambientes.append(kwargs.get("env") or {})
         if "version" in args:
             return _FakeProc(returncode=0)
+        _grava_relatorio_como_o_spec_faz(projeto_cypress_pronto, args)
         saida = b"Recorded Run: https://cloud.cypress.io/projects/abc123/runs/42\n"
         return _FakeProc(returncode=0, stdout=saida)
 
@@ -320,6 +341,8 @@ async def test_cypress_local_sem_chaves_nao_passa_record(projeto_cypress_pronto,
 
     async def _exec(*args, **kwargs):
         comandos.append(args)
+        if "--spec" in args:
+            _grava_relatorio_como_o_spec_faz(projeto_cypress_pronto, args)
         return _FakeProc(returncode=0)
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", _exec)
@@ -338,6 +361,9 @@ async def test_record_pedido_mas_sem_url_de_run_nao_conta_como_gravado(projeto_c
     async def _exec(*args, **kwargs):
         if "version" in args:
             return _FakeProc(returncode=0)
+        # O Cypress rodou a suite (o spec gravou o relatorio) mas a gravacao
+        # na nuvem foi recusada -- os dois fatos sao independentes.
+        _grava_relatorio_como_o_spec_faz(projeto_cypress_pronto, args)
         return _FakeProc(returncode=1, stdout=b"Your Record Key is not valid\n")
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", _exec)

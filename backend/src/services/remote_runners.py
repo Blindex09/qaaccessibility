@@ -535,9 +535,25 @@ describe('Auditoria de acessibilidade (QA Accessibility)', () => {{
     // axe-core completo, de verdade -- escrevemos isso num arquivo próprio
     // (cy.writeFile, relativo ao projectRoot) e o Python lê ele diretamente,
     // reaproveitando o mesmo _summarize_axe_results usado pelo caminho nuvem.
+    //
+    // O relatorio e escrito SEMPRE, inclusive com zero violacoes. Antes, o
+    // arquivo so nascia quando havia achado -- e ai "arquivo ausente" ficava
+    // ambiguo entre "pagina limpa" e "a execucao falhou". O Python resolvia a
+    // ambiguidade para o lado errado: devolvia zero violacoes e passed=True.
+    // Medido em 2026-08-31 contra https://www.w3.org/WAI/demos/bad/before/home.html
+    // (a pagina do W3C propositalmente inacessivel): o Cypress local reportou
+    // 0 violacoes e "passou" enquanto o mesmo axe-core pela nuvem achava 8.
+    // Certificar como limpa uma pagina quebrada e o pior modo de falha que uma
+    // ferramenta de acessibilidade pode ter.
     cy.checkA11y({scope!r}, null, (violations) => {{
       cy.writeFile({report_filename!r}, {{ violations: violations, incomplete: [], testEngine: {{ name: 'axe-core' }} }});
     }}, true);
+    // Rede de seguranca: se o callback acima nao rodar (versao de cypress-axe
+    // que so chama com violacoes), grava o resultado vazio explicitamente.
+    cy.writeFile({report_filename!r}, {{ violations: [], incomplete: [], testEngine: {{ name: 'axe-core' }} }}, {{ flag: 'wx' }}).then(
+      () => {{}},
+      () => {{}}
+    );
   }});
 }});
 """
@@ -811,8 +827,9 @@ async def _try_run_local_cypress(
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
+        saida = (stdout or b"").decode("utf-8", errors="ignore") + (stderr or b"").decode("utf-8", errors="ignore")
+        codigo_saida = proc.returncode
         if recording_requested:
-            saida = (stdout or b"").decode("utf-8", errors="ignore") + (stderr or b"").decode("utf-8", errors="ignore")
             dashboard_url = _extract_cypress_dashboard_url(saida)
             if dashboard_url is None:
                 logger.warning(
@@ -830,23 +847,35 @@ async def _try_run_local_cypress(
         with contextlib.suppress(OSError):
             spec_path.unlink()
 
-    # Achado real (2026-08-11): com skipFailures=true, cy.checkA11y só invoca
-    # o callback (que escreve o arquivo) quando HÁ violações -- página limpa
-    # de verdade nunca escreve o arquivo, e isso é um resultado válido (zero
-    # violações), não uma falha de execução.
+    # Relatorio ausente = a execucao FALHOU, nunca "pagina limpa".
+    #
+    # Ate 2026-08-31 este caminho devolvia zero violacoes e o chamador reportava
+    # `passed: True`. O raciocinio original era que, com skipFailures=true,
+    # cy.checkA11y so escreve o arquivo quando ha achados -- entao pagina limpa
+    # nao escreveria. Mas "sem arquivo" tambem acontece quando nenhum spec roda,
+    # quando o --record e recusado, quando a pagina nao carrega. Medido contra
+    # https://www.w3.org/WAI/demos/bad/before/home.html (a pagina do W3C
+    # propositalmente inacessivel): o Cypress local reportou 0 violacoes e
+    # "passou", enquanto o mesmo axe-core pela nuvem achava 8. Certificar como
+    # limpa uma pagina quebrada e o pior modo de falha de uma ferramenta de
+    # acessibilidade.
+    #
+    # O spec agora grava o relatorio SEMPRE (inclusive vazio), entao a ausencia
+    # virou sinal inequivoco. Devolver None faz o chamador cair no motor via
+    # nuvem, que funciona -- degradacao para um resultado real, nao para um
+    # veredito inventado.
+    #
     # A URL do run gravado viaja DENTRO do relatorio (chave reservada, removida
     # pelo chamador) em vez de num estado de modulo: duas auditorias concorrentes
     # sobrescreveriam uma a outra e cada usuario receberia o link da run do outro.
     if not report_path.exists():
-        logger.info(
-            "[RemoteRunner] Cypress local rodou sem violações encontradas (nenhum arquivo de relatório gerado)."
+        logger.warning(
+            "[RemoteRunner] Cypress local nao gerou relatorio (codigo de saida %s) -- "
+            "execucao falhou, NAO e pagina limpa. Caindo para o motor via nuvem. Saida: %s",
+            codigo_saida,
+            " ".join(saida[-500:].split()) if saida else "(vazia)",
         )
-        return {
-            "violations": [],
-            "incomplete": [],
-            "testEngine": {"name": "axe-core"},
-            "_cypress_dashboard_url": dashboard_url,
-        }
+        return None
     try:
         report_text = report_path.read_text(encoding="utf-8")
         relatorio = json.loads(report_text)
