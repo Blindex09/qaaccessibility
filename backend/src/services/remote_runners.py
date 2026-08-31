@@ -526,7 +526,25 @@ Cypress.on('uncaught:exception', () => false);
 
 describe('Auditoria de acessibilidade (QA Accessibility)', () => {{
   it('roda axe-core na página alvo', () => {{
-    cy.visit({url!r});
+    // `failOnStatusCode: false`: auditoria de acessibilidade audita o que a
+    // pagina RENDERIZA, qualquer que seja o status HTTP. Sem isso o cy.visit
+    // aborta o teste inteiro em 3xx/4xx/5xx e nenhuma checagem roda -- e uma
+    // pagina de erro tambem precisa ser acessivel (foco, alt, titulo, idioma),
+    // e e onde a maioria dos times esquece. Causa raiz medida em 2026-08-31:
+    // TODA execucao local do Cypress falhava aqui com "cy.visit() failed
+    // trying to load ... status code was not 2xx", e a falha era lida como
+    // "pagina sem violacoes".
+    // O status entra no relatorio. `failOnStatusCode: false` sozinho trocaria
+    // uma falha silenciosa por outra: um interstitial anti-bot ("Um momento...",
+    // Cloudflare) responde 403/503 e renderiza uma pagina pequena e limpa --
+    // axe acha zero violacoes e o produto diria "aprovado" sobre uma pagina que
+    // o usuario nunca pediu. Medido em 2026-08-31 contra a pagina do W3C: o
+    // Cypress carregou o desafio (title "Um momento...", 1 img, 2 links)
+    // enquanto o caminho pela nuvem via as 8 violacoes reais.
+    cy.request({{ url: {url!r}, failOnStatusCode: false }}).then((resposta) => {{
+      cy.wrap(resposta.status).as('httpStatus');
+    }});
+    cy.visit({url!r}, {{ failOnStatusCode: false }});
     cy.injectAxe();
     // Achado real (2026-08-11): com skipFailures=true (não travar o "teste"
     // por causa de violações), cy.checkA11y NÃO expõe as violações no
@@ -545,15 +563,28 @@ describe('Auditoria de acessibilidade (QA Accessibility)', () => {{
     // 0 violacoes e "passou" enquanto o mesmo axe-core pela nuvem achava 8.
     // Certificar como limpa uma pagina quebrada e o pior modo de falha que uma
     // ferramenta de acessibilidade pode ter.
-    cy.checkA11y({scope!r}, null, (violations) => {{
-      cy.writeFile({report_filename!r}, {{ violations: violations, incomplete: [], testEngine: {{ name: 'axe-core' }} }});
-    }}, true);
+    cy.get('@httpStatus').then((httpStatus) => {{
+      cy.checkA11y({scope!r}, null, (violations) => {{
+        cy.writeFile({report_filename!r}, {{
+          violations: violations,
+          incomplete: [],
+          testEngine: {{ name: 'axe-core' }},
+          httpStatus: httpStatus,
+        }});
+      }}, true);
+    }});
     // Rede de seguranca: se o callback acima nao rodar (versao de cypress-axe
     // que so chama com violacoes), grava o resultado vazio explicitamente.
-    cy.writeFile({report_filename!r}, {{ violations: [], incomplete: [], testEngine: {{ name: 'axe-core' }} }}, {{ flag: 'wx' }}).then(
-      () => {{}},
-      () => {{}}
-    );
+    cy.get('@httpStatus').then((httpStatus) => {{
+      cy.writeFile(
+        {report_filename!r},
+        {{ violations: [], incomplete: [], testEngine: {{ name: 'axe-core' }}, httpStatus: httpStatus }},
+        {{ flag: 'wx' }}
+      ).then(
+        () => {{}},
+        () => {{}}
+      );
+    }});
   }});
 }});
 """
@@ -880,6 +911,22 @@ async def _try_run_local_cypress(
         report_text = report_path.read_text(encoding="utf-8")
         relatorio = json.loads(report_text)
         if isinstance(relatorio, dict):
+            # Status fora de 2xx: o que o navegador renderizou nao e a pagina
+            # pedida (tipicamente um interstitial anti-bot, que responde 403/503
+            # com uma pagina pequena e limpa). Auditar isso e devolver "zero
+            # violacoes" seria aprovar uma pagina que o usuario nunca viu --
+            # exatamente a falha que este caminho ja teve de outra forma.
+            # Devolver None faz cair para o motor via nuvem, que costuma passar
+            # pelo desafio e devolve o resultado real.
+            status_http = relatorio.get("httpStatus")
+            if isinstance(status_http, int) and not (200 <= status_http < 300):
+                logger.warning(
+                    "[RemoteRunner] Cypress local recebeu HTTP %s em %s -- a pagina auditada nao e a "
+                    "pedida (provavel desafio anti-bot). Caindo para o motor via nuvem.",
+                    status_http,
+                    url,
+                )
+                return None
             relatorio["_cypress_dashboard_url"] = dashboard_url
         return relatorio
     except Exception as exc:

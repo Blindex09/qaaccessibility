@@ -67,3 +67,46 @@ class TestAusenciaDeRelatorioNaoViraAprovacao:
             "Recorded Run: https://cloud.cypress.io/projects/bae1oz/runs/7."
         )
         assert achado == "https://cloud.cypress.io/projects/bae1oz/runs/7"
+
+
+class TestStatusHttpNoRelatorio:
+    """Regressao: 0 violacoes num desafio anti-bot nao pode virar aprovacao.
+
+    `failOnStatusCode: false` era necessario (uma pagina 404 tambem precisa ser
+    acessivel, e sem ele o cy.visit abortava a suite inteira), mas sozinho ele
+    trocava uma falha silenciosa por outra. Medido em 2026-08-31: a pagina do
+    W3C responde HTTP 403 para o navegador do Cypress e serve um interstitial
+    ("Um momento...", 1 img, 2 links). O axe achava zero violacoes nele -- um
+    veredito "aprovado" sobre uma pagina que o usuario nunca pediu.
+    """
+
+    def test_spec_registra_o_status_http(self):
+        spec = remote_runners._CYPRESS_SPEC_TEMPLATE.format(
+            url="https://exemplo.com", scope="body", report_filename="r.json"
+        )
+        assert "cy.request" in spec, "o status precisa ser medido, nao suposto"
+        assert "httpStatus" in spec
+        assert "failOnStatusCode: false" in spec
+
+    def test_visit_nao_aborta_por_status(self):
+        """Pagina de erro tambem precisa ser acessivel."""
+        spec = remote_runners._CYPRESS_SPEC_TEMPLATE.format(
+            url="https://exemplo.com", scope="body", report_filename="r.json"
+        )
+        # duas ocorrencias DE VERDADE (cy.request e cy.visit); as demais estao
+        # em comentario explicando o porque
+        usos = [
+            linha
+            for linha in spec.splitlines()
+            if "failOnStatusCode: false" in linha and not linha.strip().startswith("//")
+        ]
+        assert len(usos) == 2, f"esperava 2 usos, achei {len(usos)}: {usos}"
+        assert any("cy.visit" in u for u in usos)
+        assert any("cy.request" in u for u in usos)
+
+    def test_codigo_descarta_relatorio_de_pagina_nao_2xx(self):
+        import inspect
+
+        fonte = inspect.getsource(remote_runners._try_run_local_cypress)
+        assert "200 <= status_http < 300" in fonte
+        assert "desafio anti-bot" in fonte
