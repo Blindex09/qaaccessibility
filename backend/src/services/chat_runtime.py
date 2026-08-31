@@ -43,6 +43,7 @@ from backend.src.services import (
     last_analysis_store,
     session_context,
     squad_plan_store,
+    turn_attachments_store,
 )
 from backend.src.services.chat_tools import A11Y_CHAT_TOOLSET, CLARIFY_TOOLSET
 from backend.src.services.telemetry import agent_span
@@ -440,6 +441,9 @@ async def stream_chat(
     # arquivo da conversa e reenviando o conteúdo em todo turno seguinte.
     texto_do_usuario = message
     message = _compor_mensagem_com_anexos(message, attachments)
+    # Copia fiel do que o usuario anexou, para o corretor poder conferir contra
+    # o que o modelo repassar depois (ver turn_attachments_store).
+    turn_attachments_store.set_turn_attachments(attachments, session_id=conversation_id)
     # Histórico persistido no backend (chat_history_store.py) -- grava a mensagem
     # do usuário TAL COMO enviada neste turno, antes de qualquer merge com um
     # item residual do array `history` do cliente (linha abaixo), para nunca

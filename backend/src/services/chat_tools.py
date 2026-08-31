@@ -2114,6 +2114,57 @@ def _looks_like_placeholder_file_list(files: list) -> bool:
     return len(content) < _MIN_PLAUSIBLE_FILE_CONTENT_CHARS and not _CODE_STRUCTURE_CHARS_RE.search(content)
 
 
+def _reconciliar_com_anexos(files: list[dict[str, Any]] | None) -> tuple[list[dict[str, Any]], list[str]]:
+    """Troca conteudo INVENTADO pelo arquivo que o usuario realmente anexou.
+
+    Achado real (2026-08-30, execucao ponta a ponta): o anexo tinha 68
+    caracteres e o modelo passou 406 em `files`, com conteudo que nunca esteve
+    no arquivo -- um `<h1>Produto em Destaque</h1>`, um `alt="Camiseta azul,
+    tamanho M"`, uma "Loja Online". O pipeline corrigiu a invencao: o ZIP
+    baixado traria uma pagina que o usuario nunca escreveu, e o painel
+    antes/depois mostraria um "antes" que nao e o arquivo dele.
+
+    O guarda irmao ja existia para o caso inverso -- `_looks_like_placeholder_
+    file_list`, para quando o modelo manda "---" em vez de omitir `files`. Este
+    cobre a fabricacao, e so ficou possivel quando o anexo passou a viajar
+    estruturado: antes o conteudo do usuario chegava embutido na prosa e nao
+    havia copia fiel com que comparar.
+
+    Age SO quando da para afirmar qual anexo corresponde ao arquivo (nome bate,
+    ou existe um unico anexo) e a marcacao difere de verdade. Reformatacao do
+    modelo -- aspas, indentacao -- nao conta como diferenca (`_mesma_marcacao`),
+    e sem anexo conhecido nada e tocado: um projeto vindo por ZIP ou uma
+    correcao apos analise por URL seguem o caminho normal.
+    """
+    from backend.src.services.turn_attachments_store import encontrar_anexo, get_turn_attachments
+
+    anexos = get_turn_attachments()
+    if not anexos or not files:
+        return list(files or []), []
+
+    reconciliados: list[dict[str, Any]] = []
+    avisos: list[str] = []
+    for arquivo in files:
+        conteudo = str(arquivo.get("content") or "")
+        caminho = str(arquivo.get("path") or "")
+        if any(_mesma_marcacao(conteudo, str(a.get("content") or "")) for a in anexos):
+            reconciliados.append(arquivo)
+            continue
+        anexo = encontrar_anexo(caminho, anexos)
+        if anexo is None:
+            reconciliados.append(arquivo)
+            continue
+        aviso = (
+            f"O conteudo recebido para {caminho or anexo['name']!r} nao corresponde ao arquivo "
+            f"anexado ({len(conteudo)} vs {len(anexo['content'])} chars); a correcao foi aplicada "
+            "sobre o arquivo do usuario."
+        )
+        logger.warning("[a11y_chat] %s", aviso)
+        avisos.append(aviso)
+        reconciliados.append({**arquivo, "path": caminho or anexo["name"], "content": anexo["content"]})
+    return reconciliados, avisos
+
+
 def _mesmo_conteudo_ja_analisado(files: list[dict[str, Any]] | None) -> bool:
     """O arquivo a corrigir e exatamente o que acabou de ser analisado?
 
@@ -2225,6 +2276,9 @@ def fix_and_zip_files(args: dict[str, Any], **_kw: Any) -> str:
         files = [{"path": path, "content": html}]
         files_from_fallback = True
 
+    # O arquivo do usuario vence a reescrita do modelo (ver _reconciliar_com_anexos).
+    files, avisos_de_anexo = _reconciliar_com_anexos(files)
+
     custom_instruction = args.get("custom_instruction")
     if custom_instruction:
         custom_instruction = str(custom_instruction).strip()
@@ -2253,6 +2307,10 @@ def fix_and_zip_files(args: dict[str, Any], **_kw: Any) -> str:
     try:
         result = _safe_async_run(_run_fixes_and_generate_zip(files, custom_instruction, existing_issues))
         result.pop("_fixed_files", None)
+        if avisos_de_anexo:
+            # Visivel ao modelo (e portanto ao usuario): uma substituicao
+            # silenciosa seria tao ruim quanto corrigir o arquivo errado.
+            result["warnings"] = avisos_de_anexo
         from backend.src.services.last_fix_store import get_last_fix
         from backend.src.services.session_context import resolve_session
 
