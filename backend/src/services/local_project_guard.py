@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 # Pedido explicito do usuario (2026-08-11): a IA pode ler/corrigir projetos
 # locais e executar Cypress/Playwright locais, mas SOMENTE dentro de um
 # diretorio de projeto de acessibilidade -- identificado pelo NOME do
-# diretorio (ou de algum segmento do caminho), nunca por confiar cegamente
-# no que o usuario pede. Se o caminho nao tiver essa evidencia no nome, a
+# diretorio apontado, nunca por confiar cegamente no que o usuario pede. Se o
+# nome nao tiver essa evidencia, a
 # resposta e uma recusa amigavel, mesmo que o usuario insista ou peca
 # qualquer coisa fora de teste/correcao de acessibilidade (Cypress, Selenium,
 # Playwright, ou os proprios arquivos do projeto de acessibilidade).
@@ -33,15 +33,28 @@ _ACCESSIBILITY_MARKERS = ("acess", "access", "a11y")
 
 
 def is_accessibility_project_dir(path: str) -> bool:
-    """True se algum segmento do caminho (case-insensitive) indicar que o
-    diretorio e um projeto de acessibilidade. Unico criterio pelo qual a IA
-    tem permissao pra editar arquivos ou rodar Cypress/Playwright locais num
-    diretorio do usuario."""
+    r"""True se o NOME DO DIRETORIO APONTADO indicar um projeto de
+    acessibilidade. Unico criterio pelo qual a IA tem permissao pra editar
+    arquivos ou rodar Cypress/Playwright locais num diretorio do usuario.
+
+    So o ultimo segmento conta, e essa restricao e deliberada. Ate 2026-08-31
+    qualquer segmento do caminho servia, e isso abria um buraco largo: um
+    diretorio ancestral -- pasta de usuario, nome de workspace, rotulo de drive
+    -- com "access" no nome liberava TODO projeto abaixo dele. Concreto e
+    medido: `...\claude\C--qaaccessibility\...\projeto-comum` passava pelo
+    guarda por causa de `C--qaaccessibility`, e o mesmo valeria para
+    `C:\Users\accessibility-team\projetos\loja-de-sapatos`.
+
+    Num guarda de blast radius para ESCRITA EM DISCO, o modo de falha caro e
+    liberar demais, nao barrar demais: quem trabalha num monorepo aponta para a
+    raiz (que tem o marcador) ou renomeia a pasta, e o custo disso e uma
+    mensagem de recusa -- nao um computador inteiro aberto.
+    """
     if not path:
         return False
-    normalized = path.replace("\\", "/").lower()
-    segments = [s for s in normalized.split("/") if s]
-    return any(marker in segment for segment in segments for marker in _ACCESSIBILITY_MARKERS)
+    normalized = path.replace("\\", "/").lower().rstrip("/")
+    nome = normalized.rsplit("/", 1)[-1]
+    return any(marker in nome for marker in _ACCESSIBILITY_MARKERS)
 
 
 def accessibility_scope_denial_message(path: str) -> str:
@@ -51,7 +64,7 @@ def accessibility_scope_denial_message(path: str) -> str:
     return (
         f"Não posso executar comandos ou editar arquivos em '{display_path}': "
         "esta ferramenta só age em diretórios de projeto de acessibilidade "
-        "(o nome da pasta -- ou de algum nível do caminho -- precisa indicar isso, "
+        "(o nome da própria pasta apontada precisa indicar isso, "
         "ex.: 'acessibilidade', 'accessibility', 'a11y'). "
         "Para testar ou corrigir esse projeto, renomeie a pasta (ou aponte para "
         "uma pasta cujo nome já deixe isso claro) e tente de novo."
