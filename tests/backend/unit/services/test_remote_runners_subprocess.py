@@ -297,6 +297,9 @@ async def test_cypress_local_le_o_relatorio_e_limpa_os_artefatos(projeto_cypress
     assert await remote_runners._try_run_local_cypress("https://exemplo.com") == {
         **esperado,
         "_cypress_dashboard_url": None,
+        # Motivo que o Cypress deu para a gravacao nao ter ocorrido; None aqui
+        # porque a gravacao nem foi pedida (sem chaves no ambiente).
+        "_cypress_recording_error": None,
     }
     # Spec e relatorio sao temporarios dentro do projeto persistente: se
     # ficarem para tras, a proxima execucao le o resultado da anterior.

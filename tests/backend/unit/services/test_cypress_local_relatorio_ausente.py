@@ -110,3 +110,40 @@ class TestStatusHttpNoRelatorio:
         fonte = inspect.getsource(remote_runners._try_run_local_cypress)
         assert "200 <= status_http < 300" in fonte
         assert "desafio anti-bot" in fonte
+
+
+class TestMotivoRealDaGravacaoFalhada:
+    """O Cypress diz exatamente o que houve -- repassar isso vale mais que um checklist.
+
+    Medido em 2026-08-31: o produto dizia "verifique CYPRESS_RECORD_KEY, se o
+    CYPRESS_PROJECT_ID existe na organizacao e se a maquina tem acesso a
+    cloud.cypress.io" -- tres hipoteses para conferir a mao. O Cypress, na mesma
+    execucao, tinha dito: "Your Record Key 411f8...d57b7 is not valid with this
+    projectId: bae1oz". Para quem usa leitor de tela, a diferenca entre
+    percorrer um checklist e ouvir a frase exata e grande.
+    """
+
+    def test_repassa_a_frase_do_cypress(self):
+        saida = (
+            "Recorded Run: nao\n"
+            "Your Record Key 411f8...d57b7 is not valid with this projectId: bae1oz\n"
+            "Please log into Cypress Cloud to see the valid Record Keys.\n"
+        )
+        motivo = remote_runners._motivo_da_gravacao_falhada(saida, "chave-secreta")
+        assert "not valid with this projectId" in motivo
+        assert "bae1oz" in motivo
+
+    def test_projeto_sem_gravacao_configurada(self):
+        saida = "You passed the --record flag but this project has not been setup to record.\n"
+        assert "has not been setup to record" in remote_runners._motivo_da_gravacao_falhada(saida, "")
+
+    def test_nunca_vaza_a_chave_integral(self):
+        chave = "chave-super-secreta-123"
+        saida = f"Your Record Key {chave} is not valid with this projectId: abc\n"
+        motivo = remote_runners._motivo_da_gravacao_falhada(saida, chave)
+        assert chave not in motivo
+        assert "<chave omitida>" in motivo
+
+    def test_sem_explicacao_cai_no_checklist(self):
+        motivo = remote_runners._motivo_da_gravacao_falhada("saida sem nada util", "")
+        assert "cloud.cypress.io" in motivo

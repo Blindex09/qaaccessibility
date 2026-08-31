@@ -840,6 +840,7 @@ async def _try_run_local_cypress(
     # this project has not been setup to record".
     run_env = dict(os.environ)
     dashboard_url: str | None = None
+    motivo_gravacao: str | None = None
     project_id = os.getenv("CYPRESS_PROJECT_ID", "").strip()
     record_key = os.getenv("CYPRESS_RECORD_KEY", "").strip()
     recording_requested = bool(project_id and record_key)
@@ -863,9 +864,11 @@ async def _try_run_local_cypress(
         if recording_requested:
             dashboard_url = _extract_cypress_dashboard_url(saida)
             if dashboard_url is None:
+                motivo_gravacao = _motivo_da_gravacao_falhada(saida, record_key)
                 logger.warning(
                     "[RemoteRunner] --record foi passado mas o Cypress nao devolveu URL de run "
-                    "-- a gravacao NAO aconteceu (chave invalida, projeto errado ou sem rede)."
+                    "-- a gravacao NAO aconteceu. Motivo: %s",
+                    motivo_gravacao,
                 )
     except TimeoutError:
         proc.kill()
@@ -928,6 +931,7 @@ async def _try_run_local_cypress(
                 )
                 return None
             relatorio["_cypress_dashboard_url"] = dashboard_url
+            relatorio["_cypress_recording_error"] = motivo_gravacao
         return relatorio
     except Exception as exc:
         logger.warning("[RemoteRunner] Relatório do Cypress local veio ilegível: %s", exc)
@@ -935,6 +939,40 @@ async def _try_run_local_cypress(
     finally:
         with contextlib.suppress(OSError):
             report_path.unlink()
+
+
+def _motivo_da_gravacao_falhada(saida: str, record_key: str) -> str:
+    """A razao QUE O CYPRESS DEU para nao ter gravado, em vez de um checklist.
+
+    O Cypress diz exatamente o que houve -- "Your Record Key 411f8...d57b7 is not
+    valid with this projectId: bae1oz", "You passed the --record flag but this
+    project has not been setup to record", "Your account is over the free plan
+    limit". Repassar isso poupa o usuario de conferir tres hipoteses a mao;
+    para quem usa leitor de tela, a diferenca entre "verifique a chave, o
+    projeto e a rede" e a frase exata e grande.
+
+    A chave nunca vaza: o proprio Cypress ja a imprime mascarada, e o valor
+    integral e removido por seguranca antes de qualquer log.
+    """
+    linhas = [
+        linha.strip()
+        for linha in (saida or "").splitlines()
+        if linha.strip() and _CYPRESS_ERRO_GRAVACAO_RE.search(linha)
+    ]
+    if not linhas:
+        return "o Cypress nao explicou; verifique a chave, o projeto e o acesso a cloud.cypress.io"
+    motivo = " ".join(linhas[:3])
+    if record_key:
+        motivo = motivo.replace(record_key, "<chave omitida>")
+    return motivo[:400]
+
+
+# Linhas de saida do Cypress que carregam o motivo da gravacao nao ter ocorrido.
+_CYPRESS_ERRO_GRAVACAO_RE = re.compile(
+    r"record key|not valid with this projectId|has not been setup to record|"
+    r"plan limit|over the .* limit|projectId",
+    re.IGNORECASE,
+)
 
 
 def _extract_cypress_dashboard_url(saida: str) -> str | None:
@@ -1134,11 +1172,21 @@ async def run_remote_accessibility_audit(
                 }
             )
             if recording_configured and not dashboard_url:
+                # O motivo vem do proprio Cypress quando ele explica (ver
+                # `_motivo_da_gravacao_falhada`); o checklist generico fica so
+                # como ultimo recurso.
+                motivo = local_report.pop("_cypress_recording_error", None) if local_report else None
                 summary["cypress_cloud_error"] = (
                     "As chaves do Cypress Cloud estao configuradas e o run foi disparado com "
-                    "--record, mas o Cypress nao devolveu a URL do run: a gravacao NAO aconteceu. "
-                    "Verifique CYPRESS_RECORD_KEY, se o CYPRESS_PROJECT_ID existe na organizacao "
-                    "e se a maquina tem acesso a cloud.cypress.io."
+                    "--record, mas a gravacao NAO aconteceu. "
+                    + (
+                        f"O Cypress informou: {motivo}"
+                        if motivo
+                        else (
+                            "Verifique CYPRESS_RECORD_KEY, se o CYPRESS_PROJECT_ID existe na "
+                            "organizacao e se a maquina tem acesso a cloud.cypress.io."
+                        )
+                    )
                 )
             return summary
 
