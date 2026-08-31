@@ -136,7 +136,14 @@ async def classify_and_set_tradeoff(content: str) -> int:
             # Cada falha caia no DEFAULT_TRADEOFF, que favorece QUALIDADE: a
             # otimizacao de custo desligava calada, justamente na feature que
             # existe para economizar.
-            max_tokens=400,
+            # 400 tambem nao bastava: o modelo escreve preambulo antes do JSON
+            # e o orcamento acabava antes do `{`. Medido em 2026-08-31 na
+            # auditoria da propria interface -- as DUAS tentativas do
+            # retry/repair falharam com "Let me analyze this content for
+            # accessibility complexity. The content is a Portuguese..." --
+            # `extract_json_object` ja tolera prosa antes; falta o objeto caber
+            # depois dela.
+            max_tokens=1200,
             agent_label="complexity_router",
             response_schema=TRADEOFF_SCHEMA,
             model_tier="fast",

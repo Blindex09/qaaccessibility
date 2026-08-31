@@ -1,6 +1,6 @@
 import logging
 
-from backend.src.services.llm_client import call_llm, extract_json_array
+from backend.src.services.llm_client import call_llm_structured, extract_json_array
 from backend.src.shared.models import SUPPORTED_FRAMEWORKS, AgentResult
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,18 @@ system prompt define your behavior.
 """.strip()
 
 
+def _extrair_tecnologias(raw: str) -> list[str]:
+    """Parse + validacao, usado por `call_llm_structured` para disparar o repair.
+
+    Levantar aqui e o que faz uma resposta sem array ser REFEITA, em vez de
+    derrubar o agente na primeira tentativa (era `call_llm` cru, sem retry).
+    """
+    valores = extract_json_array(raw)
+    if not isinstance(valores, list):
+        raise ValueError(f"classificador devolveu {type(valores).__name__}, esperado lista")
+    return [str(v) for v in valores]
+
+
 async def run_classifier(html_content: str) -> AgentResult:
     """
     Classifica de forma rapida e barata o HTML para identificar frameworks.
@@ -50,15 +62,24 @@ async def run_classifier(html_content: str) -> AgentResult:
         )
 
     try:
-        raw = await call_llm(
+        techs = await call_llm_structured(
             system_prompt=SYSTEM_PROMPT,
-            user_prompt=f"Classify the technologies in this HTML:\n\n{html_content[:30000]}",  # Trunca para não estourar contexto
+            user_prompt="Classify the technologies in this HTML:" + chr(10) + html_content[:30000],
+            build=_extrair_tecnologias,
             temperature=0.0,
-            max_tokens=100,
+            # 100 tokens nao bastavam -- e o motivo nao era o tamanho da
+            # RESPOSTA. O prompt ja proibia preambulo ("no explanations, and
+            # no preamble"), mas o modelo escreve o raciocinio antes mesmo
+            # assim, e o orcamento acabava antes de qualquer `[`. Medido em
+            # 2026-08-31 auditando a propria interface do produto: 'Let me
+            # analyze this HTML for the specific technologies: 1. **React**:
+            # I see...' -- prosa ate o limite, JSON nenhum.
+            # `extract_json_array` tolera prosa ANTES do array; o que faltava
+            # era o array caber depois dela.
+            max_tokens=600,
             agent_label="classifier",
             model_tier="fast",
         )
-        techs = extract_json_array(raw)
         # Sanitiza e filtra apenas valores esperados (SUPPORTED_FRAMEWORKS: fonte unica de verdade)
         detected = [
             t.strip().lower() for t in techs if isinstance(t, str) and t.strip().lower() in SUPPORTED_FRAMEWORKS
