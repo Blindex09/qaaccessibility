@@ -256,8 +256,17 @@ async def update_service_key_route(body: ServiceKeyUpdateBody) -> dict:
     key_map = {
         "postman": "POSTMAN_API_KEY",
         "postman_api_key": "POSTMAN_API_KEY",
+        # Sem isto nao havia caminho PELO APP para apontar a propria collection:
+        # o codigo ja lia POSTMAN_COLLECTION_ID, mas so via variavel de ambiente.
+        "postman_collection_id": "POSTMAN_COLLECTION_ID",
         "cypress_record_key": "CYPRESS_RECORD_KEY",
         "cypress_project_id": "CYPRESS_PROJECT_ID",
+        # Obrigatoria para analisar qualquer URL (`fetch_rendered_html` levanta
+        # "Configuração ausente: FIRECRAWL_API_KEY e obrigatória para a
+        # análise"). Faltando aqui, um usuario novo batia nesse erro sem ter
+        # onde resolver pela interface -- so mexendo em variavel de ambiente.
+        "firecrawl": "FIRECRAWL_API_KEY",
+        "firecrawl_api_key": "FIRECRAWL_API_KEY",
         "github_token": "GITHUB_TOKEN",
         "github": "GITHUB_TOKEN",
         "tavily": "TAVILY_API_KEY",

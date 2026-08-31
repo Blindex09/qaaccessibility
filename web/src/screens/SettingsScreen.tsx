@@ -36,7 +36,20 @@ const PROVIDER_IDS = ["agentic", "openai", "anthropic", "gemini", "xai", "ollama
 // (write-only: o backend nunca as devolve pelo GET /settings, só confirma
 // o env var atualizado).
 const THIRD_PARTY_SERVICES = [
+  // Firecrawl vem primeiro por ser a unica OBRIGATORIA: sem ela, analisar uma
+  // URL falha com "Configuração ausente". Ate 2026-08-31 ela nem aparecia
+  // aqui, entao um usuario novo batia nesse erro sem ter onde resolver.
+  {
+    id: "firecrawl",
+    label: "Firecrawl API Key (obrigatória para analisar URLs)",
+    placeholder: "fc-...",
+  },
   { id: "postman", label: "Postman API Key", placeholder: "PMAK-..." },
+  {
+    id: "postman_collection_id",
+    label: "Postman Collection ID (opcional)",
+    placeholder: "Sem isto, uma collection de contrato é gerada automaticamente",
+  },
   { id: "cypress_record_key", label: "Cypress Record Key", placeholder: "Chave de gravação do Cypress Cloud" },
   { id: "cypress_project_id", label: "Cypress Project ID", placeholder: "ID do projeto no Cypress Cloud" },
   { id: "github_token", label: "GitHub Token", placeholder: "ghp_..." },

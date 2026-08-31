@@ -37,32 +37,44 @@ class TestSettingsRouteInjection:
         assert resp.status_code == 200
 
     def test_newline_in_llm_provider_is_rejected(self, client):
-        resp = client.post("/settings/", json={
-            "llm_provider": "openai\nGITHUB_TOKEN=attacker-controlled",
-        })
+        resp = client.post(
+            "/settings/",
+            json={
+                "llm_provider": "openai\nGITHUB_TOKEN=attacker-controlled",
+            },
+        )
         assert resp.status_code == 400
         assert "quebras de linha" in resp.json()["detail"]
 
     def test_newline_in_llm_api_key_is_rejected(self, client):
-        resp = client.post("/settings/", json={
-            "llm_provider": "openai",
-            "llm_api_key": "sk-real\nEXTRA_VAR=injected",
-        })
+        resp = client.post(
+            "/settings/",
+            json={
+                "llm_provider": "openai",
+                "llm_api_key": "sk-real\nEXTRA_VAR=injected",
+            },
+        )
         assert resp.status_code == 400
 
     def test_carriage_return_is_also_rejected(self, client):
-        resp = client.post("/settings/", json={
-            "llm_provider": "openai",
-            "llm_model": "gpt-x\r\nINJECTED=1",
-        })
+        resp = client.post(
+            "/settings/",
+            json={
+                "llm_provider": "openai",
+                "llm_model": "gpt-x\r\nINJECTED=1",
+            },
+        )
         assert resp.status_code == 400
 
     def test_normal_update_still_works_and_env_file_has_no_injected_lines(self, client):
-        resp = client.post("/settings/", json={
-            "llm_provider": "openai",
-            "llm_api_key": "sk-real-key",
-            "llm_model": "alto",
-        })
+        resp = client.post(
+            "/settings/",
+            json={
+                "llm_provider": "openai",
+                "llm_api_key": "sk-real-key",
+                "llm_model": "alto",
+            },
+        )
         assert resp.status_code == 200
         env_path = "backend/.env" if os.path.exists("backend/.env") else ".env"
         with open(env_path, encoding="utf-8") as f:
@@ -74,10 +86,13 @@ class TestSettingsRouteInjection:
 
     def test_masked_key_resubmission_is_ignored_not_overwritten(self, client):
         client.post("/settings/", json={"llm_provider": "openai", "llm_api_key": "sk-real-key"})
-        resp = client.post("/settings/", json={
-            "llm_provider": "openai",
-            "llm_api_key": "•" * 24,
-        })
+        resp = client.post(
+            "/settings/",
+            json={
+                "llm_provider": "openai",
+                "llm_api_key": "•" * 24,
+            },
+        )
         assert resp.status_code == 200
         env_path = "backend/.env" if os.path.exists("backend/.env") else ".env"
         with open(env_path, encoding="utf-8") as f:
@@ -102,13 +117,16 @@ class TestChatLlmOverrides:
         assert "has_chat_llm_api_key" in body
 
     def test_saving_chat_llm_overrides_persists_to_env_file(self, client):
-        resp = client.post("/settings/", json={
-            "llm_provider": "openai",
-            "chat_llm_provider": "anthropic",
-            "chat_llm_api_key": "sk-chat-real-key",
-            "chat_llm_model": "claude-opus-5",
-            "chat_llm_base_url": "https://api.anthropic.com",
-        })
+        resp = client.post(
+            "/settings/",
+            json={
+                "llm_provider": "openai",
+                "chat_llm_provider": "anthropic",
+                "chat_llm_api_key": "sk-chat-real-key",
+                "chat_llm_model": "claude-opus-5",
+                "chat_llm_base_url": "https://api.anthropic.com",
+            },
+        )
         assert resp.status_code == 200
 
         env_path = "backend/.env" if os.path.exists("backend/.env") else ".env"
@@ -125,16 +143,22 @@ class TestChatLlmOverrides:
         assert follow_up.json()["has_chat_llm_api_key"] is True
 
     def test_clearing_chat_llm_provider_removes_it_from_env_file(self, client):
-        client.post("/settings/", json={
-            "llm_provider": "openai",
-            "chat_llm_provider": "anthropic",
-            "chat_llm_api_key": "sk-chat-real-key",
-        })
-        resp = client.post("/settings/", json={
-            "llm_provider": "openai",
-            "chat_llm_provider": "",
-            "chat_llm_api_key": "",
-        })
+        client.post(
+            "/settings/",
+            json={
+                "llm_provider": "openai",
+                "chat_llm_provider": "anthropic",
+                "chat_llm_api_key": "sk-chat-real-key",
+            },
+        )
+        resp = client.post(
+            "/settings/",
+            json={
+                "llm_provider": "openai",
+                "chat_llm_provider": "",
+                "chat_llm_api_key": "",
+            },
+        )
         assert resp.status_code == 200
 
         env_path = "backend/.env" if os.path.exists("backend/.env") else ".env"
@@ -144,43 +168,108 @@ class TestChatLlmOverrides:
         assert "CHAT_LLM_API_KEY=" not in content
 
     def test_newline_in_chat_llm_model_is_rejected(self, client):
-        resp = client.post("/settings/", json={
-            "llm_provider": "openai",
-            "chat_llm_model": "claude\nINJECTED=1",
-        })
+        resp = client.post(
+            "/settings/",
+            json={
+                "llm_provider": "openai",
+                "chat_llm_model": "claude\nINJECTED=1",
+            },
+        )
         assert resp.status_code == 400
 
 
 class TestServiceKeyRouteInjection:
     def test_newline_in_service_name_is_rejected(self, client):
-        resp = client.post("/settings/service-key", json={
-            "service_name": "github\nOTHER=1",
-            "api_key": "token-123",
-        })
+        resp = client.post(
+            "/settings/service-key",
+            json={
+                "service_name": "github\nOTHER=1",
+                "api_key": "token-123",
+            },
+        )
         assert resp.status_code == 400
 
     def test_newline_in_api_key_is_rejected(self, client):
-        resp = client.post("/settings/service-key", json={
-            "service_name": "github",
-            "api_key": "token\nOTHER=1",
-        })
+        resp = client.post(
+            "/settings/service-key",
+            json={
+                "service_name": "github",
+                "api_key": "token\nOTHER=1",
+            },
+        )
         assert resp.status_code == 400
 
     def test_unmapped_service_name_with_bad_characters_is_rejected(self, client):
-        resp = client.post("/settings/service-key", json={
-            "service_name": "weird service!! name",
-            "api_key": "token-123",
-        })
+        resp = client.post(
+            "/settings/service-key",
+            json={
+                "service_name": "weird service!! name",
+                "api_key": "token-123",
+            },
+        )
         assert resp.status_code == 400
 
     def test_known_service_still_updates_normally(self, client):
-        resp = client.post("/settings/service-key", json={
-            "service_name": "github",
-            "api_key": "ghp_realtoken",
-        })
+        resp = client.post(
+            "/settings/service-key",
+            json={
+                "service_name": "github",
+                "api_key": "ghp_realtoken",
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["env_var"] == "GITHUB_TOKEN"
         env_path = "backend/.env" if os.path.exists("backend/.env") else ".env"
         content = Path(env_path).read_text(encoding="utf-8") if Path(env_path).exists() else ""
         assert "ghp_realtoken" not in content
         assert load_secrets()["GITHUB_TOKEN"] == "ghp_realtoken"
+
+
+class TestChavesConfiguraveisPelaInterface:
+    """Regressao: toda chave que o codigo LE precisa ter caminho pela interface.
+
+    Duas lacunas medidas em 2026-08-31:
+
+    - `FIRECRAWL_API_KEY` e OBRIGATORIA (`fetch_rendered_html` levanta
+      "Configuração ausente: FIRECRAWL_API_KEY e obrigatória para a análise"),
+      mas nao estava no key_map nem na tela. Um usuario novo instalava o
+      produto, pedia para analisar uma URL e batia nesse erro sem ter onde
+      resolver -- so mexendo em variavel de ambiente.
+    - `POSTMAN_COLLECTION_ID` era lido por `os.getenv` mas nao tinha caminho
+      pelo app, entao usar a propria collection era impossivel pela interface.
+    """
+
+    def test_firecrawl_pode_ser_salva(self, client):
+        resp = client.post("/settings/service-key", json={"service_name": "firecrawl", "api_key": "fc-teste"})
+        assert resp.status_code == 200
+        assert resp.json()["env_var"] == "FIRECRAWL_API_KEY"
+
+    def test_postman_collection_id_pode_ser_salvo(self, client):
+        resp = client.post(
+            "/settings/service-key",
+            json={"service_name": "postman_collection_id", "api_key": "b05106f0-a305-46b9-9281-99ea9d331554"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["env_var"] == "POSTMAN_COLLECTION_ID"
+
+    def test_servico_desconhecido_continua_recusado(self, client):
+        """A lista e uma permissao explicita, nao um passe livre."""
+        resp = client.post("/settings/service-key", json={"service_name": "servico_inventado", "api_key": "x"})
+        assert resp.status_code == 400
+
+    def test_toda_chave_obrigatoria_do_backend_tem_caminho_pela_interface(self):
+        """Amarra os dois lados: o que o codigo exige tem de ser configuravel."""
+        import inspect
+
+        from backend.src.routes import settings as mod
+
+        fonte = inspect.getsource(mod)
+        for env_var in (
+            "FIRECRAWL_API_KEY",
+            "POSTMAN_API_KEY",
+            "POSTMAN_COLLECTION_ID",
+            "CYPRESS_PROJECT_ID",
+            "CYPRESS_RECORD_KEY",
+            "BROWSERLESS_WS_URL",
+        ):
+            assert env_var in fonte, f"{env_var} nao tem caminho pela rota de configuracao"
