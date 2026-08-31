@@ -371,45 +371,70 @@ async def _arvore_via_cdp(context: Any, page: Any) -> dict[str, Any] | None:
     return _no_cdp_para_snapshot(raizes[0], por_id)
 
 
-async def _capture_raw_accessibility_snapshot(url: str) -> dict[str, Any] | None:
-    """Abre a URL num Chromium remoto (Browserless/CDP) e devolve a árvore de
-    acessibilidade bruta (`page.accessibility.snapshot`), sem formatação.
+async def _snapshot_com_navegador(pw: Any, browser: Any, url: str) -> dict[str, Any] | None:
+    """Navega e extrai a arvore, dado um browser ja conectado/lancado."""
+    context = await browser.new_context(
+        user_agent=_USER_AGENT,
+        viewport={"width": 1280, "height": 800},
+        java_script_enabled=True,
+        ignore_https_errors=True,
+    )
+    page = await context.new_page()
+    await page.goto(url, timeout=_NAV_TIMEOUT, wait_until="domcontentloaded")
+    try:
+        await page.wait_for_load_state("networkidle", timeout=_NETWORK_IDLE_TIMEOUT)
+    except PWTimeout:
+        logger.warning("[Browser] networkidle timeout na captura da arvore de acessibilidade real: %s", url)
+    return await _arvore_via_cdp(context, page)
 
-    Núcleo compartilhado por `fetch_accessibility_tree_snapshot` (formata como
-    texto pro prompt do LLM) e `fetch_accessibility_tree_nodes` (achata em
-    lista estruturada pra verificação determinística -- ver
-    `screen_reader_verification.py`). Best-effort: devolve None sem
-    BROWSERLESS_WS_URL configurado, se a navegação falhar, ou se a página não
-    expuser nós "interesting"; nunca levanta exceção pro chamador."""
+
+async def _capture_raw_accessibility_snapshot(url: str) -> dict[str, Any] | None:
+    """Abre a URL num Chromium e devolve a arvore de acessibilidade bruta.
+
+    Tenta o Chromium REMOTO (Browserless/CDP) quando configurado e cai para um
+    Chromium LOCAL quando ele nao existe ou nao consegue chegar na URL.
+
+    O fallback local nao e teorico: a verificacao pos-correcao aponta para a
+    pagina do Live Preview, servida pelo proprio backend em
+    `http://127.0.0.1:8001/preview/render/...`. Para um Browserless remoto,
+    `127.0.0.1` e o localhost DELE -- a navegacao morre com "Target page,
+    context or browser has been closed" e a verificacao devolvia zero achados
+    numa pagina que renderiza normalmente (medido em 2026-08-30). O projeto ja
+    usa launch local no teste cross-browser pelo mesmo tipo de razao.
+
+    Best-effort dos dois lados: nunca levanta excecao pro chamador. Quando nada
+    funciona devolve None, e quem chama traduz isso em `tree_captured=False`
+    (ver screen_reader_verification.py) -- ausencia de captura nunca vira
+    "pagina sem problemas".
+    """
     settings = get_settings()
     ws_url = getattr(settings, "browserless_ws_url", None)
-    if not ws_url:
-        return None
+
+    if ws_url:
+        try:
+            async with async_playwright() as pw:
+                browser = await pw.chromium.connect_over_cdp(ws_url)
+                try:
+                    snapshot = await _snapshot_com_navegador(pw, browser, url)
+                finally:
+                    await browser.close()
+            if snapshot:
+                return snapshot
+            logger.warning("[Browser] Chromium remoto nao devolveu arvore para %s -- tentando local.", url)
+        except Exception as exc:
+            logger.warning("[Browser] Chromium remoto falhou em %s (%s) -- tentando local.", url, exc)
 
     try:
         async with async_playwright() as pw:
-            browser = await pw.chromium.connect_over_cdp(ws_url)
+            browser = await pw.chromium.launch(headless=True)
             try:
-                context = await browser.new_context(
-                    user_agent=_USER_AGENT,
-                    viewport={"width": 1280, "height": 800},
-                    java_script_enabled=True,
-                    ignore_https_errors=True,
-                )
-                page = await context.new_page()
-                await page.goto(url, timeout=_NAV_TIMEOUT, wait_until="domcontentloaded")
-                try:
-                    await page.wait_for_load_state("networkidle", timeout=_NETWORK_IDLE_TIMEOUT)
-                except PWTimeout:
-                    logger.warning("[Browser] networkidle timeout na captura da árvore de acessibilidade real: %s", url)
-                snapshot = await _arvore_via_cdp(context, page)
+                snapshot = await _snapshot_com_navegador(pw, browser, url)
             finally:
                 await browser.close()
+        return snapshot or None
     except Exception as exc:
-        logger.warning("[Browser] Falha ao capturar árvore de acessibilidade real de %s: %s", url, exc)
+        logger.warning("[Browser] Falha ao capturar arvore de acessibilidade real de %s: %s", url, exc)
         return None
-
-    return snapshot or None
 
 
 async def fetch_accessibility_tree_snapshot(url: str) -> str:

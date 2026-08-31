@@ -25,7 +25,11 @@ class TestOpenLivePreviewURLs:
             patch("backend.src.routes.preview.register_preview_session", return_value="sessao123"),
             patch("backend.src.config.settings.get_settings") as cfg,
         ):
-            cfg.return_value.resolved_public_base_url = base
+            # Metodo, nao atributo -- foi assim que a versao anterior deste
+            # teste deixou passar um `resolved_public_base_url` chamado SEM
+            # parenteses: o mock devolvia a string de qualquer jeito, e a URL
+            # real saia com um '<bound method ...>' no lugar da base.
+            cfg.return_value.resolved_public_base_url = lambda: base
             return json.loads(open_live_preview({}))
 
     def test_devolve_url_da_pagina_corrigida_e_da_original(self):

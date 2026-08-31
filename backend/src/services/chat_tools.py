@@ -2844,7 +2844,7 @@ def open_live_preview(args: dict[str, Any], **_kw: Any) -> str:
     # download (`resolved_public_base_url`), nunca host fixo no codigo.
     from backend.src.config.settings import get_settings
 
-    base = get_settings().resolved_public_base_url
+    base = get_settings().resolved_public_base_url()
     return json.dumps(
         {
             "session_id": session_id,
@@ -3250,6 +3250,15 @@ def verify_screen_reader_announcements_tool(args: dict, **_kw: Any) -> str:
     return json.dumps(
         {
             "url": result.url,
+            # `tree_captured` e `not_verified_reason` existem no servico desde a
+            # correcao de "captura vazia != pagina limpa", mas nao chegavam ate
+            # aqui: o modelo recebia `findings: []` com `total_interactive_nodes:
+            # 0` e podia concluir, de boa fe, que a pagina estava impecavel.
+            # Medido ao vivo em 2026-08-30: a verificacao logou "arvore vazia --
+            # nada foi verificado" e ainda assim a ferramenta reportou sucesso
+            # sem nenhum sinal de que nada tinha sido verificado.
+            "tree_captured": result.tree_captured,
+            "not_verified_reason": result.not_verified_reason,
             "total_interactive_nodes": result.total_interactive_nodes,
             "findings": [
                 {
