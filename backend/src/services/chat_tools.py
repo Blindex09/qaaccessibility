@@ -2405,7 +2405,7 @@ def fix_local_project_files(args: dict[str, Any], **_kw: Any) -> str:
 
     from backend.src.services import fix_checkpoint_store
 
-    fix_checkpoint_store.create_checkpoint(f"Correção local de {len(files)} arquivo(s) em {project_dir}")
+    # (checkpoint criado adiante, ja com o diretorio de backup dos originais)
 
     try:
         result = _safe_async_run(_run_fixes_and_generate_zip(files, custom_instruction))
@@ -2450,6 +2450,16 @@ def fix_local_project_files(args: dict[str, Any], **_kw: Any) -> str:
     result["project_dir"] = project_dir
     result["written_files"] = written
     result["backup_dir"] = backup_dir if written else None
+    # Checkpoint com o caminho dos ORIGINAIS: antes ele guardava so os caches
+    # (issues e paginas de preview), entao `undo_last_fix` respondia "Estado
+    # anterior à última correção restaurado" com os arquivos do usuario ainda
+    # alterados no disco. O backup ja era feito acima; faltava alguem guardar
+    # onde ele esta.
+    fix_checkpoint_store.create_checkpoint(
+        f"Correção local de {len(written)} arquivo(s) em {project_dir}",
+        project_dir=project_dir,
+        backup_dir=backup_dir if written else "",
+    )
     if skipped_unsafe:
         result["skipped_files"] = skipped_unsafe
 
