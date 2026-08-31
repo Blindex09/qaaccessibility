@@ -82,6 +82,12 @@ def _provider_state_put(conversation_id: str | None, provider: str, model: str, 
 # Constantes de intent do clarifier: fonte unica de verdade.
 # Se o clarifier mudar os valores, basta atualizar aqui.
 _INTENT_OUT_OF_SCOPE = "out_of_scope"
+# Intencoes que representam TRABALHO -- as unicas que convocam a squad. Uma
+# pergunta conceitual ("qual a diferenca entre aria-label e aria-labelledby?")
+# nao abre sprint, do mesmo jeito que um time real nao faz cerimonia de
+# planejamento porque alguem perguntou algo no corredor. A leitura semantica e
+# da IA (clarifier); o roteamento a partir dela e deterministico.
+_INTENTS_DE_TRABALHO = frozenset({"analyze_url", "analyze_code", "fix_code"})
 _INTENT_NEEDS_CLARIFICATION = "needs_clarification"
 # Usada quando o clarifier classifica como ambíguo mas não devolve a pergunta.
 _DEFAULT_CLARIFY_QUESTION = (
@@ -476,30 +482,17 @@ async def stream_chat(
     api_key = cfg["api_key"]
     base_url = cfg["base_url"] or None
 
-    # ── Squad de acessibilidade ──────────────────────────────────────────────
-    # O quadro persiste por conversa: o planejamento (Product Owner -> Tech
-    # Lead -> Engineering Manager) roda UMA vez por ciclo, não a cada mensagem
-    # -- nenhuma squad real replaneja a sprint a cada frase. Nos turnos
-    # seguintes o quadro é restaurado e apenas AVANÇA de estado.
+    # ── Triagem semântica ────────────────────────────────────────────────────
+    # Roda ANTES da squad, porque a intenção classificada aqui é o que decide se
+    # este turno é trabalho (abre quadro) ou conversa (não abre).
     #
-    # O gate é determinístico (estado do quadro), nunca uma leitura do texto do
-    # usuário: a decisão de ROTEAMENTO é do código, a de CONTEÚDO é dos papéis.
-    snapshot = squad_plan_store.load_squad_plan(conversation_id)
-    squad = SquadCoordinator.restore(snapshot) if snapshot else SquadCoordinator(message)
-
-    if not squad.planning_done:
-        async for evento in squad.run_planning():
-            yield evento
-        async for evento in squad.run_scrum_master():
-            yield evento
-        squad_plan_store.save_squad_plan(squad.plan.to_dict(), conversation_id)
-
-    squad_plan = squad.plan
-    yield {"type": "squad_plan", "plan": squad_plan.to_dict()}
-
-    # Triagem semântica no chat: roda apenas para o primeiro turno sem histórico.
-    # Quando já existe histórico de conversa (diálogo em andamento), o clarifier não deve
-    # interceptar confirmações ou respostas curtas do usuário (ex.: "pode analisar", "sim", "corrija").
+    # Dois usos distintos, com condições distintas:
+    #  - INTERCEPTAR (fora de escopo / ambíguo): só no primeiro turno, para não
+    #    barrar confirmações curtas de um diálogo em andamento ("sim",
+    #    "corrija", "pode analisar").
+    #  - DECIDIR A SQUAD: em qualquer turno que ainda não tenha quadro. Depois
+    #    que o quadro existe, ele é restaurado e a intenção não é mais
+    #    necessária -- o trabalho já começou.
     is_first_turn = not (history or cleaned_history)
     # Fato estrutural vindo do cliente (ChatRequest.attachments), nunca inferido
     # do texto. O `_LEGACY_ATTACHMENT_MARKER` cobre clientes antigos que ainda
@@ -508,26 +501,60 @@ async def stream_chat(
     # ou de um diff colado pelo usuario, e era a metade do teste que gerava o
     # falso positivo (clarifier pulado em silencio no primeiro turno).
     has_attachments = bool(attachments) or _LEGACY_ATTACHMENT_MARKER in message
-    if is_first_turn and not has_attachments and "PYTEST_CURRENT_TEST" not in os.environ:
+
+    snapshot = squad_plan_store.load_squad_plan(conversation_id)
+    intent: str | None = None
+    if (is_first_turn or snapshot is None) and "PYTEST_CURRENT_TEST" not in os.environ:
         from backend.src.agents.clarifier import run_clarifier
 
         clarifier_res = await run_clarifier(message)
         if clarifier_res.success:
             intent = clarifier_res.data.get("intent")
-            if intent == _INTENT_OUT_OF_SCOPE:
-                out_of_scope_text = "Desculpe, mas sou um assistente especializado exclusivamente em acessibilidade digital (WCAG, Section 508, WAI-ARIA). Não posso ajudar com assuntos gerais ou fora de escopo."
-                yield {"type": "token", "text": out_of_scope_text}
-                yield {"type": "done", "final": "Pedido fora de escopo de acessibilidade."}
-                chat_history_store.append_message("assistant", out_of_scope_text, session_id=conversation_id)
-                chat_progress.clear_cancel_token(stream_id)
-                return
-            if intent == _INTENT_NEEDS_CLARIFICATION:
-                question = str(clarifier_res.data.get("question") or "").strip() or _DEFAULT_CLARIFY_QUESTION
-                yield {"type": "token", "text": question}
-                yield {"type": "done", "final": question}
-                chat_history_store.append_message("assistant", question, session_id=conversation_id)
-                chat_progress.clear_cancel_token(stream_id)
-                return
+            if is_first_turn and not has_attachments:
+                if intent == _INTENT_OUT_OF_SCOPE:
+                    out_of_scope_text = "Desculpe, mas sou um assistente especializado exclusivamente em acessibilidade digital (WCAG, Section 508, WAI-ARIA). Não posso ajudar com assuntos gerais ou fora de escopo."
+                    yield {"type": "token", "text": out_of_scope_text}
+                    yield {"type": "done", "final": "Pedido fora de escopo de acessibilidade."}
+                    chat_history_store.append_message("assistant", out_of_scope_text, session_id=conversation_id)
+                    chat_progress.clear_cancel_token(stream_id)
+                    return
+                if intent == _INTENT_NEEDS_CLARIFICATION:
+                    question = str(clarifier_res.data.get("question") or "").strip() or _DEFAULT_CLARIFY_QUESTION
+                    yield {"type": "token", "text": question}
+                    yield {"type": "done", "final": question}
+                    chat_history_store.append_message("assistant", question, session_id=conversation_id)
+                    chat_progress.clear_cancel_token(stream_id)
+                    return
+
+    # ── Squad de acessibilidade ──────────────────────────────────────────────
+    # A squad se reúne quando há TRABALHO, não a cada frase -- é o que um time
+    # real faz. Antes o quadro era montado em todo turno, e uma pergunta
+    # conceitual ("qual a diferença entre aria-label e aria-labelledby?") pagava
+    # Product Owner + Tech Lead + Engineering Manager antes de ser respondida:
+    # três chamadas de LLM para uma sprint que não existe.
+    #
+    # A fronteira segue a regra do projeto: a leitura semântica ("isto é pedido
+    # de trabalho ou conversa?") é da IA, no clarifier; o roteamento a partir
+    # dela é determinístico, aqui. Anexo conta como trabalho por fato
+    # estrutural, sem depender de classificação.
+    #
+    # Sem intenção conhecida (clarifier indisponível, ou quadro já existente),
+    # mantém o comportamento histórico de abrir o quadro: falhar para o lado de
+    # ter plano é mais barato do que perder o quadro de um trabalho real.
+    precisa_de_squad = snapshot is not None or has_attachments or intent is None or intent in _INTENTS_DE_TRABALHO
+    squad_plan = None
+    if precisa_de_squad:
+        squad = SquadCoordinator.restore(snapshot) if snapshot else SquadCoordinator(message)
+        if not squad.planning_done:
+            async for evento in squad.run_planning():
+                yield evento
+            async for evento in squad.run_scrum_master():
+                yield evento
+            squad_plan_store.save_squad_plan(squad.plan.to_dict(), conversation_id)
+        squad_plan = squad.plan
+        yield {"type": "squad_plan", "plan": squad_plan.to_dict()}
+    else:
+        logger.info("[ChatRuntime] Turno de conversa (intent=%s): squad não convocada nesta rodada.", intent)
 
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
@@ -624,19 +651,32 @@ async def stream_chat(
     # (BM25 + embeddings fundidos por RRF, depois rerank).
     a11y_ref = await a11y_knowledge.build_reference_block(message)
 
+    # O bloco da squad so entra no prompt quando existe quadro: num turno de
+    # conversa nao ha sprint, papeis nem criterios de aceite para citar, e
+    # injetar um quadro vazio seria pedir ao modelo que respeitasse decisoes
+    # que ninguem tomou.
+    N = chr(10)  # quebra de linha usada na montagem do bloco
+    bloco_squad = ""
+    if squad_plan is not None:
+        bloco_squad = (
+            "\n\n### SQUAD DE ACESSIBILIDADE DIGITAL\n"
+            "Abaixo está o quadro REAL da squad nesta conversa. As entradas em `decisions` não são "
+            "sugestões: são as decisões que os papéis da squad já tomaram neste ciclo -- o Product "
+            "Owner definiu escopo e critérios de aceite, o Tech Lead definiu a abordagem, o "
+            "Engineering Manager sequenciou e nomeou dependências. Trate-as como contrato: trabalhe "
+            "dentro do escopo que o PO fixou, siga a abordagem do Tech Lead, respeite as dependências "
+            "do EM e os `depends_on` das tarefas."
+            + N
+            + "Uma tarefa com status `blocked` NÃO pode ser executada: `a11y-remediation` nasce "
+            "bloqueada e só é liberada pela aprovação explícita do usuário. Nunca declare concluída "
+            "uma etapa sem a evidência que o critério de aceite dela exige, e nunca chame de "
+            "verificado o que não foi." + N + json.dumps(squad_plan.to_dict(), ensure_ascii=False) + N
+        )
+
     dynamic_prompt = (
-        SYSTEM_PROMPT + "\n\n### SQUAD DE ACESSIBILIDADE DIGITAL\n"
-        "Abaixo está o quadro REAL da squad nesta conversa. As entradas em `decisions` não são "
-        "sugestões: são as decisões que os papéis da squad já tomaram neste ciclo -- o Product Owner "
-        "definiu escopo e critérios de aceite, o Tech Lead definiu a abordagem, o Engineering Manager "
-        "sequenciou e nomeou dependências. Trate-as como contrato: trabalhe dentro do escopo que o PO "
-        "fixou, siga a abordagem do Tech Lead, respeite as dependências do EM e os `depends_on` das "
-        "tarefas.\n"
-        "Uma tarefa com status `blocked` NÃO pode ser executada: `a11y-remediation` nasce bloqueada e "
-        "só é liberada pela aprovação explícita do usuário. Nunca declare concluída uma etapa sem a "
-        "evidência que o critério de aceite dela exige, e nunca chame de verificado o que não foi.\n"
-        f"{json.dumps(squad_plan.to_dict(), ensure_ascii=False)}\n"
-        f"\n\n- The JSON results of the user's last audited URL/file are stored locally. If the user asks you to write a report or perform actions based on the previous audit results, you DO NOT need to run analyze_page again. You can read the JSON results directly using your file tools from this path: '{cache_path}'. This file contains a JSON object with 'url' and 'issues' keys (issues is a list of WCAG violations). Use it to generate reports instantly!"
+        SYSTEM_PROMPT
+        + bloco_squad
+        + f"\n\n- The JSON results of the user's last audited URL/file are stored locally. If the user asks you to write a report or perform actions based on the previous audit results, you DO NOT need to run analyze_page again. You can read the JSON results directly using your file tools from this path: '{cache_path}'. This file contains a JSON object with 'url' and 'issues' keys (issues is a list of WCAG violations). Use it to generate reports instantly!"
         "\n- STRUCTURAL RULE, NOT OPTIONAL: once a URL/site has been analyzed in this conversation, NEVER call `analyze_page`/`analyze_site` again for that same target in a later turn -- not before `fix_and_zip_files`, not before `export_xlsx`, not before `generate_checklist`, not before `open_live_preview`. All of these already read from the same cache automatically; calling analyze_page again just re-runs the entire ~15-minute multi-agent pipeline for no benefit and makes the user wait for nothing new. The ONLY valid reason to analyze the same target again is the user explicitly asking for a fresh/new/updated scan (e.g. because they changed something and want it re-checked) -- a request for a deliverable (spreadsheet, checklist, PDF, preview, fix) is never that, on its own.\n"
         "\n- CHECKLIST RULE: if the user asks for a checklist, do NOT write it yourself from the raw JSON -- call `generate_checklist` instead. It runs the dedicated ChecklistAgent, which produces properly structured pass/fail/manual-verification items (including manual QA prompts the raw issue list doesn't have) instead of an ad-hoc summary. If the user also wants it as a file/PDF, follow up with `export_checklist_pdf` (accessible, tagged PDF/UA-1)."
         "\n- ACCESSIBILITY STATEMENT RULE: if the user asks for an accessibility statement (declaração de acessibilidade), a public conformance-status page, or wants to scope/document accessibility for a platform/consultancy engagement, call `generate_accessibility_statement` -- it reports the real conformance level, methodology, and known limitations from the last analysis, never invented text. Only pass organization_name/product_name/contact_email/contact_phone if the user actually told you those values; never invent an organization name or contact info -- the tool inserts a clearly-marked placeholder when they are missing, and you must tell the user to replace it with their real data before publishing. If the user wants it as a file/PDF, follow up with `export_accessibility_statement_pdf`."

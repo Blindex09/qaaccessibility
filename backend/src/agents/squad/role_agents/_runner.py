@@ -16,7 +16,7 @@ import json
 import logging
 from typing import Any
 
-from backend.src.services.llm_client import call_llm
+from backend.src.services.llm_client import call_llm_structured
 
 from ..contracts import RoleDecision
 from ..roles import SquadRole
@@ -71,10 +71,25 @@ def _extract_json_object(raw: str) -> dict[str, Any]:
         if text.lstrip().startswith("json"):
             text = text.lstrip()[4:]
     start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
+    if start == -1:
         raise ValueError("resposta do papel nao contem objeto JSON")
-    return json.loads(text[start : end + 1])
+
+    # `raw_decode` le o PRIMEIRO objeto completo e ignora o que vier depois.
+    #
+    # Antes era `text[find("{") : rfind("}") + 1]`, ou seja, da primeira chave
+    # ate a ULTIMA -- quando o modelo emitia dois objetos, ou JSON seguido de
+    # prosa contendo chaves, a fatia abrangia tudo e o json.loads estourava
+    # com "Extra data: line 13 column 1 (char 636)". Observado nas
+    # trajetorias de 2026-08-31 em tech_lead e scrum_master: o papel inteiro
+    # falhava por causa de texto EXTRA depois de um JSON que estava correto.
+    decoder = json.JSONDecoder()
+    try:
+        objeto, _fim = decoder.raw_decode(text[start:])
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"objeto JSON do papel esta malformado: {exc}") from exc
+    if not isinstance(objeto, dict):
+        raise ValueError(f"o papel devolveu {type(objeto).__name__}, esperado objeto")
+    return objeto
 
 
 async def run_role(
@@ -95,14 +110,18 @@ async def run_role(
     logger.info("[Squad:%s] Decidindo (contexto=%d chars)", role.value, len(payload))
 
     try:
-        raw = await call_llm(
+        # `call_llm_structured` em vez de `call_llm` cru: um unico JSON
+        # malformado derrubava o papel inteiro, e a cadeia degradava com um
+        # blocker que nao existia de verdade. O projeto ja tinha o mecanismo
+        # de retry/repair -- os papeis so nao o usavam.
+        data = await call_llm_structured(
             system_prompt=system_prompt + OUTPUT_CONTRACT,
-            user_prompt=f"Squad context so far:\n{payload}",
+            user_prompt="Squad context so far:" + chr(10) + payload,
+            build=_extract_json_object,
             temperature=0.2,
             agent_label=f"squad_{role.value}",
             model_tier=model_tier,
         )
-        data = _extract_json_object(raw)
     except Exception as exc:
         logger.warning("[Squad:%s] Falhou: %s", role.value, exc)
         return RoleDecision(

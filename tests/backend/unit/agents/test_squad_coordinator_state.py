@@ -70,15 +70,19 @@ def test_correcao_nasce_bloqueada_e_so_a_aprovacao_libera():
 
 async def test_papel_transiciona_in_progress_e_done_e_emite_a_decisao():
     squad = SquadCoordinator("auditar uma pagina")
-    with patch(
-        "backend.src.agents.squad.coordinator.run_product_owner",
-        new=AsyncMock(return_value=_decisao(SquadRole.PRODUCT_OWNER)),
-    ), patch(
-        "backend.src.agents.squad.coordinator.run_tech_lead",
-        new=AsyncMock(return_value=_decisao(SquadRole.TECH_LEAD)),
-    ), patch(
-        "backend.src.agents.squad.coordinator.run_engineering_manager",
-        new=AsyncMock(return_value=_decisao(SquadRole.ENGINEERING_MANAGER)),
+    with (
+        patch(
+            "backend.src.agents.squad.coordinator.run_product_owner",
+            new=AsyncMock(return_value=_decisao(SquadRole.PRODUCT_OWNER)),
+        ),
+        patch(
+            "backend.src.agents.squad.coordinator.run_tech_lead",
+            new=AsyncMock(return_value=_decisao(SquadRole.TECH_LEAD)),
+        ),
+        patch(
+            "backend.src.agents.squad.coordinator.run_engineering_manager",
+            new=AsyncMock(return_value=_decisao(SquadRole.ENGINEERING_MANAGER)),
+        ),
     ):
         eventos = [evento async for evento in squad.run_planning()]
 
@@ -100,15 +104,19 @@ async def test_papel_que_entrega_com_ressalva_conclui_e_nao_trava_a_cadeia():
     trabalho. O bloqueio continua visivel e vai para a triagem do Scrum Master.
     """
     squad = SquadCoordinator("auditar uma pagina atras de login")
-    with patch(
-        "backend.src.agents.squad.coordinator.run_product_owner",
-        new=AsyncMock(return_value=_decisao(SquadRole.PRODUCT_OWNER, blockers=["falta credencial"])),
-    ), patch(
-        "backend.src.agents.squad.coordinator.run_tech_lead",
-        new=AsyncMock(return_value=_decisao(SquadRole.TECH_LEAD)),
-    ), patch(
-        "backend.src.agents.squad.coordinator.run_engineering_manager",
-        new=AsyncMock(return_value=_decisao(SquadRole.ENGINEERING_MANAGER)),
+    with (
+        patch(
+            "backend.src.agents.squad.coordinator.run_product_owner",
+            new=AsyncMock(return_value=_decisao(SquadRole.PRODUCT_OWNER, blockers=["falta credencial"])),
+        ),
+        patch(
+            "backend.src.agents.squad.coordinator.run_tech_lead",
+            new=AsyncMock(return_value=_decisao(SquadRole.TECH_LEAD)),
+        ),
+        patch(
+            "backend.src.agents.squad.coordinator.run_engineering_manager",
+            new=AsyncMock(return_value=_decisao(SquadRole.ENGINEERING_MANAGER)),
+        ),
     ):
         [evento async for evento in squad.run_planning()]
 
@@ -122,14 +130,16 @@ async def test_papel_que_entrega_com_ressalva_conclui_e_nao_trava_a_cadeia():
 async def test_papel_que_nao_entrega_decisao_nenhuma_fica_bloqueado():
     squad = SquadCoordinator("auditar")
     sem_decisao = _decisao(SquadRole.PRODUCT_OWNER, decisions=[], blockers=["nao consegui definir escopo"])
-    with patch(
-        "backend.src.agents.squad.coordinator.run_product_owner", new=AsyncMock(return_value=sem_decisao)
-    ), patch(
-        "backend.src.agents.squad.coordinator.run_tech_lead",
-        new=AsyncMock(return_value=_decisao(SquadRole.TECH_LEAD)),
-    ), patch(
-        "backend.src.agents.squad.coordinator.run_engineering_manager",
-        new=AsyncMock(return_value=_decisao(SquadRole.ENGINEERING_MANAGER)),
+    with (
+        patch("backend.src.agents.squad.coordinator.run_product_owner", new=AsyncMock(return_value=sem_decisao)),
+        patch(
+            "backend.src.agents.squad.coordinator.run_tech_lead",
+            new=AsyncMock(return_value=_decisao(SquadRole.TECH_LEAD)),
+        ),
+        patch(
+            "backend.src.agents.squad.coordinator.run_engineering_manager",
+            new=AsyncMock(return_value=_decisao(SquadRole.ENGINEERING_MANAGER)),
+        ),
     ):
         eventos = [evento async for evento in squad.run_planning()]
 
@@ -143,8 +153,11 @@ async def test_papel_com_dependencia_aberta_nao_executa():
     """O portão não é decorativo: o agente do papel nem chega a ser chamado."""
     squad = SquadCoordinator("auditar")
     chamou = AsyncMock(return_value=_decisao(SquadRole.QA_LEAD))
-    with patch("backend.src.agents.squad.coordinator.run_qa_lead", new=chamou), patch(
-        "backend.src.agents.squad.coordinator.run_release", new=AsyncMock(return_value=_decisao(SquadRole.RELEASE))
+    with (
+        patch("backend.src.agents.squad.coordinator.run_qa_lead", new=chamou),
+        patch(
+            "backend.src.agents.squad.coordinator.run_release", new=AsyncMock(return_value=_decisao(SquadRole.RELEASE))
+        ),
     ):
         eventos = [evento async for evento in squad.run_closing()]
 
@@ -159,12 +172,16 @@ async def test_papel_com_dependencia_aberta_nao_executa():
 async def test_o_proximo_papel_recebe_o_handoff_do_anterior():
     squad = SquadCoordinator("auditar uma pagina")
     tech_lead = AsyncMock(return_value=_decisao(SquadRole.TECH_LEAD))
-    with patch(
-        "backend.src.agents.squad.coordinator.run_product_owner",
-        new=AsyncMock(return_value=_decisao(SquadRole.PRODUCT_OWNER, handoff={"scope": "home page"})),
-    ), patch("backend.src.agents.squad.coordinator.run_tech_lead", new=tech_lead), patch(
-        "backend.src.agents.squad.coordinator.run_engineering_manager",
-        new=AsyncMock(return_value=_decisao(SquadRole.ENGINEERING_MANAGER)),
+    with (
+        patch(
+            "backend.src.agents.squad.coordinator.run_product_owner",
+            new=AsyncMock(return_value=_decisao(SquadRole.PRODUCT_OWNER, handoff={"scope": "home page"})),
+        ),
+        patch("backend.src.agents.squad.coordinator.run_tech_lead", new=tech_lead),
+        patch(
+            "backend.src.agents.squad.coordinator.run_engineering_manager",
+            new=AsyncMock(return_value=_decisao(SquadRole.ENGINEERING_MANAGER)),
+        ),
     ):
         [evento async for evento in squad.run_planning()]
 
@@ -203,11 +220,23 @@ async def test_scrum_master_roda_quando_ha_bloqueio():
 # ── Falha de um papel degrada, nunca derruba o turno ─────────────────────────
 
 
+def _falso_structured(raw: str):
+    """Imita `call_llm_structured`: chama o `build` com a saida crua e propaga
+    a excecao dele -- que e o que dispara o retry/repair na versao real. Os
+    papeis passaram a usar esse mecanismo em 2026-08-31, depois de um JSON com
+    texto extra derrubar tech_lead e scrum_master numa rodada real."""
+
+    async def _chamada(*_a, build, **_kw):
+        return build(raw)
+
+    return AsyncMock(side_effect=_chamada)
+
+
 async def test_papel_que_falha_vira_bloqueio_e_nao_excecao():
     from backend.src.agents.squad.role_agents._runner import run_role
 
     with patch(
-        "backend.src.agents.squad.role_agents._runner.call_llm",
+        "backend.src.agents.squad.role_agents._runner.call_llm_structured",
         new=AsyncMock(side_effect=RuntimeError("provider fora do ar")),
     ):
         decisao = await run_role(role=SquadRole.QA_LEAD, system_prompt="x", context={})
@@ -222,10 +251,25 @@ async def test_resposta_do_papel_em_cerca_de_markdown_ainda_e_lida():
 
     resposta = '```json\n{"summary": "ok", "decisions": ["a"], "blockers": [], "handoff": {"k": "v"}}\n```'
     with patch(
-        "backend.src.agents.squad.role_agents._runner.call_llm",
-        new=AsyncMock(return_value=resposta),
+        "backend.src.agents.squad.role_agents._runner.call_llm_structured",
+        new=_falso_structured(resposta),
     ):
         decisao = await run_role(role=SquadRole.TECH_LEAD, system_prompt="x", context={})
+
+    assert decisao.succeeded is True
+    assert decisao.handoff == {"k": "v"}
+
+
+async def test_texto_extra_depois_do_json_nao_derruba_o_papel():
+    """O caso real: o JSON estava correto, o que veio DEPOIS e que quebrava."""
+    from backend.src.agents.squad.role_agents._runner import run_role
+
+    resposta = '{"summary": "ok", "decisions": ["a"], "handoff": {"k": "v"}}' + chr(10) + "Segue o raciocinio."
+    with patch(
+        "backend.src.agents.squad.role_agents._runner.call_llm_structured",
+        new=_falso_structured(resposta),
+    ):
+        decisao = await run_role(role=SquadRole.SCRUM_MASTER, system_prompt="x", context={})
 
     assert decisao.succeeded is True
     assert decisao.handoff == {"k": "v"}
