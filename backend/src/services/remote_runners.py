@@ -229,16 +229,32 @@ async def run_remote_selenium(url: str, location: str | None = None) -> dict[str
 
 def _build_generated_a11y_contract_collection(api_url: str) -> dict[str, Any]:
     """Monta uma Postman Collection v2.1 real (com pm.test() de verdade) para
-    verificar o contrato básico de acessibilidade de uma API, usada quando o
-    usuário não tem uma collection própria configurada (POSTMAN_COLLECTION_ID)."""
+    verificar o contrato basico de acessibilidade, usada quando o usuario nao
+    tem uma collection propria configurada (POSTMAN_COLLECTION_ID).
+
+    Os testes se adaptam ao que a resposta E, em vez de assumir JSON sempre.
+    Antes, os tres checks exigiam JSON -- e uma PAGINA reprovava por motivo
+    errado: medido em 2026-08-31 contra
+    https://www.w3.org/WAI/demos/bad/before/home.html, o score deu 33 porque
+    "Resposta e um JSON valido" falhou, sem que isso dissesse nada sobre a
+    acessibilidade da pagina.
+
+    - JSON: valida o contrato da API (campos de acessibilidade no corpo).
+    - HTML: valida o que a camada HTTP consegue afirmar sobre a pagina --
+      idioma declarado (WCAG 3.1.1), titulo nao vazio (WCAG 2.4.2) e charset.
+      Nao substitui o axe-core: e a verificacao de CONTRATO, que roda antes e
+      sem navegador.
+    - Outro tipo: falha explicita dizendo qual Content-Type veio, em vez de
+      passar calado.
+    """
     return {
         "info": {
-            "name": "QA Accessibility - Verificação de Contrato de API",
+            "name": "QA Accessibility - Verificacao de Contrato",
             "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
         },
         "item": [
             {
-                "name": "Verifica contrato de acessibilidade da API",
+                "name": "Verifica contrato de acessibilidade",
                 "request": {"method": "GET", "url": api_url},
                 "event": [
                     {
@@ -246,17 +262,51 @@ def _build_generated_a11y_contract_collection(api_url: str) -> dict[str, Any]:
                         "script": {
                             "type": "text/javascript",
                             "exec": [
+                                "// O contrato verificado depende do que a resposta E: uma API de",
+                                "// acessibilidade devolve JSON; uma pagina devolve HTML. Exigir JSON de uma",
+                                "// pagina reprovava por motivo errado (medido em 2026-08-31 contra o W3C:",
+                                "// score 33 so porque a URL servia HTML).",
+                                "const contentType = (pm.response.headers.get('Content-Type') || '').toLowerCase();",
+                                "const ehJson = contentType.indexOf('json') !== -1;",
+                                "const ehHtml = contentType.indexOf('text/html') !== -1;",
+                                "",
                                 "pm.test('Status code e 200 OK', function () {",
                                 "  pm.response.to.have.status(200);",
                                 "});",
-                                "pm.test('Resposta e um JSON valido', function () {",
-                                "  pm.response.to.be.json;",
+                                "",
+                                "pm.test('Content-Type declara a codificacao (charset)', function () {",
+                                "  pm.expect(contentType, 'sem charset o texto pode ser lido com caracteres trocados').to.include('charset');",
                                 "});",
-                                "pm.test('Contrato contem atributos de acessibilidade', function () {",
-                                "  const body = pm.response.json();",
-                                "  const keys = ['alt', 'aria', 'label', 'title', 'description', 'score', 'issues'];",
-                                "  pm.expect(keys.some((k) => Object.prototype.hasOwnProperty.call(body, k))).to.be.true;",
-                                "});",
+                                "",
+                                "if (ehJson) {",
+                                "  pm.test('Resposta e um JSON valido', function () {",
+                                "    pm.response.to.be.json;",
+                                "  });",
+                                "  pm.test('Contrato contem atributos de acessibilidade', function () {",
+                                "    const body = pm.response.json();",
+                                "    const keys = ['alt', 'aria', 'label', 'title', 'description', 'score', 'issues'];",
+                                "    pm.expect(keys.some((k) => Object.prototype.hasOwnProperty.call(body, k))).to.be.true;",
+                                "  });",
+                                "} else if (ehHtml) {",
+                                "  const corpo = pm.response.text();",
+                                "  pm.test('HTML declara o idioma da pagina (WCAG 3.1.1)', function () {",
+                                "    const temLang = /<html[^>]*\\slang\\s*=\\s*['\"]?[a-zA-Z]{2}/i.test(corpo);",
+                                "    pm.expect(temLang, 'sem <html lang> o leitor de tela usa a voz do idioma errado').to.be.true;",
+                                "  });",
+                                "  pm.test('HTML tem <title> nao vazio (WCAG 2.4.2)', function () {",
+                                "    const m = corpo.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i);",
+                                "    pm.expect(!!(m && m[1].trim()), 'o titulo e a primeira coisa anunciada ao carregar a pagina').to.be.true;",
+                                "  });",
+                                "  pm.test('Content-Language coerente quando presente', function () {",
+                                "    const cl = pm.response.headers.get('Content-Language');",
+                                "    if (!cl) { pm.expect(true).to.be.true; return; }",
+                                "    pm.expect(cl.trim().length, 'Content-Language vazio confunde a negociacao de idioma').to.be.above(1);",
+                                "  });",
+                                "} else {",
+                                "  pm.test('Content-Type reconhecido (JSON ou HTML)', function () {",
+                                "    pm.expect.fail('Content-Type nao reconhecido para verificacao de contrato: ' + (contentType || '(ausente)'));",
+                                "  });",
+                                "}",
                             ],
                         },
                     }
