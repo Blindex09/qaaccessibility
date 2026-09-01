@@ -15,32 +15,33 @@ const TEMPLATE = fs.readFileSync(path.join(RAIZ, "web", "index.html"), "utf-8");
 const CHAT = fs.readFileSync(path.join(RAIZ, "src", "screens", "ChatScreen.tsx"), "utf-8");
 
 describe("WCAG 2.4.1 Bypass Blocks -- skip link", () => {
-  test("o elemento existe, nao so o CSS", () => {
-    // O CSS `.skip-link` existia ha tempos, mas nenhum ELEMENTO o usava: estilo
-    // orfao. Sem link, nao havia como pular o cabecalho.
-    expect(TEMPLATE).toMatch(/<a[^>]*class="skip-link"[^>]*>/);
+  const APP = fs.readFileSync(path.join(RAIZ, "App.tsx"), "utf-8");
+
+  test("existe UM skip link, renderizado pelo App", () => {
+    // Eu adicionei um segundo no template do index.html achando que nao havia
+    // nenhum -- meu grep procurou `class="skip-link"` no fonte e o do App usa
+    // outra marcacao. O proprio pipeline pegou na rodada seguinte: "two skip
+    // links with identical visible text".
+    expect(APP).toMatch(/Pular para o conteúdo principal/);
+    expect(TEMPLATE).not.toMatch(/<a[^>]*class="skip-link"/);
   });
 
-  test("aponta para o conteudo principal", () => {
-    const m = TEMPLATE.match(/<a[^>]*class="skip-link"[^>]*href="([^"]+)"/);
-    expect(m).not.toBeNull();
-    const alvo = (m as RegExpMatchArray)[1].replace("#", "");
-    expect(TEMPLATE).toMatch(new RegExp(`id="${alvo}"`));
-  });
-
-  test("o alvo pode receber foco", () => {
-    // Sem tabindex="-1" o foco nao vai para o container ao seguir o link.
-    expect(TEMPLATE).toMatch(/id="root"[^>]*tabindex="-1"/);
+  test("aponta para o conteudo principal, nao para o wrapper da pagina", () => {
+    // O meu apontava para `#root`, que CONTEM o cabecalho -- pular para ele nao
+    // pula nada. O do App aponta para o `role="main"`.
+    expect(APP).toMatch(/href:\s*"#main-content"/);
+    expect(APP).toMatch(/nativeID="main-content"/);
+    expect(APP).toMatch(/role="main"/);
+    expect(TEMPLATE).not.toMatch(/href="#root"/);
   });
 
   test("fica visivel ao receber foco", () => {
     expect(TEMPLATE).toMatch(/\.skip-link:focus\s*\{[^}]*top:\s*0/);
   });
 
-  test("tem texto perceptivel", () => {
-    const m = TEMPLATE.match(/<a[^>]*class="skip-link"[^>]*>([^<]+)<\/a>/);
-    expect(m).not.toBeNull();
-    expect((m as RegExpMatchArray)[1].trim().length).toBeGreaterThan(5);
+  test("move o foco para o alvo ao ser ativado", () => {
+    // Sem isso o link "funciona" sem levar o foco a lugar nenhum.
+    expect(APP).toMatch(/getElementById\("main-content"\)/);
   });
 });
 

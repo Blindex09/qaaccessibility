@@ -250,13 +250,13 @@
         </div>
       </div>
     </noscript>
-    <!-- Skip link: o CSS .skip-link ja existia, mas nenhum ELEMENTO o usava --
-         estilo orfao. Sem ele nao havia como pular o cabecalho, e quem navega
-         por teclado ou leitor de tela percorria a navegacao inteira a cada
-         pagina (WCAG 2.4.1 Bypass Blocks). Achado pelo proprio pipeline do
-         produto auditando a propria interface, em 2026-08-31, e confirmado em
-         duas execucoes independentes. -->
-    <a class="skip-link" href="#root">Pular para o conteúdo principal</a>
-    <div id="root" tabindex="-1"></div>
+    <!-- Sem skip link aqui de proposito: o App ja renderiza um, apontando para
+         `#main-content` (ver App.tsx). Um segundo link neste template criava
+         DOIS com o mesmo texto visivel, e o meu apontava para `#root` -- que
+         CONTEM o cabecalho, entao nao pulava nada. Os dois defeitos foram
+         achados pelo proprio pipeline auditando a interface (2026-08-31), uma
+         rodada depois de eu introduzi-los. O CSS `.skip-link` abaixo serve o
+         link do App. -->
+    <div id="root"></div>
   </body>
 </html>
