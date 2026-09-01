@@ -644,6 +644,10 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
     setAttachments((prev) => prev.filter((a) => a.name !== name));
   }
 
+  // Condição única de "não dá para enviar": usada no estado acessível, no
+  // rótulo e no estilo. Antes era a mesma expressão repetida três vezes.
+  const naoPodeEnviar = !streaming && !input.trim() && attachments.length === 0;
+
   function handleSend() {
     const text = input.trim();
     if ((!text && attachments.length === 0) || streaming) return;
@@ -1016,24 +1020,41 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
         />
         <View style={styles.promptActions}>
           <TouchableOpacity
-            onPress={() => fileInputRef.current?.click()}
-            disabled={streaming}
+            onPress={() => {
+              if (streaming) return;
+              fileInputRef.current?.click();
+            }}
             accessibilityRole="button"
-            accessibilityLabel="Anexar arquivos ou projeto para análise"
+            accessibilityState={{ disabled: streaming }}
+            accessibilityLabel={
+              streaming
+                ? "Anexar arquivos — indisponível enquanto o assistente responde"
+                : "Anexar arquivos ou projeto para análise"
+            }
             style={[styles.attachActionBtn, streaming && styles.sendBtnDisabled]}
           >
             <Text style={styles.attachActionText}>Anexar arquivos</Text>
           </TouchableOpacity>
+          {/* `accessibilityState.disabled` (-> aria-disabled) em vez de
+              `disabled`: o segundo tira o botão do tab order, e quem navega por
+              teclado ou leitor de tela não o encontra nem descobre POR QUE está
+              indisponível. Com aria-disabled ele continua alcançável e é
+              anunciado como "Enviar mensagem, botão, indisponível", com o
+              motivo no próprio nome. `handleSend` já não faz nada sem conteúdo,
+              então nenhum guarda se perde. Padrão do WAI-ARIA APG; achado pelo
+              próprio pipeline auditando esta interface (WCAG 2.1.1, 2026-08-31). */}
           <TouchableOpacity
             onPress={streaming ? stop : handleSend}
-            disabled={!streaming && (!input.trim() && attachments.length === 0)}
             accessibilityRole="button"
-            accessibilityLabel={streaming ? "Parar geração" : "Enviar mensagem"}
-            style={[
-              styles.sendBtn,
-              streaming && styles.stopBtn,
-              (!streaming && (!input.trim() && attachments.length === 0)) && styles.sendBtnDisabled,
-            ]}
+            accessibilityState={{ disabled: naoPodeEnviar }}
+            accessibilityLabel={
+              streaming
+                ? "Parar geração"
+                : naoPodeEnviar
+                  ? "Enviar mensagem — digite uma mensagem ou anexe um arquivo primeiro"
+                  : "Enviar mensagem"
+            }
+            style={[styles.sendBtn, streaming && styles.stopBtn, naoPodeEnviar && styles.sendBtnDisabled]}
           >
             <Text style={styles.sendText}>{streaming ? "Parar" : "Enviar mensagem"}</Text>
           </TouchableOpacity>
