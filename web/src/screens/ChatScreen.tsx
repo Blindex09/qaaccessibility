@@ -414,6 +414,12 @@ function renderTextWithLinks(text: string) {
   return <React.Fragment>{blocks}</React.Fragment>;
 }
 
+// Texto VISÍVEL do campo de mensagem. O nome acessível é derivado dele para
+// satisfazer o WCAG 2.5.3 (Label in Name): o nome precisa CONTER o visível.
+const PLACEHOLDER_MENSAGEM = "Pergunte, cole uma URL, ou anexe arquivos…";
+const ROTULO_ACESSIVEL_MENSAGEM = `${PLACEHOLDER_MENSAGEM} — mensagem para o assistente`;
+
+
 export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) {
   const {
     messages,
@@ -981,15 +987,23 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
             style: { display: "none" },
             "aria-hidden": true,
           })}
-        <Text style={styles.srOnly}>Digite sua mensagem para a IA</Text>
+        <Text style={styles.srOnly}>{PLACEHOLDER_MENSAGEM}</Text>
         <TextInput
           ref={chatInputRef}
           value={input}
           onChangeText={setInput}
-          placeholder="Pergunte, cole uma URL, ou anexe arquivos…"
+          placeholder={PLACEHOLDER_MENSAGEM}
           placeholderTextColor={colors.text.tertiary}
           style={styles.input}
-          accessibilityLabel="Mensagem para o assistente"
+          // WCAG 2.5.3 Label in Name: o nome acessível PRECISA conter o texto
+          // visível. Antes eram três strings diferentes para o mesmo campo --
+          // visível "Pergunte, cole uma URL, ou anexe arquivos…", nome acessível
+          // "Mensagem para o assistente", e um texto só-para-leitor "Digite sua
+          // mensagem para a IA". Quem usa controle por voz falava o que via e
+          // não ativava nada. Derivar do mesmo `PLACEHOLDER_MENSAGEM` impede que
+          // voltem a divergir. Achado pelo próprio pipeline do produto
+          // auditando a própria interface, confirmado em duas execuções.
+          accessibilityLabel={ROTULO_ACESSIVEL_MENSAGEM}
           editable={!streaming}
           multiline
           autoComplete="off"

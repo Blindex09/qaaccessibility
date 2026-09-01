@@ -250,6 +250,13 @@
         </div>
       </div>
     </noscript>
-    <div id="root"></div>
+    <!-- Skip link: o CSS .skip-link ja existia, mas nenhum ELEMENTO o usava --
+         estilo orfao. Sem ele nao havia como pular o cabecalho, e quem navega
+         por teclado ou leitor de tela percorria a navegacao inteira a cada
+         pagina (WCAG 2.4.1 Bypass Blocks). Achado pelo proprio pipeline do
+         produto auditando a propria interface, em 2026-08-31, e confirmado em
+         duas execucoes independentes. -->
+    <a class="skip-link" href="#root">Pular para o conteúdo principal</a>
+    <div id="root" tabindex="-1"></div>
   </body>
 </html>
