@@ -19,8 +19,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from backend.src.agents.fixer.fixer import run_fixer  # noqa: E402
 from backend.src.agents.orchestrator.orchestrator import orchestrate  # noqa: E402
-from backend.src.shared.models import TaskType  # noqa: E402
+from backend.src.shared.models import AccessibilityIssue, Guideline, Severity, TaskType  # noqa: E402
 
 SCENARIOS: tuple[dict[str, str], ...] = (
     {
@@ -101,12 +102,71 @@ async def _run() -> list[dict[str, Any]]:
     return records
 
 
+async def _run_fix_stage() -> dict[str, Any]:
+    """Exercise QAAccessibility's real code-remediation stage.
+
+    The fixer is the part that turns findings into project changes.  Keep this
+    scenario deliberately small and verify the returned artifact locally so
+    coding-agent evaluators can consume a patch-like success signal.
+    """
+
+    html = '<form><input type="email"><img src="hero.png"></form>'
+    issues = [
+        AccessibilityIssue(
+            id="fix-input-label",
+            guideline=Guideline.WCAG_2_2,
+            criterion="1.3.1 Info and Relationships",
+            severity=Severity.HIGH,
+            element='<input type="email">',
+            description="The input has no programmatically associated label.",
+            suggestion="Add a visible label associated with the input.",
+        ),
+        AccessibilityIssue(
+            id="fix-image-alt",
+            guideline=Guideline.WCAG_2_2,
+            criterion="1.1.1 Non-text Content",
+            severity=Severity.HIGH,
+            element='<img src="hero.png">',
+            description="The image has no text alternative.",
+            suggestion="Add an informative alt attribute or alt=\"\" when decorative.",
+        ),
+    ]
+    started = time.perf_counter()
+    result = await run_fixer(html, issues, request_id="cross-project-fix-audit")
+    data = _safe_value(result.data)
+    fixed_html = str(data.get("fixed_html", "")) if isinstance(data, dict) else ""
+    lowered = fixed_html.lower()
+    valid_artifact = bool(
+        result.success
+        and fixed_html.strip()
+        and "<script" not in lowered
+        and "javascript:" not in lowered
+        and "<img" in lowered
+        and "alt=" in lowered
+        and ("<label" in lowered or "aria-label=" in lowered or "aria-labelledby=" in lowered)
+    )
+    return {
+        "trajectory_id": "qaaccessibility-fixer-code-stage",
+        "input": {"html": html, "issue_ids": [issue.id for issue in issues]},
+        "agent": "qaaccessibility.fixer",
+        "success": bool(result.success),
+        "complete": valid_artifact,
+        "artifact_validated": valid_artifact,
+        "changes_summary": data.get("changes_summary", []) if isinstance(data, dict) else [],
+        "fixed_html": fixed_html,
+        "error": result.error,
+        "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, default=ROOT / "docs" / "audits" / "cross-project")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     records = asyncio.run(_run())
+    fix_record = asyncio.run(_run_fix_stage())
     jsonl_path = args.output / "qaaccessibility-trajectories.jsonl"
     jsonl_path.write_text(
         "\n".join(json.dumps(record, ensure_ascii=False) for record in records) + "\n",
@@ -121,7 +181,11 @@ def main() -> int:
         "records": records,
     }
     (args.output / "qaaccessibility-runtime-report.json").write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2),
+        json.dumps({**summary, "fix_stage": fix_record}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    (args.output / "qaaccessibility-fix-trajectories.jsonl").write_text(
+        json.dumps(fix_record, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     print(json.dumps({
@@ -129,8 +193,9 @@ def main() -> int:
         "report": str(args.output / "qaaccessibility-runtime-report.json"),
         "successful": summary["successful"],
         "complete": summary["complete"],
+        "fix_complete": fix_record["complete"],
     }, ensure_ascii=False))
-    return 0 if summary["successful"] == len(records) else 1
+    return 0 if summary["successful"] == len(records) and fix_record["complete"] else 1
 
 
 if __name__ == "__main__":
