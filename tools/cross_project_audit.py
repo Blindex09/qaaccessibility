@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT))
 
 from backend.src.agents.fixer.fixer import run_fixer  # noqa: E402
 from backend.src.agents.orchestrator.orchestrator import orchestrate  # noqa: E402
+from backend.src.services.audit_observability import audit_scope  # noqa: E402
 from backend.src.shared.models import AccessibilityIssue, Guideline, Severity, TaskType  # noqa: E402
 
 SCENARIOS: tuple[dict[str, str], ...] = (
@@ -83,6 +84,7 @@ def _trajectory_record(scenario: dict[str, str], result: Any, duration_ms: float
         "complete": bool(data.get("complete", False)) if isinstance(data, dict) else False,
         "issues": issues,
         "agent_metrics": metrics,
+        "audit": data.get("audit") if isinstance(data, dict) else None,
         "error": result.error,
         "duration_ms": round(duration_ms, 2),
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -132,7 +134,8 @@ async def _run_fix_stage() -> dict[str, Any]:
         ),
     ]
     started = time.perf_counter()
-    result = await run_fixer(html, issues, request_id="cross-project-fix-audit")
+    with audit_scope() as audit:
+        result = await run_fixer(html, issues, request_id="cross-project-fix-audit")
     data = _safe_value(result.data)
     fixed_html = str(data.get("fixed_html", "")) if isinstance(data, dict) else ""
     lowered = fixed_html.lower()
@@ -153,6 +156,7 @@ async def _run_fix_stage() -> dict[str, Any]:
         "complete": valid_artifact,
         "artifact_validated": valid_artifact,
         "changes_summary": data.get("changes_summary", []) if isinstance(data, dict) else [],
+        "audit": audit.snapshot(),
         "fixed_html": fixed_html,
         "error": result.error,
         "duration_ms": round((time.perf_counter() - started) * 1000, 2),

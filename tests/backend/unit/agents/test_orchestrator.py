@@ -201,6 +201,8 @@ class TestOrchestratorRefactored:
         with patch.multiple("backend.src.agents.orchestrator.orchestrator", **patches):
             result = await orchestrate(sample_html, TaskType.ANALYZE)
         assert "agent_metrics" in result.data
+        assert result.data["audit"]["run_id"].startswith("qa-")
+        assert "counters" in result.data["audit"]
         assert len(result.data["agent_metrics"]) == 21
         for m in result.data["agent_metrics"]:
             assert "agent" in m

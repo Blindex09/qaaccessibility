@@ -40,6 +40,7 @@ from backend.src.agents.web_components.web_components import run_web_components_
 from backend.src.agents.widgets_a11y.widgets_a11y import run_widgets_a11y
 from backend.src.config.settings import get_settings
 from backend.src.services import batch_collector, chat_progress
+from backend.src.services.audit_observability import audited_orchestrator
 from backend.src.services.complexity_router import classify_and_set_tradeoff
 from backend.src.services.contrast_verifier import verify_contrast_issues
 from backend.src.services.lessons_store import get_known_false_positive_patterns, record_false_positive_removal
@@ -762,7 +763,9 @@ async def _run_analysis_pipeline(
         )
         known_patterns = get_known_false_positive_patterns()
         pre_review = unique
+        review_started = asyncio.get_running_loop().time()
         expert_result = await run_a11y_expert_reviewer(unique, known_false_positive_patterns=known_patterns)
+        review_duration_ms = (asyncio.get_running_loop().time() - review_started) * 1000
         if expert_result.success:
             reviewed = [AccessibilityIssue(**i) for i in expert_result.data.get("issues", [])]
             removed = expert_result.data.get("removed_false_positives", 0)
@@ -790,7 +793,7 @@ async def _run_analysis_pipeline(
             metrics.append(
                 AgentMetrics(
                     agent="a11y_expert_reviewer",
-                    duration_ms=0.0,
+                    duration_ms=review_duration_ms,
                     issues_found=len(unique),
                     success=True,
                 )
@@ -803,9 +806,10 @@ async def _run_analysis_pipeline(
             metrics.append(
                 AgentMetrics(
                     agent="a11y_expert_reviewer",
-                    duration_ms=0.0,
+                    duration_ms=review_duration_ms,
                     issues_found=len(unique),
                     success=False,
+                    error=expert_result.error or "Revisão especializada incompleta",
                 )
             )
 
@@ -838,6 +842,7 @@ async def _run_analysis_pipeline(
     return unique, metrics, failed, pipeline_graph
 
 
+@audited_orchestrator
 async def orchestrate(
     html_content: str,
     task_type: TaskType,
@@ -897,6 +902,7 @@ async def orchestrate(
 
         logger.info("[Orchestrator] Pipeline ANALYZE concluido")
         result_data: dict = {
+            "complete": failed_count == 0,
             "issues": [i.model_dump() for i in issues],
             "agent_metrics": [m.model_dump() for m in metrics],
             "pipeline_graph": pipeline_graph,
