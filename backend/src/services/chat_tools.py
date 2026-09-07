@@ -241,6 +241,17 @@ def analyze_page(args: dict[str, Any], **_kw: Any) -> str:
 
     summary = _summarize_issues(issues)
 
+    # A successful transport/pipeline may still contain an incomplete review.
+    # Preserve that contract for the narrating agent; no conformance score is
+    # defensible when one of the required specialists failed.
+    failed_agents = [m for m in result.data.get("agent_metrics", []) if m.get("success") is False]
+    partial = bool(result.data.get("warning") or failed_agents or result.data.get("complete") is False)
+    summary["complete"] = not partial
+    if partial:
+        warning = result.data.get("warning") or "Análise incompleta: um ou mais especialistas falharam."
+        summary.update(warning=warning, score=None, agent_metrics=result.data.get("agent_metrics", []))
+        chat_progress.emit({"type": "phase", "text": warning})
+
     # "Shift-right" sob demanda (decisão do usuário 2026-08-11): se essa MESMA
     # URL já foi analisada antes neste ambiente (qualquer sessão, qualquer
     # dia), compara com o snapshot anterior real e reporta regressão real
@@ -3241,46 +3252,16 @@ def create_azure_devops_work_item_tool(args: dict) -> str:
     return json.dumps(res, ensure_ascii=False)
 
 
-_NVDA_SPEAK_SCHEMA: dict[str, Any] = {
-    "description": (
-        "Envia um comando de voz diretamente para o leitor de tela NVDA ativo para que ele fale um texto ao usuário."
-    ),
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "pre_exec_msg": {
-                "type": "string",
-                "description": "Uma mensagem curta em português a ser exibida para o usuário antes de executar a ferramenta, justificando o que será feito (ex: 'Enviando o texto para o NVDA ler em voz alta...').",
-            },
-            "text": {
-                "type": "string",
-                "description": "Texto a ser falado pelo leitor de tela NVDA.",
-            },
-        },
-        "required": ["pre_exec_msg", "text"],
-    },
-}
-
-
-def nvda_speak_tool(args: dict) -> str:
-    """Handler da ferramenta de controle de fala do NVDA."""
-    from backend.src.services.nvda_service import speak_text
-
-    chat_progress.emit_tool_progress(None, "nvda_speak", "Enviando texto para o NVDA...")
-    res = speak_text(args.get("text", ""))
-    return json.dumps(res, ensure_ascii=False)
-
-
 _VERIFY_SCREEN_READER_ANNOUNCEMENTS_SCHEMA: dict[str, Any] = {
     "description": (
         "Verifica os anuncios de leitor de tela de uma URL cruzando a arvore de "
         "acessibilidade REAL computada pelo motor do navegador (Chromium/CDP -- a mesma "
-        "API que NVDA/JAWS/Narrator consultam no Windows) contra regras deterministicas "
+        "API que leitores de tela consultam no Windows) contra regras deterministicas "
         "de nome acessivel ausente ou generico. Diferente de `analyze_page` (que estima a "
         "partir do HTML bruto via LLM), este achado e confirmado pelo proprio motor de "
-        "acessibilidade do navegador. Se o NVDA real estiver rodando na maquina do usuario "
-        "e `speak_via_nvda=true`, os achados sao lidos em voz alta para confirmacao humana. "
-        "Requer BROWSERLESS_WS_URL configurado; sem isso, devolve lista vazia (nao falha)."
+        "Tenta Browserless remoto e cai para Chromium local headless quando necessário. "
+        "Também aceita interaction_steps declarativos para validar teclado, foco e estados "
+        "na árvore de acessibilidade, sem capturar áudio nem executar JavaScript arbitrário."
     ),
     "parameters": {
         "type": "object",
@@ -3293,9 +3274,15 @@ _VERIFY_SCREEN_READER_ANNOUNCEMENTS_SCHEMA: dict[str, Any] = {
                 "type": "string",
                 "description": "URL da página a verificar.",
             },
-            "speak_via_nvda": {
-                "type": "boolean",
-                "description": "Se true, e o NVDA real estiver rodando, le os achados em voz alta para confirmação humana.",
+            "interaction_steps": {
+                "type": "array",
+                "maxItems": 30,
+                "description": (
+                    "Passos opcionais sem áudio para validar teclado, foco e árvore de acessibilidade. "
+                    "Cada passo usa action=tab, shift_tab, press, click, fill ou wait; pode ter "
+                    "expect com role, name, dialog_name ou live_text."
+                ),
+                "items": {"type": "object"},
             },
         },
         "required": ["pre_exec_msg", "url"],
@@ -3314,7 +3301,12 @@ def verify_screen_reader_announcements_tool(args: dict, **_kw: Any) -> str:
     chat_progress.emit_tool_progress(
         None, "verify_screen_reader_announcements", "Verificando anúncios de leitor de tela..."
     )
-    result = _safe_async_run(verify_screen_reader_announcements(url, speak_via_nvda=bool(args.get("speak_via_nvda"))))
+    result = _safe_async_run(
+        verify_screen_reader_announcements(
+            url,
+            interaction_steps=args.get("interaction_steps") or [],
+        )
+    )
     return json.dumps(
         {
             "url": result.url,
@@ -3338,8 +3330,8 @@ def verify_screen_reader_announcements_tool(args: dict, **_kw: Any) -> str:
                 }
                 for f in result.findings
             ],
-            "nvda_running": result.nvda_running,
-            "spoken_findings": result.spoken_findings,
+            "interaction_steps": result.interaction_steps,
+            "interaction_browser_mode": result.interaction_browser_mode,
         },
         ensure_ascii=False,
     )
@@ -4190,25 +4182,12 @@ def register_chat_tools() -> None:
     logger.info("[a11y_chat] toolset '%s' registrado (create_azure_devops_work_item)", A11Y_CHAT_TOOLSET)
 
     registry.register(
-        name="nvda_speak",
-        toolset=A11Y_CHAT_TOOLSET,
-        schema=_NVDA_SPEAK_SCHEMA,
-        handler=nvda_speak_tool,
-        is_async=False,
-        emoji="",
-        requires_approval=True,
-    )
-    logger.info("[a11y_chat] toolset '%s' registrado (nvda_speak)", A11Y_CHAT_TOOLSET)
-
-    registry.register(
         name="verify_screen_reader_announcements",
         toolset=A11Y_CHAT_TOOLSET,
         schema=_VERIFY_SCREEN_READER_ANNOUNCEMENTS_SCHEMA,
         handler=verify_screen_reader_announcements_tool,
         is_async=False,
         emoji="",
-        # speak_via_nvda=true produz efeito audivel real na maquina do usuario --
-        # mesma classe de efeito colateral do nvda_speak acima.
         requires_approval=True,
     )
     logger.info("[a11y_chat] toolset '%s' registrado (verify_screen_reader_announcements)", A11Y_CHAT_TOOLSET)

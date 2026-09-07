@@ -1,10 +1,8 @@
 """Testes da verificacao de anuncios de leitor de tela.
 
-Feature real (2026-08-27): cruza a arvore de acessibilidade REAL do Chromium
-(a mesma API que NVDA/JAWS/Narrator consultam) contra regras deterministicas
-de nome acessivel ausente/generico -- nao e mais uma estimativa de LLM sobre
-HTML bruto, e o NVDA real e usado so pra ler os achados em voz alta (canal de
-fala ja existente em nvda_service.py, sem add-on nenhum)."""
+Cruza a arvore de acessibilidade REAL do Chromium contra regras deterministicas
+de nome acessivel ausente/generico, sem depender de audio ou de um leitor de
+tela instalado na maquina."""
 
 from unittest.mock import AsyncMock, patch
 
@@ -67,91 +65,26 @@ class TestDetectScreenReaderFindings:
 class TestVerifyScreenReaderAnnouncements:
     @pytest.mark.asyncio
     async def test_empty_when_browserless_not_configured(self):
-        with (
-            patch(
-                "backend.src.services.screen_reader_verification.fetch_accessibility_tree_nodes",
-                new=AsyncMock(return_value=[]),
-            ),
-            patch("backend.src.services.nvda_service.is_nvda_running", return_value=False),
+        with patch(
+            "backend.src.services.screen_reader_verification.fetch_accessibility_tree_nodes",
+            new=AsyncMock(return_value=[]),
         ):
             result = await verify_screen_reader_announcements("https://example.com")
 
         assert result.findings == []
         assert result.total_interactive_nodes == 0
-        assert result.nvda_running is False
-        assert result.spoken_findings == 0
 
     @pytest.mark.asyncio
     async def test_counts_only_interactive_nodes_in_total(self):
         nodes = [_node("heading", "Titulo", interactive=False), _node("button", "Enviar formulario de contato")]
-        with (
-            patch(
-                "backend.src.services.screen_reader_verification.fetch_accessibility_tree_nodes",
-                new=AsyncMock(return_value=nodes),
-            ),
-            patch("backend.src.services.nvda_service.is_nvda_running", return_value=False),
+        with patch(
+            "backend.src.services.screen_reader_verification.fetch_accessibility_tree_nodes",
+            new=AsyncMock(return_value=nodes),
         ):
             result = await verify_screen_reader_announcements("https://example.com")
 
         assert result.total_interactive_nodes == 1
         assert result.findings == []
-
-    @pytest.mark.asyncio
-    async def test_speaks_findings_via_nvda_when_requested_and_running(self):
-        nodes = [_node("button", ""), _node("link", "")]
-        with (
-            patch(
-                "backend.src.services.screen_reader_verification.fetch_accessibility_tree_nodes",
-                new=AsyncMock(return_value=nodes),
-            ),
-            patch("backend.src.services.nvda_service.is_nvda_running", return_value=True),
-            patch(
-                "backend.src.services.nvda_service.speak_text",
-                return_value={"status": "ok", "spoken": True},
-            ) as mock_speak,
-        ):
-            result = await verify_screen_reader_announcements("https://example.com", speak_via_nvda=True)
-
-        assert result.nvda_running is True
-        assert result.spoken_findings == 2
-        assert mock_speak.call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_does_not_speak_when_nvda_not_running_even_if_requested(self):
-        nodes = [_node("button", "")]
-        with (
-            patch(
-                "backend.src.services.screen_reader_verification.fetch_accessibility_tree_nodes",
-                new=AsyncMock(return_value=nodes),
-            ),
-            patch("backend.src.services.nvda_service.is_nvda_running", return_value=False),
-            patch("backend.src.services.nvda_service.speak_text") as mock_speak,
-        ):
-            result = await verify_screen_reader_announcements("https://example.com", speak_via_nvda=True)
-
-        assert result.spoken_findings == 0
-        mock_speak.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_respects_max_spoken_cap(self):
-        nodes = [_node("button", "") for _ in range(10)]
-        with (
-            patch(
-                "backend.src.services.screen_reader_verification.fetch_accessibility_tree_nodes",
-                new=AsyncMock(return_value=nodes),
-            ),
-            patch("backend.src.services.nvda_service.is_nvda_running", return_value=True),
-            patch(
-                "backend.src.services.nvda_service.speak_text",
-                return_value={"status": "ok", "spoken": True},
-            ) as mock_speak,
-        ):
-            result = await verify_screen_reader_announcements(
-                "https://example.com", speak_via_nvda=True, max_spoken=3
-            )
-
-        assert result.spoken_findings == 3
-        assert mock_speak.call_count == 3
 
 
 class TestFindingToIssueDict:

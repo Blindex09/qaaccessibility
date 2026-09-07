@@ -519,6 +519,195 @@ async def fetch_accessibility_tree_nodes(url: str) -> list[AccessibilityTreeNode
     return nodes
 
 
+async def _capture_interaction_state(page: Any, context: Any) -> dict[str, Any]:
+    """Captura foco DOM e árvore AX na mesma sessão após uma interação."""
+    active = await page.evaluate(
+        """() => {
+            const el = document.activeElement;
+            if (!el || el === document.body || el === document.documentElement) return null;
+            const rect = el.getBoundingClientRect();
+            const style = window.getComputedStyle(el);
+            const labelledBy = el.getAttribute('aria-labelledby');
+            const labelledText = labelledBy
+                ? labelledBy.split(/\\s+/).map(id => document.getElementById(id)?.innerText || '').join(' ')
+                : '';
+            return {
+                tag: el.tagName.toLowerCase(),
+                role: el.getAttribute('role') || '',
+                name: (el.getAttribute('aria-label') || labelledText || el.innerText || el.getAttribute('placeholder') || '').trim(),
+                id: el.id || '',
+                visible: rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden',
+            };
+        }"""
+    )
+    tree = await _arvore_via_cdp(context, page)
+    return {"active": active, "tree": tree}
+
+
+def _tree_contains(tree: dict[str, Any] | None, predicate: Any) -> bool:
+    if not tree:
+        return False
+    if predicate(tree):
+        return True
+    return any(_tree_contains(child, predicate) for child in tree.get("children") or [])
+
+
+async def _execute_accessibility_step(page: Any, step: dict[str, Any]) -> None:
+    """Executa somente ações declarativas permitidas pelo auditor."""
+    action = str(step.get("action") or step.get("type") or "").lower()
+    if action == "tab":
+        await page.keyboard.press("Tab")
+    elif action in {"shift_tab", "shift-tab"}:
+        await page.keyboard.press("Shift+Tab")
+    elif action == "press":
+        key = str(step.get("key") or "")
+        if not key:
+            raise ValueError("A ação 'press' exige 'key'.")
+        await page.keyboard.press(key)
+    elif action == "click":
+        selector = str(step.get("selector") or "")
+        if not selector:
+            raise ValueError("A ação 'click' exige 'selector'.")
+        await page.locator(selector).click(timeout=5000)
+    elif action in {"fill", "type"}:
+        selector = str(step.get("selector") or "")
+        if not selector:
+            raise ValueError(f"A ação '{action}' exige 'selector'.")
+        await page.locator(selector).fill(str(step.get("text") or ""), timeout=5000)
+    elif action == "wait":
+        await page.wait_for_timeout(min(max(int(step.get("ms", 100)), 0), 10_000))
+    else:
+        raise ValueError(f"Ação de acessibilidade não suportada: {action or '(vazia)'}.")
+
+
+def _validate_interaction_expectations(
+    state: dict[str, Any], step: dict[str, Any]
+) -> list[str]:
+    """Valida expectativas simples sem inferência de IA nem áudio."""
+    errors: list[str] = []
+    active = state.get("active")
+    action = str(step.get("action") or step.get("type") or "").lower()
+    expect = step.get("expect") or {}
+    if action in {"tab", "shift_tab", "shift-tab"} and not active:
+        errors.append("A navegação por teclado não deixou um elemento focado.")
+    if active and not active.get("visible", False):
+        errors.append("O elemento focado não está visível.")
+    if expect.get("focus") == "none" and active:
+        errors.append("Era esperado que nenhum elemento estivesse focado.")
+    if expect.get("role") and (not active or active.get("role") != expect["role"]):
+        errors.append(f"O foco deveria estar em role={expect['role']!r}.")
+    if expect.get("name") and (not active or active.get("name") != expect["name"]):
+        errors.append(f"O nome acessível focado deveria ser {expect['name']!r}.")
+    if expect.get("dialog_name"):
+        wanted = str(expect["dialog_name"])
+        if not _tree_contains(state.get("tree"), lambda node: node.get("role") == "dialog" and node.get("name") == wanted):
+            errors.append(f"Não foi encontrado diálogo com nome acessível {wanted!r}.")
+    if expect.get("live_text"):
+        wanted = str(expect["live_text"])
+        if not _tree_contains(state.get("tree"), lambda node: wanted in str(node.get("name") or "")):
+            errors.append(f"A mensagem dinâmica {wanted!r} não apareceu na árvore de acessibilidade.")
+    return errors
+
+
+async def _run_interaction_audit_with_browser(
+    browser: Any, url: str, steps: list[dict[str, Any]], mode: str
+) -> dict[str, Any]:
+    context = await browser.new_context(
+        user_agent=_USER_AGENT,
+        viewport={"width": 1280, "height": 800},
+        java_script_enabled=True,
+        ignore_https_errors=True,
+    )
+    page = await context.new_page()
+    try:
+        await page.goto(url, timeout=_NAV_TIMEOUT, wait_until="domcontentloaded")
+        try:
+            await page.wait_for_load_state("networkidle", timeout=_NETWORK_IDLE_TIMEOUT)
+        except PWTimeout:
+            logger.warning("[Browser] Timeout networkidle no auditor interativo: %s", url)
+
+        results: list[dict[str, Any]] = []
+        initial_state = await _capture_interaction_state(page, context)
+        for index, step in enumerate(steps):
+            try:
+                await _execute_accessibility_step(page, step)
+                await page.wait_for_timeout(50)
+                state = await _capture_interaction_state(page, context)
+                errors = _validate_interaction_expectations(state, step)
+                results.append(
+                    {
+                        "index": index,
+                        "action": step.get("action") or step.get("type"),
+                        "ok": not errors,
+                        "errors": errors,
+                        "focused": state.get("active"),
+                        "tree_captured": bool(state.get("tree")),
+                    }
+                )
+            except Exception as exc:
+                results.append(
+                    {
+                        "index": index,
+                        "action": step.get("action") or step.get("type"),
+                        "ok": False,
+                        "errors": [str(exc)],
+                        "focused": None,
+                        "tree_captured": False,
+                    }
+                )
+        return {
+            "status": "ok",
+            "browser_mode": mode,
+            "tree_captured": bool(initial_state.get("tree")),
+            "steps": results,
+        }
+    finally:
+        await context.close()
+
+
+async def run_accessibility_interaction_audit(url: str, steps: list[dict[str, Any]]) -> dict[str, Any]:
+    """Executa passos de teclado/interação e valida a árvore AX após cada passo.
+
+    O remoto é tentado primeiro quando `BROWSERLESS_WS_URL` existe. Se ele
+    falhar (inclusive por não conseguir alcançar localhost), roda Chromium
+    local headless. Nenhuma ação executa JavaScript arbitrário e nenhum áudio
+    é capturado.
+    """
+    if not steps:
+        return {"status": "error", "browser_mode": None, "tree_captured": False, "steps": [], "error": "Nenhum passo fornecido."}
+    if len(steps) > 30:
+        return {"status": "error", "browser_mode": None, "tree_captured": False, "steps": [], "error": "O limite é de 30 passos."}
+
+    ws_url = getattr(get_settings(), "browserless_ws_url", None)
+    if ws_url:
+        try:
+            async with async_playwright() as pw:
+                browser = await pw.chromium.connect_over_cdp(ws_url)
+                try:
+                    return await _run_interaction_audit_with_browser(browser, url, steps, "remote")
+                finally:
+                    await browser.close()
+        except Exception as exc:
+            logger.warning("[Browser] Auditor remoto falhou em %s (%s) -- tentando local.", url, exc)
+
+    try:
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(headless=True)
+            try:
+                return await _run_interaction_audit_with_browser(browser, url, steps, "local")
+            finally:
+                await browser.close()
+    except Exception as exc:
+        logger.warning("[Browser] Auditor local falhou em %s: %s", url, exc)
+        return {
+            "status": "error",
+            "browser_mode": "local",
+            "tree_captured": False,
+            "steps": [],
+            "error": str(exc),
+        }
+
+
 async def fetch_rendered_html(
     url: str,
     cookies: list[dict] | None = None,

@@ -670,41 +670,16 @@ reproduz o payload real de `_verify_layout_visually` contra um
 lista) e revalidado com um novo `fix_local_project_files` real contra o
 modelo (78/78 testes de `run_agent.py` passando, zero regressão).
 
-### 4. Captura real da fala do NVDA (validação cruzada com a árvore de acessibilidade real)
+### 4. Validação de leitor de tela sem áudio
 
-Investigação de viabilidade concluída em 2026-08-11 (a pedido do usuário --
-Task #26, não implementada ainda). Contexto: `nvda_service.py` usa a DLL
-oficial `nvdaControllerClient.dll` (`nvdaController_speakText`,
-`nvdaController_cancelSpeech`, `nvdaController_brailleMessage`,
-`nvdaController_testIfRunning`) -- via de MÃO ÚNICA, feita pra ENVIAR texto
-pro NVDA falar (usada hoje pela tool `nvda_speak`). A API oficial da NV
-Access nunca expôs uma função pra "escutar"/capturar o que o NVDA realmente
-anuncia em tempo real durante uma navegação de verdade -- isso não existe
-hoje no projeto nem na API oficial.
+A validação automática não depende de NVDA, DLL ou captura de áudio. O
+Chromium/CDP fornece a árvore de acessibilidade computada pelo motor do
+navegador; o serviço verifica nomes, papéis e estados nessa árvore e pode
+executar passos declarativos de teclado/interação, recapturando a árvore após
+cada passo. Isso cobre foco, diálogos e mensagens dinâmicas sem fingir que o
+backend sabe o que uma pessoa ouviu.
 
-Achado real da pesquisa: existe um add-on NVDA open-source mantido,
-`speechLogger` (https://github.com/opensourcesys/speechLogger), que grava
-cada frase falada pelo NVDA num arquivo de texto em tempo real, com
-diretório configurável (`%temp%`, `%userprofile%`, etc.). Isso resolve o
-problema sem precisar escrever/manter um add-on NVDA próprio.
-
-Caminho de implementação proposto (pendente, não iniciado):
-1. Usuário instala e configura o add-on `speechLogger` no NVDA dele --
-   passo manual, único, fora do código (não dá pra instalar add-on de
-   terceiro no software do usuário programaticamente).
-2. Nosso lado acompanha esse arquivo de log em tempo real (file watching --
-   ler linhas novas conforme são escritas).
-3. Cruza o texto real capturado contra a árvore de acessibilidade real já
-   implementada (item 3 acima / `fetch_accessibility_tree_snapshot` em
-   `browser.py`, Task #25) -- permite confirmar automaticamente se o que o
-   NVDA realmente anunciou bate com o que deveria ter sido anunciado,
-   inclusive capturando SILÊNCIO em elementos que deveriam ter sido
-   anunciados e não foram (achado que ferramentas automatizadas comuns não
-   pegam).
-
-Mudança prática pro usuário, se implementado: hoje o usuário precisa ouvir o
-NVDA e DESCREVER pra IA em texto o que ouviu, pra ela poder avaliar. Depois
-do setup único do add-on, o usuário só precisa navegar normalmente com o
-NVDA ligado -- a IA lê o transcript real do arquivo de log sozinha, sem o
-usuário precisar anotar ou descrever nada, e aponta divergências com o
-transcript real como prova, não como suposição.
+Quando configurado, Browserless é tentado primeiro; se estiver ausente ou
+inacessível, a execução usa Chromium local headless. Um leitor de tela real
+continua sendo útil para validação manual, mas não é uma dependência do
+pipeline automatizado.

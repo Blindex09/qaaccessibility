@@ -110,12 +110,6 @@ const TOOL_META: Readonly<Record<string, ToolMeta>> = {
     start: "Rodando o teste automatizado no alvo indicado...",
     end: "Teste automatizado concluído",
   },
-  nvda_speak: {
-    label: "Leitura no NVDA",
-    risk: "mutating",
-    start: "Pedindo ao NVDA para ler o texto em voz alta…",
-    end: "Leitura do NVDA concluída",
-  },
   open_live_preview: {
     label: "Live Preview",
     risk: "read",

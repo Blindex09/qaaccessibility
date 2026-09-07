@@ -22,7 +22,6 @@ const TOOLS_WITH_FRIENDLY_TEXT = [
   "generate_automation_script",
   "create_github_issue",
   "run_remote_test",
-  "nvda_speak",
   "open_live_preview",
   "evaluate_research",
   "run_deep_research",

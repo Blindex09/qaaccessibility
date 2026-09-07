@@ -141,11 +141,12 @@ mesma API que NVDA/JAWS/Narrator consultam no Windows) contra regras
 determinísticas de nome acessível ausente ou genérico. Diferente de
 `analyze_page` (que estima a partir do HTML bruto via LLM), aqui o achado é
 confirmado pelo próprio motor de acessibilidade do navegador — zero
-inferência de IA nessa etapa. Se `speak_via_nvda=true` e o NVDA real
-estiver rodando na máquina do usuário, os achados são lidos em voz alta
-para confirmação humana (por isso exige aprovação: mesma classe de efeito
-colateral audível do `nvda_speak`). Requer `BROWSERLESS_WS_URL`
-configurado; sem isso, devolve lista vazia (não falha).
+inferência de IA nessa etapa. Tenta `BROWSERLESS_WS_URL` remoto e cai
+para Chromium local headless quando a variável não existe ou a conexão falha.
+Também aceita passos declarativos de teclado/interação (`Tab`, `Shift+Tab`,
+teclas, clique, preenchimento e espera) e valida foco, nome/papel, diálogos e
+mensagens na árvore de acessibilidade após cada passo — sem capturar áudio e
+sem executar JavaScript arbitrário.
 
 ### `design_review`
 Único agente do projeto que não audita HTML/código já existente: recebe um
@@ -288,11 +289,6 @@ Cria um novo Work Item no Azure DevOps configurado (`title`, `description`,
 `severity` mapeada para `Microsoft.VSTS.Common.Severity`, `project`
 opcional — usa `AZURE_DEVOPS_PROJECT` se omitido), contendo o diagnóstico e
 a sugestão de correção de um problema de acessibilidade encontrado.
-
-### `nvda_speak` 🔒
-Envia um comando de voz diretamente para o leitor de tela NVDA ativo (via
-`nvdaControllerClient.dll`), para que ele fale um texto ao usuário — com
-fallback simulado gracioso quando o NVDA/DLL não está disponível.
 
 ### `install_playwright_browsers` 🔒
 Instala de verdade os binários de navegador do Playwright (Chromium,

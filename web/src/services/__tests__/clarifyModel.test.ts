@@ -129,7 +129,7 @@ describe("parseClarify — pergunta simples", () => {
 
 describe("toolMeta", () => {
   test("as ferramentas com efeito irreversível são as de maior risco", () => {
-    for (const tool of ["fix_and_zip_files", "create_github_issue", "run_remote_test", "nvda_speak"]) {
+    for (const tool of ["fix_and_zip_files", "create_github_issue", "run_remote_test"]) {
       expect(getToolRisk(tool)).toBe("mutating");
     }
   });

@@ -19,6 +19,7 @@ import { useChat } from "../useChat";
  */
 
 let emit: (event: ChatEvent) => void;
+let mounted: TestRenderer.ReactTestRenderer[] = [];
 
 jest.mock("../../services/chat", () => ({
   __esModule: true,
@@ -46,7 +47,7 @@ function Probe({ out }: { out: { chat?: Chat } }) {
 function mountChat(): () => Chat {
   const out: { chat?: Chat } = {};
   act(() => {
-    TestRenderer.create(<Probe out={out} />);
+    mounted.push(TestRenderer.create(<Probe out={out} />));
   });
   return () => {
     if (!out.chat) throw new Error("hook não montou");
@@ -70,7 +71,15 @@ function turno(chat: () => Chat, texto: string, ferramentas: string[]): void {
   act(() => chat().stop());
 }
 
-afterEach(() => jest.clearAllMocks());
+afterEach(async () => {
+  await act(async () => {
+    await Promise.resolve();
+  });
+  act(() => {
+    for (const renderer of mounted.splice(0)) renderer.unmount();
+  });
+  jest.clearAllMocks();
+});
 
 describe("useChat — auditRunCount", () => {
   test("começa em zero", () => {
@@ -101,7 +110,7 @@ describe("useChat — auditRunCount", () => {
 
   test("ferramenta que não é de análise não incrementa", () => {
     const chat = mountChat();
-    turno(chat, "vai", ["generate_vpat", "fix_and_zip_files", "nvda_speak"]);
+    turno(chat, "vai", ["generate_vpat", "fix_and_zip_files"]);
     expect(chat().auditRunCount).toBe(0);
   });
 });

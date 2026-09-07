@@ -86,8 +86,6 @@ class TestFerramentaExpoeQueNadaFoiVerificado:
             url="http://x",
             total_interactive_nodes=0,
             findings=[],
-            nvda_running=False,
-            spoken_findings=0,
             tree_captured=False,
             not_verified_reason="A arvore nao foi capturada.",
         )

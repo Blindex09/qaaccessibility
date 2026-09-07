@@ -41,15 +41,23 @@ async def verify_screen_reader(body: ScreenReaderVerificationRequest) -> ScreenR
     nome, ou com nome generico, e uma violacao que qualquer leitor de tela
     real (NVDA, JAWS, Narrator) tambem veria.
 
-    Requer BROWSERLESS_WS_URL configurado no ambiente; sem isso, devolve
-    `total_interactive_nodes=0` e `findings=[]` (nunca falha a chamada).
+    Tenta BROWSERLESS_WS_URL no ambiente e cai para Chromium local headless
+    quando a variável não existe ou o remoto falha. Se os dois não estiverem
+    disponíveis, devolve `tree_captured=false` para não confundir falha de
+    captura com página sem problemas.
 
-    `speak_via_nvda=true`: se o NVDA real estiver rodando na maquina do
-    servidor, le os achados em voz alta para confirmacao humana (mesmo canal
-    de fala ja usado pela ferramenta de chat `nvda_speak`).
+    `interaction_steps` permite validar sequências declarativas de teclado e
+    interação sem áudio; a árvore é recapturada após cada passo.
+
     """
     logger.info("[Route] POST /analyze/screen-reader -- url=%s", body.url)
-    result = await verify_screen_reader_announcements(body.url, speak_via_nvda=body.speak_via_nvda)
+    if body.interaction_steps:
+        result = await verify_screen_reader_announcements(
+            body.url,
+            interaction_steps=body.interaction_steps,
+        )
+    else:
+        result = await verify_screen_reader_announcements(body.url)
     return ScreenReaderVerificationResponse(
         url=result.url,
         total_interactive_nodes=result.total_interactive_nodes,
@@ -63,6 +71,8 @@ async def verify_screen_reader(body: ScreenReaderVerificationRequest) -> ScreenR
             )
             for f in result.findings
         ],
-        nvda_running=result.nvda_running,
-        spoken_findings=result.spoken_findings,
+        tree_captured=result.tree_captured,
+        not_verified_reason=result.not_verified_reason,
+        interaction_steps=result.interaction_steps,
+        interaction_browser_mode=result.interaction_browser_mode,
     )

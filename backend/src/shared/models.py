@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -161,6 +162,7 @@ class AgentMetrics(BaseModel):
     issues_found: int
     success: bool
     delegated_by: str | None = None
+    error: str | None = None
 
 
 class CrawlPageIssues(BaseModel):
@@ -301,10 +303,13 @@ class VPATRequest(BaseModel):
 
 class ScreenReaderVerificationRequest(BaseModel):
     url: str = Field(..., description="URL da pagina a verificar")
-    speak_via_nvda: bool = Field(
-        default=False,
-        description="Se true, e o NVDA real estiver rodando na maquina do servidor, "
-        "le os achados em voz alta para confirmacao humana.",
+    interaction_steps: list[dict[str, Any]] = Field(
+        default_factory=list,
+        max_length=30,
+        description=(
+            "Passos declarativos opcionais para validar teclado, foco e mudanças "
+            "na árvore de acessibilidade; não captura áudio nem executa JavaScript."
+        ),
     )
 
 
@@ -320,8 +325,10 @@ class ScreenReaderVerificationResponse(BaseModel):
     url: str
     total_interactive_nodes: int
     findings: list[ScreenReaderFindingResponse]
-    nvda_running: bool
-    spoken_findings: int
+    tree_captured: bool = False
+    not_verified_reason: str | None = None
+    interaction_steps: list[dict[str, Any]] = Field(default_factory=list)
+    interaction_browser_mode: str | None = None
 
 
 # ── Design Review (shift-left) models ─────────────────────────────────────────

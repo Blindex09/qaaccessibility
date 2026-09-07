@@ -86,16 +86,17 @@ lista de keywords. Rodam em paralelo, coordenados pelo orquestrador (seção 3).
   estima a partir do HTML bruto via LLM), aqui o achado é confirmado pelo
   próprio motor de acessibilidade do navegador — zero inferência de IA nessa
   etapa específica.
-- **Integração real com NVDA** (`nvda_service.py`, DLL oficial
-  `nvdaControllerClient.dll` via ctypes): o chat pode mandar o NVDA falar um
-  texto real (`nvda_speak`), e a verificação acima pode ler os achados em voz
-  alta para confirmação humana quando o NVDA estiver rodando. Windows-only;
-  fallback simulado gracioso em qualquer outro SO ou sem o NVDA ativo.
-- **Limite honesto**: não existe captura oficial de "o que o NVDA realmente
-  falou" (exigiria um add-on rodando dentro do processo do NVDA) — por isso a
-  fonte de verdade é a árvore de acessibilidade real, não uma gravação de
-  fala. JAWS, VoiceOver e TalkBack não têm nenhuma automação neste projeto,
-  apenas conhecimento de referência (seção 6).
+- **Validação comportamental sem áudio**: a mesma verificação pode executar
+  uma sequência declarativa de teclado/interação e comparar, após cada passo,
+  o foco DOM e a árvore de acessibilidade. Isso cobre foco visível, nome e
+  papel esperados, diálogos e mensagens dinâmicas expostas na árvore. O
+  Browserless/CDP remoto é tentado primeiro quando configurado; se estiver
+  ausente ou inacessível, o serviço tenta Chromium local headless. A execução
+  não roda JavaScript arbitrário e não depende da janela ativa do usuário.
+- **Limite honesto**: a automação valida a árvore de acessibilidade, foco,
+  teclado e estados; não captura áudio nem tenta afirmar que uma pessoa ouviu
+  uma fala. NVDA, JAWS, VoiceOver e TalkBack ficam como referências para
+  validação manual, sem DLL ou integração de áudio no backend.
 
 ---
 

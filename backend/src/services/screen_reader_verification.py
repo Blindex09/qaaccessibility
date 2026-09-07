@@ -3,8 +3,8 @@ screen_reader_verification.py
 Verifica anuncios de leitor de tela cruzando a arvore de acessibilidade REAL
 do navegador (Chromium/CDP via browser.py::fetch_accessibility_tree_nodes --
 a mesma API que NVDA/JAWS/Narrator consultam no Windows) contra regras
-deterministicas de nome acessivel ausente ou generico, e opcionalmente le os
-achados em voz alta via NVDA real (nvda_service.py) para confirmacao humana.
+deterministicas de nome acessivel ausente ou generico, e opcionalmente valida
+interacoes de teclado e mudancas na arvore de acessibilidade.
 
 Por que a arvore real em vez do NVDA capturando a propria fala: o NVDA nao
 expoe API oficial para "o que foi realmente anunciado" (isso exigiria um
@@ -18,7 +18,11 @@ suposicao da IA a partir do HTML bruto.
 import logging
 from dataclasses import dataclass, field
 
-from backend.src.services.browser import AccessibilityTreeNode, fetch_accessibility_tree_nodes
+from backend.src.services.browser import (
+    AccessibilityTreeNode,
+    fetch_accessibility_tree_nodes,
+    run_accessibility_interaction_audit,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +51,6 @@ _GENERIC_NAMES = frozenset(
         "icone",
     }
 )
-
-# Maximo de achados lidos em voz alta por chamada -- ler dezenas de achados em
-# sequencia real via NVDA nao ajuda confirmacao humana, so satura a fala.
-_DEFAULT_MAX_SPOKEN = 5
-
 
 @dataclass(frozen=True)
 class ScreenReaderFinding:
@@ -108,8 +107,6 @@ class ScreenReaderVerificationResult:
     url: str
     total_interactive_nodes: int
     findings: list[ScreenReaderFinding] = field(default_factory=list)
-    nvda_running: bool = False
-    spoken_findings: int = 0
     # `False` = a arvore de acessibilidade NAO foi capturada (sem Browserless,
     # navegacao falhou, pagina vazia). Sem este campo, uma captura que falhou
     # e uma pagina impecavel produziam exatamente a mesma resposta:
@@ -118,19 +115,18 @@ class ScreenReaderVerificationResult:
     # e o pior erro possivel aqui.
     tree_captured: bool = True
     not_verified_reason: str | None = None
+    interaction_steps: list[dict[str, object]] = field(default_factory=list)
+    interaction_browser_mode: str | None = None
 
 
 async def verify_screen_reader_announcements(
     url: str,
     *,
-    speak_via_nvda: bool = False,
-    max_spoken: int = _DEFAULT_MAX_SPOKEN,
+    interaction_steps: list[dict[str, object]] | None = None,
 ) -> ScreenReaderVerificationResult:
     """Captura a arvore real da pagina, roda as regras deterministicas, e
-    opcionalmente le os achados em voz alta via NVDA real (se estiver rodando)
-    para o usuario confirmar de ouvido -- nao substitui o NVDA, usa o canal de
-    fala que ja existe (`nvda_service.speak_text`) para o proposito que faltava:
-    ler os problemas concretos encontrados, nao so um texto arbitrario.
+    opcionalmente executa interacoes declarativas de teclado e valida a arvore
+    de acessibilidade apos cada passo. A verificacao nao usa audio.
 
     Quando a arvore nao e capturada (sem BROWSERLESS_WS_URL, navegacao falha,
     pagina sem nos), devolve `tree_captured=False` e `not_verified_reason`
@@ -156,32 +152,39 @@ async def verify_screen_reader_announcements(
     if not tree_captured:
         logger.warning("[ScreenReaderVerification] %s: arvore vazia -- nada foi verificado", url)
 
-    from backend.src.services.nvda_service import is_nvda_running, speak_text
-
-    nvda_running = is_nvda_running()
-    spoken_findings = 0
-    if speak_via_nvda and nvda_running:
-        for finding in findings[:max_spoken]:
-            result = speak_text(f"Problema encontrado: {finding.problem} Elemento: {finding.path}.")
-            if result.get("spoken"):
-                spoken_findings += 1
+    interaction_results: list[dict[str, object]] = []
+    interaction_browser_mode: str | None = None
+    if interaction_steps:
+        interaction_audit = await run_accessibility_interaction_audit(url, interaction_steps)
+        interaction_browser_mode = interaction_audit.get("browser_mode")
+        interaction_results = list(interaction_audit.get("steps") or [])
+        if interaction_audit.get("status") != "ok":
+            interaction_results = [
+                {
+                    "index": -1,
+                    "action": "interaction_audit",
+                    "ok": False,
+                    "errors": [interaction_audit.get("error", "Auditoria interativa não executada.")],
+                    "focused": None,
+                    "tree_captured": bool(interaction_audit.get("tree_captured")),
+                }
+            ]
 
     logger.info(
-        "[ScreenReaderVerification] %s: %d nos interativos, %d achados, NVDA rodando=%s, lidos=%d",
+        "[ScreenReaderVerification] %s: %d nos interativos, %d achados, passos interativos=%d",
         url,
         interactive_count,
         len(findings),
-        nvda_running,
-        spoken_findings,
+        len(interaction_results),
     )
     return ScreenReaderVerificationResult(
         url=url,
         total_interactive_nodes=interactive_count,
         findings=findings,
-        nvda_running=nvda_running,
-        spoken_findings=spoken_findings,
         tree_captured=tree_captured,
         not_verified_reason=not_verified_reason,
+        interaction_steps=interaction_results,
+        interaction_browser_mode=interaction_browser_mode,
     )
 
 
