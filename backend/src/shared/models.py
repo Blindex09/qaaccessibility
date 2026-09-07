@@ -208,6 +208,25 @@ class AgentResult(BaseModel):
     error: str | None = None
 
 
+class AgentAuditFinding(BaseModel):
+    """Achado da auditoria de comportamento de um agente de software.
+
+    Este contrato é separado de ``AccessibilityIssue`` porque a auditoria de
+    agentes não é uma verificação WCAG e não deve forçar categorias de
+    acessibilidade em evidências de código, traces ou documentação.
+    """
+
+    id: str
+    category: str = Field(..., description="Categoria comportamental auditada")
+    severity: Severity
+    confidence: Confidence
+    file: str = Field(..., description="Arquivo ou escopo ao qual a evidência se refere")
+    evidence: str = Field(..., description="Evidência observável no material enviado")
+    description: str = Field(..., description="O que o projeto faz ou deixa de fazer")
+    impact: str = Field(..., description="Impacto para confiabilidade, segurança ou experiência do usuário")
+    recommendation: str = Field(..., description="Próxima melhoria concreta")
+
+
 # ── Test Generator models ─────────────────────────────────────────────────────
 # Derivados de: playwright-expert.toml + accessibility-tester.md + tdd-orchestrator.toml
 

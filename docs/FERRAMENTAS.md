@@ -319,6 +319,8 @@ documentados até a auditoria de 2026-08-30.
 | Rota | Para que serve |
 |---|---|
 | `POST /analyze/project/zip` | Analisa um projeto inteiro enviado como ZIP, sem exigir seleção de pasta |
+| `POST /analyze/agent-project` | Audita arquitetura e comportamento de um projeto de agente sem executar o código |
+| `POST /analyze/agent-project/zip` | Audita um projeto agentivo enviado como ZIP, filtrando dependências e builds |
 | `POST /fix/project/zip` | Corrige um projeto enviado como ZIP e devolve o resultado empacotado |
 | `POST /preview/create` | Registra uma sessão de live preview a partir das páginas corrigidas e devolve `session_id` |
 | `GET /preview/render/{session_id}/{page_index}` | Renderiza uma página da sessão de preview (`mode=fixed` por padrão) para comparação lado a lado |

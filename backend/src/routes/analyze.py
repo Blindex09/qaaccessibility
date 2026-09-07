@@ -16,6 +16,8 @@ from backend.src.agents.orchestrator.orchestrator import orchestrate
 from backend.src.config.settings import get_settings
 from backend.src.security.dependencies import rate_limit_dependency
 from backend.src.services import batch_collector, batch_job_store
+from backend.src.services.agent_project_audit import MAX_ARCHIVE_BYTES, audit_agent_project, select_project_files
+from backend.src.services.agent_project_audit import MAX_FILES as AGENT_AUDIT_MAX_FILES
 from backend.src.services.batch_inference import (
     BatchNotSupportedError,
     BatchRequest,
@@ -745,6 +747,52 @@ async def analyze_project(
         set_last_analysis(all_issues, f"Projeto (Misto): {len(accepted)} arquivos")
 
     return result
+
+
+@router.post("/agent-project", response_model=AgentResult)
+async def analyze_agent_project(
+    files: Annotated[list[UploadFile], File()],
+) -> AgentResult:
+    """Audita a arquitetura e o comportamento de um projeto agentivo.
+
+    Diferente de ``/project``, esta rota aceita código, configuração e
+    documentação de agentes. O conteúdo nunca é executado: ele é apenas
+    enviado como evidência limitada ao auditor estruturado.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="Nenhum arquivo enviado.")
+    if len(files) > AGENT_AUDIT_MAX_FILES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Limite de {AGENT_AUDIT_MAX_FILES} arquivos por projeto excedido ({len(files)} enviados).",
+        )
+
+    raw_files = [(upload.filename or "unknown", await upload.read()) for upload in files]
+    selected, skipped = select_project_files(raw_files)
+    logger.info("[Route] POST /analyze/agent-project files=%d selected=%d", len(files), len(selected))
+    return await audit_agent_project(selected, skipped)
+
+
+@router.post("/agent-project/zip", response_model=AgentResult)
+async def analyze_agent_project_zip(
+    file: UploadFile = File(...),  # noqa: B008 -- FastAPI dependency-injection idiom
+) -> AgentResult:
+    """Audita um ZIP de projeto sem extrair ou executar arquivos no host."""
+    import io
+    import zipfile
+
+    content = await file.read()
+    if len(content) > MAX_ARCHIVE_BYTES:
+        raise HTTPException(status_code=413, detail="Arquivo ZIP excede o limite de 20 MB.")
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            raw_files = [(name, archive.read(name)) for name in archive.namelist() if not name.endswith("/")]
+    except (OSError, ValueError, zipfile.BadZipFile) as exc:
+        raise HTTPException(status_code=400, detail="Arquivo ZIP inválido.") from exc
+
+    selected, skipped = select_project_files(raw_files)
+    logger.info("[Route] POST /analyze/agent-project/zip selected=%d", len(selected))
+    return await audit_agent_project(selected, skipped)
 
 
 @router.post("/crawl", response_model=CrawlResult)

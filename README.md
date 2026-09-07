@@ -214,6 +214,14 @@ OrchestratorAgent
 
 **Análise de projetos:** `/analyze/project` aceita múltiplos arquivos (HTML, CSS, JS, TS, TSX, Vue, Svelte). Monta contexto unificado anotado com limite de 400 KB. Ignora node_modules, .git, dist, build, .next. Retornado no mesmo contrato `AgentResult`.
 
+**Auditoria de projetos agentivos:** `/analyze/agent-project` e
+`/analyze/agent-project/zip` aceitam código, configuração e documentação de
+agentes (Python, TypeScript/JavaScript, JSON/YAML/TOML, Markdown e scripts).
+O conteúdo é tratado como dado não confiável, nunca é executado, dependências e
+artefatos de build são ignorados, e o resultado contém achados sobre ciclo
+agente, ferramentas, memória, recuperação, segurança, observabilidade, evals e
+UX. Os limites atuais são 200 arquivos, 60 KB por arquivo e 500 KB no total.
+
 ## JavaScript Rendering com Playwright
 
 A rota `/analyze/url` usa Playwright (Chromium headless) em vez de um simples fetch HTTP.
