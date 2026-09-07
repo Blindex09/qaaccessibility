@@ -46,6 +46,47 @@ FORMS_ISSUE = make_issue(
 
 @pytest.mark.asyncio
 class TestFormsA11yAgent:
+    async def test_discards_static_only_required_indicator_and_submit_button_claims(self):
+        """Regressão: snapshot estático não prova essas duas violações por si só."""
+        from backend.src.shared.models import AccessibilityIssue
+
+        static_only = [
+            AccessibilityIssue.model_validate(
+                make_issue(
+                    {
+                        "id": "forms-visual-required",
+                        "criterion": "3.3.2 Labels or Instructions",
+                        "description": "Required field has no visible indicator.",
+                        "description_technical": (
+                            "The required field has no visual indicator for sighted users."
+                        ),
+                    }
+                )
+            ),
+            AccessibilityIssue.model_validate(
+                make_issue(
+                    {
+                        "id": "forms-submit",
+                        "criterion": "3.3.2 Labels or Instructions",
+                        "description": "The form has no submit button.",
+                    }
+                )
+            ),
+        ]
+        html = """
+        <form><label for="email">E-mail</label>
+          <input id="email" type="email" required>
+        </form>
+        """
+        with patch(
+            "backend.src.agents.forms_a11y.forms_a11y.call_llm_structured",
+            new=AsyncMock(return_value=static_only),
+        ):
+            result = await run_forms_a11y(html)
+
+        assert result.success is True
+        assert result.data["issues"] == []
+
     async def test_contract_on_success(self):
         with patch(
             "backend.src.services.llm_client.call_llm",

@@ -1,9 +1,60 @@
 import logging
+import re
+
+from bs4 import BeautifulSoup
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
 
 logger = logging.getLogger(__name__)
+
+_UNSUPPORTED_STATIC_CLAIM_PATTERNS = (
+    re.compile(r"(?:no|without|missing).*submit button", re.IGNORECASE),
+    re.compile(r"submit button.*(?:no|missing|absent)", re.IGNORECASE),
+    re.compile(r"(?:visible|visual).*indicator.*(?:required|mandatory)", re.IGNORECASE),
+    re.compile(r"(?:required|mandatory).*(?:visible|visual).*indicator", re.IGNORECASE),
+    re.compile(r"asterisk.*(?:required|mandatory)", re.IGNORECASE),
+)
+
+
+def _filter_unproven_static_claims(
+    issues: list[AccessibilityIssue], html_content: str
+) -> list[AccessibilityIssue]:
+    """Remove findings that static HTML cannot prove.
+
+    A form can submit through Enter or JavaScript without a native submit button,
+    and the required attribute is already an accessible programmatic indication.
+    Neither absence of a button nor absence of an asterisk proves a WCAG failure
+    from a static snapshot alone.
+    """
+    soup = BeautifulSoup(html_content, "html.parser")
+    has_required_control = bool(soup.select("[required], [aria-required='true']"))
+    filtered: list[AccessibilityIssue] = []
+    for issue in issues:
+        text = " ".join(
+            str(getattr(issue, field, ""))
+            for field in (
+                "description",
+                "description_technical",
+                "why_technical",
+                "suggestion_technical",
+            )
+        )
+        matches_static_claim = any(
+            pattern.search(text) for pattern in _UNSUPPORTED_STATIC_CLAIM_PATTERNS
+        )
+        required_indicator_claim = (
+            has_required_control
+            and "indicator" in text.lower()
+            and "required" in text.lower()
+        )
+        if matches_static_claim or required_indicator_claim:
+            logger.info(
+                "[FormsA11yAgent] Achado descartado: afirmação não comprovável no HTML estático"
+            )
+            continue
+        filtered.append(issue)
+    return filtered
 
 SYSTEM_PROMPT = """
 You are an accessible forms specialist. Your ONLY job is to detect accessibility
@@ -42,6 +93,10 @@ REQUIRED FIELDS (WCAG 3.3.2):
     of what the asterisk means (missing "* required fields" key near the form)
   - required attribute or aria-required="true" missing on mandatory fields
   - aria-required="true" without matching required attribute (use both)
+  - Do NOT report the absence of a visible asterisk or other visual required marker
+    when the field already has required/aria-required and an associated label.
+    The programmatic state is already exposed to assistive technology; static HTML
+    alone does not prove that a visual marker is required.
 
 ERROR HANDLING (WCAG 3.3.1, 3.3.3):
   - Error messages not programmatically linked to the invalid field
@@ -65,6 +120,9 @@ INSTRUCTIONS AND CONTEXT (WCAG 3.3.2):
 
 BUTTON LABELING (WCAG 2.4.6, 4.1.2):
   - Submit buttons with vague or empty text ("Submit", "Go", icon-only)
+  - Do NOT report a missing submit button from static HTML alone. A form may submit
+    with Enter or JavaScript; only report an unreachable submission path when the
+    HTML provides concrete evidence of that failure.
   - Reset button present without confirmation dialog (accidentally clears form)
   - Disabled submit button without explanation of why it is disabled (2.4.12 AAA advisory)
 
@@ -128,6 +186,7 @@ async def run_forms_a11y(html_content: str) -> AgentResult:
             temperature=0.1,
             agent_label="forms_a11y",
         )
+        issues = _filter_unproven_static_claims(issues, html_content)
         logger.info("[FormsA11yAgent] %d issues (forms)", len(issues))
         return AgentResult(
             agent="forms_a11y",
