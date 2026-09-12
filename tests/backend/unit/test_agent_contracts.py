@@ -319,10 +319,11 @@ class TestOrchestratorIterationLimits:
     async def test_single_agent_timeout_does_not_block_pipeline(self):
         """Resilience: timeout de um sub-agente não deve bloquear o pipeline.
 
-        Achado real (2026-08-11, "nada pode falhar"): _timed agora recebe uma
-        FÁBRICA de coroutine (não uma já criada), pois refaz a chamada uma vez
-        antes de desistir de vez -- uma coroutine só pode ser aguardada uma
-        vez, por isso o contrato mudou de `coro` pra `coro_factory`."""
+        `_timed` recebe uma FÁBRICA de coroutine (não uma já criada) -- não
+        para retry (removido, ver `test_timeout_never_retries_the_same_agent`),
+        mas porque uma coroutine só pode ser aguardada uma vez, e o chamador
+        (`_run_analysis_pipeline`) reaproveita o mesmo `coro_factory` para
+        vários agentes no laço de seleção."""
         import asyncio as _asyncio
 
         from backend.src.agents.orchestrator.orchestrator import _timed
@@ -338,38 +339,13 @@ class TestOrchestratorIterationLimits:
         assert "Timeout" in (result.error or "")
         assert duration_ms >= 0
 
-    async def test_timeout_on_first_attempt_retries_and_succeeds(self):
-        """Achado real (2026-08-11, "nada pode falhar" -- pedido do usuário,
-        pesquisa 2026 de resiliência de API de LLM confirma retry como padrão
-        pra timeout): muitos timeouts são fila/latência transitória do
-        provider, não um problema real da tarefa -- a 1a tentativa estourando
-        não deve significar falha definitiva se a 2a tentativa (fresh
-        coroutine) completar dentro do tempo."""
-        import asyncio as _asyncio
-
-        from backend.src.agents.orchestrator.orchestrator import _timed
-        from backend.src.shared.models import AgentResult
-
-        call_count = 0
-
-        async def _coro():
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise _asyncio.TimeoutError
-            return AgentResult(agent="test-agent", success=True, data={"issues": []})
-
-        def flaky_once():
-            return _coro()
-
-        result, _duration_ms = await _timed("test-agent", flaky_once)
-        assert result.success is True
-        assert call_count == 2
-
-    async def test_timeout_twice_fails_after_retry_exhausted(self):
-        """Contraparte do teste acima: se as DUAS tentativas estourarem o
-        timeout, o resultado final é falha de verdade -- o retry não vira um
-        loop infinito nem esconde uma falha real e persistente."""
+    async def test_timeout_never_retries_the_same_agent(self):
+        """Achado real (simplificação do fluxo de timeout, ver comentário em
+        `_EFFORT_TIMEOUT_SECONDS`): o retry-com-esforço-reduzido foi removido
+        de propósito -- ele somava até 240s+240s por especialista e prendia a
+        conversa em filas longas. Cada especialista tem hoje uma única
+        tentativa: um timeout vira resultado parcial imediatamente, sem uma
+        segunda chamada à fábrica de coroutine."""
         import asyncio as _asyncio
 
         from backend.src.agents.orchestrator.orchestrator import _timed
@@ -381,20 +357,23 @@ class TestOrchestratorIterationLimits:
             call_count += 1
             raise _asyncio.TimeoutError
 
-        def always_timeout_twice():
+        def always_timeout():
             return _coro()
 
-        result, _duration_ms = await _timed("test-agent", always_timeout_twice)
+        result, _duration_ms = await _timed("test-agent", always_timeout)
         assert result.success is False
-        assert "2 tentativas" in (result.error or "")
-        assert call_count == 2
+        assert call_count == 1
+        assert "tentativas" not in (result.error or "")
 
 
 class TestAdaptiveAgentTimeout:
-    """Achado real (2026-08-11): timeout fixo de 180s pra qualquer esforço de
+    """Achado real (2026-08-11): timeout fixo pra qualquer esforço de
     raciocínio penalizava justamente as tarefas que MAIS precisam de
-    qualidade (esforço alto, mais lento por design) -- pesquisa de mercado
-    2026 confirma faixa 180-300s conforme profundidade de raciocínio."""
+    qualidade (esforço alto, mais lento por design). Revisado (ver comentário
+    em `_EFFORT_TIMEOUT_SECONDS`): a faixa foi encurtada de 180-300s para
+    90-150s -- o timeout agora é o orçamento de uma única tentativa (sem
+    retry, ver `test_timeout_never_retries_the_same_agent`), então não precisa
+    mais cobrir o custo de duas chamadas."""
 
     def setup_method(self):
         from backend.src.services import complexity_router
@@ -409,25 +388,25 @@ class TestAdaptiveAgentTimeout:
         from backend.src.services import complexity_router
 
         complexity_router.set_current_tradeoff(0)  # favorece qualidade -> esforco "high"
-        assert _get_agent_timeout() == 300.0
+        assert _get_agent_timeout() == 150.0
 
     def test_high_tradeoff_favoring_cost_keeps_historical_timeout(self):
         from backend.src.agents.orchestrator.orchestrator import _get_agent_timeout
         from backend.src.services import complexity_router
 
         complexity_router.set_current_tradeoff(9)  # favorece custo -> esforco "none"
-        assert _get_agent_timeout() == 180.0
+        assert _get_agent_timeout() == 90.0
 
     def test_never_shrinks_below_the_configured_settings_floor(self):
         """Mesmo se Settings tiver um timeout customizado MAIOR que o piso
-        histórico de 180s, o timeout adaptativo nunca deve ficar menor que
+        histórico de 90s, o timeout adaptativo nunca deve ficar menor que
         isso -- só cresce a partir do piso configurado, nunca encolhe."""
         from unittest.mock import MagicMock, patch
 
         from backend.src.agents.orchestrator.orchestrator import _get_agent_timeout
         from backend.src.services import complexity_router
 
-        complexity_router.set_current_tradeoff(9)  # esforco "none" -> mapeado pra 180.0
+        complexity_router.set_current_tradeoff(9)  # esforco "none" -> mapeado pra 90.0
         with patch(
             "backend.src.agents.orchestrator.orchestrator.get_settings",
             return_value=MagicMock(agent_timeout_seconds=250.0),
