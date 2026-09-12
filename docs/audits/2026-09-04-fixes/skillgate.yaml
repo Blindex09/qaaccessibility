@@ -1,0 +1,22 @@
+version: 1
+name: qaaccessibility-fixes-finite-validation
+gates:
+  - id: factory-contracts
+    type: command
+    run: .venv\Scripts\python.exe -m pytest docs/audits/2026-09-04/test_factory_contracts.py tests/backend/unit/services/test_factory_adapter.py -o addopts= -q
+    timeout: 60000
+  - id: factory-live-sample
+    type: command
+    run: .venv\Scripts\python.exe docs/audits/2026-09-04-fixes/verify_evidence.py
+    timeout: 10000
+  - id: pytest-config-present
+    type: file-exists
+    file: pytest.ini
+  - id: no-httpx-deprecation-suppression
+    type: absent
+    glob: pytest.ini
+    pattern: 'ignore:Using.*httpx.*deprecated'
+  - id: chat-preserves-partial-warning
+    type: command
+    run: .venv\Scripts\python.exe -m pytest docs/audits/2026-09-04/test_partial_warning_contract.py -o addopts= -q
+    timeout: 30000

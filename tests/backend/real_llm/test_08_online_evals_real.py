@@ -35,7 +35,7 @@ Agent (final): Tudo certo, não achei nenhum problema.
 
 @pytest.mark.asyncio
 async def test_online_eval_scores_good_trace_as_passing(alto_model_id: str) -> None:
-    result = await telemetry.score_trace(_GOOD_TRACE, provider="ollama-cloud")
+    result = await telemetry.score_trace(_GOOD_TRACE)
 
     assert result is not None, "judge real não retornou score (no-op inesperado)"
     assert "score" in result and "pass" in result
@@ -46,8 +46,8 @@ async def test_online_eval_scores_good_trace_as_passing(alto_model_id: str) -> N
 @pytest.mark.asyncio
 async def test_online_eval_scores_bad_trace_lower_than_good_trace(alto_model_id: str) -> None:
     """Discriminação real: o judge precisa pontuar o trace incompleto/incorreto abaixo do bom."""
-    good_result = await telemetry.score_trace(_GOOD_TRACE, provider="ollama-cloud")
-    bad_result = await telemetry.score_trace(_BAD_TRACE, provider="ollama-cloud")
+    good_result = await telemetry.score_trace(_GOOD_TRACE)
+    bad_result = await telemetry.score_trace(_BAD_TRACE)
 
     assert good_result is not None and bad_result is not None
     assert bad_result["score"] < good_result["score"], (

@@ -19,6 +19,25 @@ def format_human_friendly_error(raw_error: object) -> str:
 
     err_lower = err_str.lower()
 
+    # Nunca exponha detalhes do Playwright/CDP, endpoints WebSocket, tokens ou
+    # call logs na interface; esses dados ficam somente nos logs do servidor.
+    if any(
+        k in err_lower
+        for k in (
+            "connect_over_cdp",
+            "browserless",
+            "playwright",
+            "invalid url",
+            "ws preparing",
+            "target page, context or browser has been closed",
+        )
+    ):
+        return (
+            "Não foi possível acessar a página porque o mecanismo interno de navegação "
+            "está com um problema de configuração. A página não foi auditada. "
+            "Verifique as configurações de navegação e tente novamente."
+        )
+
     # 402 / Quota / Balance Empty / Payment Required
     if any(
         k in err_lower
@@ -154,5 +173,5 @@ def format_human_friendly_error(raw_error: object) -> str:
             "3. Caso contrário, selecione um provedor em nuvem (Gemini, OpenAI, Anthropic, xAI) nas Configurações."
         )
 
-    # Fallback padrão amigável para outros erros
-    return f"Não foi possível obter resposta do provedor de IA no momento.\nDetalhe técnico: {err_str}"
+    # Fallback padrão seguro: o detalhe técnico fica somente nos logs do servidor.
+    return "Não foi possível concluir esta etapa no momento. Tente novamente; se o problema persistir, verifique as configurações e os logs do servidor."

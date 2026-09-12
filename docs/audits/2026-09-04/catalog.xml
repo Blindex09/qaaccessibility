@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="8" time="0.867" timestamp="2026-09-04T20:08:45.203452-03:00" hostname="felipe"><testcase classname="tests.backend.unit.test_models_dev_catalog" name="test_catalogo_nao_tem_modelos_deprecados_conhecidos" time="0.002"><failure message="AssertionError: factory/kimi-k3 está deprecado/retirado, não deveria continuar selecionável no catálogo&#10;assert 'kimi-k3' not in {'gpt-3.5-turbo', 'gpt-4', 'gpt-4o', 'gpt-4o-2024-05-13', 'gpt-4o-mini', 'gpt-5-2025-08-07', ...}">def test_catalogo_nao_tem_modelos_deprecados_conhecidos():
+        for provider, models in _CATALOG.items():
+            for model_id in models:
+&gt;               assert model_id not in _DEPRECATED_OR_RETIRED_MODEL_IDS, (
+                    f"{provider}/{model_id} está deprecado/retirado, não deveria "
+                    "continuar selecionável no catálogo"
+                )
+E               AssertionError: factory/kimi-k3 está deprecado/retirado, não deveria continuar selecionável no catálogo
+E               assert 'kimi-k3' not in {'gpt-3.5-turbo', 'gpt-4', 'gpt-4o', 'gpt-4o-2024-05-13', 'gpt-4o-mini', 'gpt-5-2025-08-07', ...}
+
+tests\backend\unit\test_models_dev_catalog.py:28: AssertionError</failure></testcase><testcase classname="tests.backend.unit.test_models_dev_catalog" name="test_catalogo_nao_expoe_modelos_preview" time="0.001" /><testcase classname="tests.backend.unit.test_models_dev_catalog" name="test_kimi_k3_bloqueado_e_nao_selecionavel" time="0.467" /><testcase classname="tests.backend.unit.test_models_dev_catalog" name="test_ollama_cloud_endpoint_nunca_cai_pro_localhost_sem_base_url" time="0.001" /><testcase classname="tests.backend.unit.test_models_dev_catalog" name="test_explicit_deprecated_models_contem_modelos_pre_2026" time="0.001" /><testcase classname="tests.backend.unit.test_models_dev_catalog" name="test_parse_openai_models_desconsidera_modelos_pre_2026" time="0.000" /><testcase classname="tests.backend.unit.test_models_dev_catalog" name="test_ollama_cloud_catalog_ids_batem_com_a_api_ao_vivo" time="0.000" /><testcase classname="tests.backend.unit.test_models_dev_catalog" name="test_ollama_cloud_costs_sao_precos_reais_pesquisados_no_laboratorio_original" time="0.000" /></testsuite></testsuites>

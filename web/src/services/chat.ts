@@ -42,8 +42,10 @@ export type ChatEvent =
     }
   | { type: "phase"; text: string }
   | { type: "agent"; phase: "start" | "done"; agent: string; ok?: boolean; issues?: number }
+  | { type: "analysis_partial"; page?: string; agent?: string; completed: number; total: number; issues?: number }
   | { type: "squad_plan"; plan: SquadPlan }
   | { type: "squad_task"; task_id: string; role: string; title: string; status: SquadTaskStatus }
+  | { type: "squad_progress"; task_id: string; role: string; message: string }
   | { type: "squad_decision"; task_id: string; role: string; summary: string; decisions: string[]; blockers: string[] }
   | { type: "squad_blocked"; task_id: string; reason: string }
   | { type: "clarify"; request_id: string; question: string; choices: string[] }
@@ -119,6 +121,20 @@ export async function sendCancel(streamId: string): Promise<boolean> {
   if (!resp.ok) return false;
   const data = (await resp.json()) as { cancelled: boolean };
   return Boolean(data.cancelled);
+}
+
+/** Redireciona/corrige o turno em andamento sem descartar o progresso já
+ * feito (ao contrário de `sendCancel`). Best-effort: o backend só consulta
+ * isto entre chamadas de ferramenta (ver chat_progress.py::pop_pending_steer). */
+export async function sendSteer(streamId: string, message: string): Promise<boolean> {
+  const resp = await fetch(`${BASE_URL}/chat/steer`, {
+    method: "POST",
+    headers: API_HEADERS,
+    body: JSON.stringify({ stream_id: streamId, message }),
+  });
+  if (!resp.ok) return false;
+  const data = (await resp.json()) as { delivered: boolean };
+  return Boolean(data.delivered);
 }
 
 /** Lista os providers de chat e os modelos do catálogo local revisado. */

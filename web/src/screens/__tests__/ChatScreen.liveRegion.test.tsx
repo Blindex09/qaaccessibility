@@ -166,6 +166,44 @@ describe("ChatScreen — live regions persistentes", () => {
     }
   });
 
+  test("a resposta visível não exibe marcadores markdown crus", () => {
+    sendMessage("responda normalmente");
+    act(() => emit({ type: "token", text: "### Título\n\n***Importante***: `texto`" }));
+
+    expect(host.textContent).toContain("Título");
+    expect(host.textContent).toContain("Importante: texto");
+    expect(host.textContent).not.toContain("###");
+    expect(host.textContent).not.toContain("***");
+    expect(host.textContent).not.toContain("`");
+  });
+
+  test("o andamento da squad fica navegável pelas setas, sem anúncio automático", () => {
+    sendMessage("audite este site com a squad");
+    act(() => emit({
+      type: "squad_task",
+      task_id: "task-1",
+      role: "qa_lead",
+      title: "Preparar verificações",
+      status: "in_progress",
+    }));
+    act(() => emit({
+      type: "squad_progress",
+      task_id: "task-1",
+      role: "qa_lead",
+      message: "Reunindo as evidências necessárias.",
+    }));
+
+    const items = Array.from(host.querySelectorAll<HTMLElement>("[data-squad-status='true']"));
+    expect(items).toHaveLength(2);
+    expect(items[0].textContent).toContain("Preparar verificações");
+    expect(items[1].textContent).toContain("Reunindo as evidências");
+    expect(liveRegions()[0].textContent).not.toContain("Reunindo as evidências");
+
+    items[0].focus();
+    act(() => items[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+    expect(document.activeElement).toBe(items[1]);
+  });
+
   test("marcador [LIVE_PREVIEW:] abre o painel persistente sem expor botão", () => {
     sendMessage("corrija e abra o preview");
     act(() =>

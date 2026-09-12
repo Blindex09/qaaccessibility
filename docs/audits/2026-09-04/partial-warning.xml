@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.330" timestamp="2026-09-04T20:19:11.562880-03:00" hostname="felipe"><testcase classname="docs.audits.2026-09-04.test_partial_warning_contract" name="test_chat_tool_preserves_partial_analysis_warning" time="0.005"><failure message="AssertionError: partial-analysis warning lost before reaching chat agent&#10;assert None == '1/19 agentes falharam -- resultado pode estar incompleto.'&#10; +  where None = &lt;built-in method get of dict object at 0x00000228F8687FC0&gt;('warning')&#10; +    where &lt;built-in method get of dict object at 0x00000228F8687FC0&gt; = {'total_issues': 0, 'score': 100, 'counts_by_severity': {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}, 'top_issues': []}.get">def test_chat_tool_preserves_partial_analysis_warning():
+        warning = "1/19 agentes falharam -- resultado pode estar incompleto."
+        partial = AgentResult(agent="orchestrator", success=True, data={
+            "issues": [], "warning": warning,
+            "agent_metrics": [{"agent": "a11y_expert_reviewer", "success": False, "duration_ms": 0}],
+        })
+        with (patch("backend.src.services.chat_tools._resolve_and_analyze",
+                    new=AsyncMock(return_value=(partial, "&lt;html&gt;&lt;/html&gt;"))),
+              patch("backend.src.services.last_analysis_store.set_last_analysis"),
+              patch("backend.src.services.last_analyzed_content_store.set_last_analyzed_content")):
+            payload = json.loads(analyze_page({"html": "&lt;html&gt;&lt;/html&gt;"}))
+&gt;       assert payload.get("warning") == warning, "partial-analysis warning lost before reaching chat agent"
+E       AssertionError: partial-analysis warning lost before reaching chat agent
+E       assert None == '1/19 agentes falharam -- resultado pode estar incompleto.'
+E        +  where None = &lt;built-in method get of dict object at 0x00000228F8687FC0&gt;('warning')
+E        +    where &lt;built-in method get of dict object at 0x00000228F8687FC0&gt; = {'total_issues': 0, 'score': 100, 'counts_by_severity': {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}, 'top_issues': []}.get
+
+docs\audits\2026-09-04\test_partial_warning_contract.py:20: AssertionError</failure></testcase></testsuite></testsuites>

@@ -1,14 +1,13 @@
 """
 Conftest da suite real-llm.
 
-Diferente do resto de tests/backend (100% mockado/determinístico), esta suite
-chama o Ollama Cloud de verdade, tier "alto" (model_router.resolve_alto_model),
+Esta suite chama Ollama Cloud (padrão, tier "alto") ou Factory (modelo "auto"),
 para validar a pirâmide completa de evals (component -> production observability)
 contra um provider real, não um AsyncMock.
 
 Opt-in obrigatório: chamadas reais custam tempo e tokens, então esta suite só
 roda com RUN_REAL_LLM_TESTS=1 explícito (nunca em CI por padrão). Sem
-OLLAMA_API_KEY no ambiente, os testes são pulados com um motivo claro em vez
+chave do provider selecionado no ambiente, os testes são pulados com motivo claro em vez
 de falhar com erro de rede.
 """
 import os
@@ -18,19 +17,27 @@ import pytest
 from backend.src.config.settings import get_settings
 
 RUN_REAL_LLM_TESTS = os.getenv("RUN_REAL_LLM_TESTS", "").strip() == "1"
-HAS_OLLAMA_KEY = bool(os.getenv("OLLAMA_API_KEY") or os.getenv("OLLAMA_CLOUD_API_KEY"))
+REAL_PROVIDER = os.getenv("REAL_LLM_PROVIDER", "ollama-cloud")
+
+
+def selected_key(provider: str) -> str | None:
+    if provider == "factory":
+        return os.getenv("FACTORY_API_KEY")
+    if provider == "ollama-cloud":
+        return os.getenv("OLLAMA_API_KEY") or os.getenv("OLLAMA_CLOUD_API_KEY")
+    raise ValueError(f"Provider de eval não suportado: {provider}")
 
 pytestmark = pytest.mark.real_llm
 
 
 def pytest_collection_modifyitems(config, items):
-    if RUN_REAL_LLM_TESTS and HAS_OLLAMA_KEY:
+    if RUN_REAL_LLM_TESTS and selected_key(REAL_PROVIDER):
         return
     reason = (
         "real_llm suite desativada -- defina RUN_REAL_LLM_TESTS=1 e "
-        "OLLAMA_API_KEY para rodar evals reais contra o Ollama Cloud"
+        "a chave do REAL_LLM_PROVIDER para rodar evals reais"
         if not RUN_REAL_LLM_TESTS
-        else "OLLAMA_API_KEY/OLLAMA_CLOUD_API_KEY não configurada no ambiente"
+        else f"Chave do provider {REAL_PROVIDER} não configurada no ambiente"
     )
     skip_marker = pytest.mark.skip(reason=reason)
     for item in items:
@@ -39,8 +46,8 @@ def pytest_collection_modifyitems(config, items):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _real_ollama_provider():
-    """Força o provider global para ollama-cloud, tier alto, e desliga o response cache.
+def _real_provider():
+    """Isola o provider escolhido, sem cache ou fallback para outro serviço.
 
     O cache de respostas (a11y_response_cache_enabled, ver settings.py) guarda o texto cru
     devolvido pelo provider ANTES de qualquer validação de que é JSON parseável -- observado em
@@ -49,32 +56,29 @@ def _real_ollama_provider():
     determinística e persistente do agente. Numa suite que existe para medir o comportamento
     real do modelo a cada chamada, cache é ruído -- desligamos para sempre bater na rede real.
     """
-    prev_provider = os.environ.get("LLM_PROVIDER")
-    prev_model = os.environ.get("LLM_MODEL")
-    prev_cache = os.environ.get("A11Y_RESPONSE_CACHE_ENABLED")
-    os.environ["LLM_PROVIDER"] = "ollama-cloud"
-    os.environ.pop("LLM_MODEL", None)  # None -> model_router resolve o "alto" dinamicamente
-    os.environ["A11Y_RESPONSE_CACHE_ENABLED"] = "false"
-    get_settings.cache_clear()
-    yield
-    if prev_provider is None:
-        os.environ.pop("LLM_PROVIDER", None)
-    else:
-        os.environ["LLM_PROVIDER"] = prev_provider
-    if prev_model is not None:
-        os.environ["LLM_MODEL"] = prev_model
-    if prev_cache is None:
-        os.environ.pop("A11Y_RESPONSE_CACHE_ENABLED", None)
-    else:
-        os.environ["A11Y_RESPONSE_CACHE_ENABLED"] = prev_cache
-    get_settings.cache_clear()
+    from backend.src.config.settings import Settings
+    from run_agent import AIAgent
+
+    with pytest.MonkeyPatch.context() as config:
+        config.setenv("LLM_PROVIDER", REAL_PROVIDER)
+        config.setenv("LLM_API_KEY", selected_key(REAL_PROVIDER) or "")
+        config.setenv("LLM_MODEL", os.getenv("REAL_LLM_MODEL", "auto" if REAL_PROVIDER == "factory" else "alto"))
+        config.setenv("LLM_BASE_URL", "")
+        config.setenv("A11Y_RESPONSE_CACHE_ENABLED", "false")
+        config.setattr(Settings, "build_fallback_model", lambda self: {})
+        config.setattr(AIAgent, "_resolve_auto_fallback", lambda self: None)
+        get_settings.cache_clear()
+        try:
+            yield
+        finally:
+            get_settings.cache_clear()
 
 
 @pytest.fixture(scope="session")
 def alto_model_id() -> str:
     from backend.src.services.model_router import resolve_alto_model
 
-    return resolve_alto_model("ollama-cloud")
+    return os.getenv("REAL_LLM_MODEL") or ("auto" if REAL_PROVIDER == "factory" else resolve_alto_model(REAL_PROVIDER))
 
 
 async def run_agent_with_retry(agent_fn, html_content: str, retries: int = 1):
@@ -90,3 +94,12 @@ async def run_agent_with_retry(agent_fn, html_content: str, retries: int = 1):
         attempt += 1
         result = await agent_fn(html_content)
     return result
+
+
+def assert_complete_result(result) -> None:
+    """Transport success must not hide partial specialist failure."""
+    assert result.success is True, result.error
+    assert result.data.get("complete") is True, result.data.get("warning")
+    metrics = result.data.get("agent_metrics", [])
+    assert metrics
+    assert all(m["success"] for m in metrics), metrics

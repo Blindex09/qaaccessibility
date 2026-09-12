@@ -27,12 +27,17 @@ pytestmark = pytest.mark.real_llm
 
 
 @pytest.mark.asyncio
-async def test_unreachable_endpoint_produces_humanized_error_not_a_crash() -> None:
+async def test_unreachable_endpoint_produces_humanized_error_not_a_crash(monkeypatch) -> None:
     """Falha de rede real (host inexistente, não mockada) -- deve virar AgentResult(success=False,
     error=<mensagem amigável>), nunca uma exception não tratada subindo até o chamador. Preferido a
     forçar um 401 de credencial: o cache de resposta de agentes (a11y_response_cache_enabled, TTL
     300s) pode mascarar chamadas subsequentes com o mesmo prompt e devolver um hit válido antigo
     mesmo com a chave trocada -- um host inalcançável nunca tem esse risco."""
+    # Factory is CLI-based and has no HTTP base_url. This fault-injection
+    # case deliberately exercises the HTTP adapter, with a dummy local key.
+    monkeypatch.setenv("LLM_PROVIDER", "ollama-cloud")
+    monkeypatch.setenv("LLM_API_KEY", "local-fault-probe-not-a-secret")
+    monkeypatch.setenv("LLM_MODEL", "gpt-oss:120b")
     prev_base_url = os.environ.get("LLM_BASE_URL")
     os.environ["LLM_BASE_URL"] = "http://127.0.0.1:1/v1"  # porta inexistente -> connection refused real
     get_settings.cache_clear()
@@ -45,6 +50,7 @@ async def test_unreachable_endpoint_produces_humanized_error_not_a_crash() -> No
             os.environ.pop("LLM_BASE_URL", None)
         else:
             os.environ["LLM_BASE_URL"] = prev_base_url
+        monkeypatch.undo()
         get_settings.cache_clear()
 
     assert result.success is False, "host inalcancavel deveria falhar de forma explicita, nao silenciosa"

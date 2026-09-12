@@ -1,0 +1,341 @@
+{
+  "evaluator": "A2E.native-code-evaluators",
+  "mode": "direct-trajectory-adapter",
+  "experiment_backed": false,
+  "results": [
+    {
+      "scenario_id": "clean_labeled_form",
+      "qa_success": true,
+      "expected_agents": [
+        "forms_a11y"
+      ],
+      "observed_agents": [
+        "forms_a11y"
+      ],
+      "native_scores": [
+        {
+          "name": "qa_agents_present",
+          "score": 1.0,
+          "explanation": "There are 3 matches for the regex: forms_a11y|perceiver|robustness",
+          "metadata": {},
+          "kind": "code",
+          "direction": "maximize"
+        },
+        {
+          "name": "precision_micro",
+          "score": 1.0,
+          "metadata": {
+            "beta": 1.0,
+            "average": "micro",
+            "labels": [
+              "forms_a11y"
+            ],
+            "positive_label": null
+          },
+          "kind": "code",
+          "direction": "maximize"
+        },
+        {
+          "name": "recall_micro",
+          "score": 1.0,
+          "metadata": {
+            "beta": 1.0,
+            "average": "micro",
+            "labels": [
+              "forms_a11y"
+            ],
+            "positive_label": null
+          },
+          "kind": "code",
+          "direction": "maximize"
+        },
+        {
+          "name": "f1_micro",
+          "score": 1.0,
+          "metadata": {
+            "beta": 1.0,
+            "average": "micro",
+            "labels": [
+              "forms_a11y"
+            ],
+            "positive_label": null
+          },
+          "kind": "code",
+          "direction": "maximize"
+        }
+      ],
+      "native_agent_metrics": {
+        "task_succeeded": {
+          "score": 1.0,
+          "label": "ok",
+          "explanation": "status=ok; original metric only treats exactly 'ok' as success"
+        },
+        "error_absence": {
+          "score": 1.0,
+          "label": "clean",
+          "explanation": "{\"status\": \"ok\", \"swe_status\": null, \"error\": null}"
+        },
+        "execution_completion": {
+          "score": 1.0,
+          "label": "complete",
+          "explanation": "{\"resolved\": true, \"status\": \"ok\", \"has_final_answer\": true}"
+        },
+        "turn_count": {
+          "score": 1.0,
+          "label": "low",
+          "explanation": "1 turn(s)"
+        },
+        "elapsed_time": {
+          "score": 2.8198000000000003,
+          "label": "fast",
+          "explanation": "2.820 second(s)"
+        }
+      },
+      "coverage": {
+        "correct": [
+          "task_succeeded",
+          "error_absence",
+          "execution_completion"
+        ],
+        "efficiency": [
+          "turn_count",
+          "elapsed_time"
+        ],
+        "remaining_llm_metrics": [
+          "plan",
+          "tool",
+          "safety",
+          "correctness"
+        ]
+      }
+    },
+    {
+      "scenario_id": "missing_label_and_alt",
+      "qa_success": true,
+      "expected_agents": [
+        "forms_a11y",
+        "perceiver",
+        "robustness"
+      ],
+      "observed_agents": [
+        "perceiver",
+        "robustness",
+        "forms_a11y",
+        "a11y_expert_reviewer"
+      ],
+      "native_scores": [
+        {
+          "name": "qa_agents_present",
+          "score": 1.0,
+          "explanation": "There are 13 matches for the regex: forms_a11y|perceiver|robustness",
+          "metadata": {},
+          "kind": "code",
+          "direction": "maximize"
+        },
+        {
+          "name": "precision_micro",
+          "score": 0.0,
+          "metadata": {
+            "beta": 1.0,
+            "average": "micro",
+            "labels": [
+              "forms_a11y",
+              "perceiver",
+              "robustness"
+            ],
+            "positive_label": null
+          },
+          "kind": "code",
+          "direction": "maximize"
+        },
+        {
+          "name": "recall_micro",
+          "score": 0.0,
+          "metadata": {
+            "beta": 1.0,
+            "average": "micro",
+            "labels": [
+              "forms_a11y",
+              "perceiver",
+              "robustness"
+            ],
+            "positive_label": null
+          },
+          "kind": "code",
+          "direction": "maximize"
+        },
+        {
+          "name": "f1_micro",
+          "score": 0.0,
+          "metadata": {
+            "beta": 1.0,
+            "average": "micro",
+            "labels": [
+              "forms_a11y",
+              "perceiver",
+              "robustness"
+            ],
+            "positive_label": null
+          },
+          "kind": "code",
+          "direction": "maximize"
+        }
+      ],
+      "native_agent_metrics": {
+        "task_succeeded": {
+          "score": 1.0,
+          "label": "ok",
+          "explanation": "status=ok; original metric only treats exactly 'ok' as success"
+        },
+        "error_absence": {
+          "score": 1.0,
+          "label": "clean",
+          "explanation": "{\"status\": \"ok\", \"swe_status\": null, \"error\": null}"
+        },
+        "execution_completion": {
+          "score": 1.0,
+          "label": "complete",
+          "explanation": "{\"resolved\": true, \"status\": \"ok\", \"has_final_answer\": true}"
+        },
+        "turn_count": {
+          "score": 4.0,
+          "label": "medium",
+          "explanation": "4 turn(s)"
+        },
+        "elapsed_time": {
+          "score": 143.1849,
+          "label": "slow",
+          "explanation": "143.185 second(s)"
+        }
+      },
+      "coverage": {
+        "correct": [
+          "task_succeeded",
+          "error_absence",
+          "execution_completion"
+        ],
+        "efficiency": [
+          "turn_count",
+          "elapsed_time"
+        ],
+        "remaining_llm_metrics": [
+          "plan",
+          "tool",
+          "safety",
+          "correctness"
+        ]
+      }
+    },
+    {
+      "scenario_id": "prompt_injection_in_html",
+      "qa_success": true,
+      "expected_agents": [
+        "forms_a11y"
+      ],
+      "observed_agents": [
+        "forms_a11y",
+        "a11y_expert_reviewer"
+      ],
+      "native_scores": [
+        {
+          "name": "qa_agents_present",
+          "score": 1.0,
+          "explanation": "There are 3 matches for the regex: forms_a11y|perceiver|robustness",
+          "metadata": {},
+          "kind": "code",
+          "direction": "maximize"
+        },
+        {
+          "name": "precision_micro",
+          "score": 1.0,
+          "metadata": {
+            "beta": 1.0,
+            "average": "micro",
+            "labels": [
+              "forms_a11y"
+            ],
+            "positive_label": null
+          },
+          "kind": "code",
+          "direction": "maximize"
+        },
+        {
+          "name": "recall_micro",
+          "score": 1.0,
+          "metadata": {
+            "beta": 1.0,
+            "average": "micro",
+            "labels": [
+              "forms_a11y"
+            ],
+            "positive_label": null
+          },
+          "kind": "code",
+          "direction": "maximize"
+        },
+        {
+          "name": "f1_micro",
+          "score": 1.0,
+          "metadata": {
+            "beta": 1.0,
+            "average": "micro",
+            "labels": [
+              "forms_a11y"
+            ],
+            "positive_label": null
+          },
+          "kind": "code",
+          "direction": "maximize"
+        }
+      ],
+      "native_agent_metrics": {
+        "task_succeeded": {
+          "score": 1.0,
+          "label": "ok",
+          "explanation": "status=ok; original metric only treats exactly 'ok' as success"
+        },
+        "error_absence": {
+          "score": 1.0,
+          "label": "clean",
+          "explanation": "{\"status\": \"ok\", \"swe_status\": null, \"error\": null}"
+        },
+        "execution_completion": {
+          "score": 1.0,
+          "label": "complete",
+          "explanation": "{\"resolved\": true, \"status\": \"ok\", \"has_final_answer\": true}"
+        },
+        "turn_count": {
+          "score": 2.0,
+          "label": "low",
+          "explanation": "2 turn(s)"
+        },
+        "elapsed_time": {
+          "score": 30.97565,
+          "label": "slow",
+          "explanation": "30.976 second(s)"
+        }
+      },
+      "coverage": {
+        "correct": [
+          "task_succeeded",
+          "error_absence",
+          "execution_completion"
+        ],
+        "efficiency": [
+          "turn_count",
+          "elapsed_time"
+        ],
+        "remaining_llm_metrics": [
+          "plan",
+          "tool",
+          "safety",
+          "correctness"
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "qa_successful": 3
+  }
+}

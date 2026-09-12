@@ -29,14 +29,8 @@ class ChatAttachment(BaseModel):
     """Arquivo anexado no chat, entregue como DADO estruturado -- nunca embutido
     na prosa da mensagem.
 
-    Antes deste campo o frontend serializava os anexos dentro do próprio texto
-    (``[Arquivos anexados para análise]`` + blocos ``=== nome ===``) e o backend
-    tentava RECUPERAR esse fato com substring (``"===" in message``). O fato
-    "tem anexo" é conhecido com certeza no cliente; adivinhá-lo de volta a
-    partir do texto dava falso positivo em qualquer mensagem contendo um
-    separador markdown, um diff ou uma tabela ASCII -- exatamente o que um QA
-    cola no chat -- e nesses casos a triagem do clarifier era pulada em
-    silêncio."""
+    O fato de haver anexos é enviado pelo frontend neste campo estruturado. O
+    backend não tenta inferir anexos a partir do texto da mensagem."""
 
     name: str = Field(..., max_length=255, description="Nome do arquivo anexado")
     content: str = Field(..., description="Conteúdo textual do arquivo")
@@ -65,6 +59,11 @@ class ClarifyAnswer(BaseModel):
 
 class CancelRequest(BaseModel):
     stream_id: str = Field(..., description="ID do turno em andamento (evento 'stream_id')")
+
+
+class SteerRequest(BaseModel):
+    stream_id: str = Field(..., description="ID do turno em andamento (evento 'stream_id')")
+    message: str = Field(..., min_length=1, description="Correção/redirecionamento a injetar no turno em andamento")
 
 
 def _sse(event: dict[str, object]) -> str:
@@ -123,6 +122,17 @@ async def chat_cancel(body: CancelRequest) -> dict:
     chat_progress.py). ``cancelled=False`` se o turno já terminou/não existe."""
     cancelled = chat_progress.request_cancel(body.stream_id)
     return {"cancelled": cancelled}
+
+
+@router.post("/steer")
+async def chat_steer(body: SteerRequest) -> dict:
+    """Injeta uma correção/redirecionamento no turno em andamento identificado
+    pelo `stream_id`, sem descartar o progresso já feito (ao contrário de
+    `/chat/cancel`). Entregue ao agente na próxima checagem entre chamadas de
+    ferramenta -- best-effort, não interrompe uma chamada de LLM/ferramenta já
+    em andamento. ``delivered=False`` se o turno já terminou/não existe."""
+    delivered = chat_progress.request_steer(body.stream_id, body.message)
+    return {"delivered": delivered}
 
 
 @router.get("/history/{conversation_id}")

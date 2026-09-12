@@ -1,0 +1,60 @@
+{
+  "evaluator": "HarnessFix",
+  "status": "native_swe_metrics_passed",
+  "trajectories_seen": 3,
+  "reason": "The QAAccessibility fixer stage was mapped to HarnessFix's native SWE lifecycle contract.",
+  "qaaccessibility_execution_verified": true,
+  "fix_stage": {
+    "native_metrics": {
+      "mode": "swe",
+      "total_instances": 1,
+      "metrics": {
+        "resolved_rate": 1.0,
+        "error_rate": 0.0,
+        "empty_patch_rate": 0.0,
+        "invalid_submission_rate": 0.0,
+        "unresolved_rate": 0.0,
+        "avg_api_calls": 1.0,
+        "avg_instance_cost": 0.0,
+        "loop_rate": 0.0,
+        "verification_effort_ratio": 0.0,
+        "syntax_error_rate": 0.0
+      }
+    },
+    "records": 1,
+    "plan_diff_audit": {
+      "passed": true,
+      "changed_files": [
+        "index.html"
+      ],
+      "changed_file_count": 1,
+      "max_files_to_modify": 1,
+      "forbidden_touches": [],
+      "out_of_scope": [],
+      "syntax_failures": [],
+      "fix_coverage": {
+        "add-label": {
+          "covered": true,
+          "touched_files": [
+            "index.html"
+          ]
+        }
+      },
+      "violations": []
+    },
+    "target_metric_comparison": {
+      "metrics": [
+        {
+          "metric": "resolved_rate",
+          "baseline": 0.0,
+          "current": 1.0,
+          "direction": "higher",
+          "delta": 1.0,
+          "improved": true
+        }
+      ],
+      "aggregate_delta": 1.0,
+      "improved_metric_count": 1
+    }
+  }
+}

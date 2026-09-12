@@ -17,6 +17,7 @@ import { useChat } from "../useChat";
 
 let emit: (event: ChatEvent) => void;
 let resolveStream: () => void;
+const mounted: TestRenderer.ReactTestRenderer[] = [];
 
 const mockSendCancel = jest.fn(async (_streamId: string) => true);
 const mockAbort = jest.fn();
@@ -54,7 +55,7 @@ function Probe({ out }: { out: { chat?: Chat } }) {
 function mountChat(): { chat: () => Chat } {
   const out: { chat?: Chat } = {};
   act(() => {
-    TestRenderer.create(<Probe out={out} />);
+    mounted.push(TestRenderer.create(<Probe out={out} />));
   });
   return {
     chat: () => {
@@ -74,7 +75,12 @@ function send(event: ChatEvent): void {
   act(() => emit(event));
 }
 
-afterEach(() => {
+afterEach(async () => {
+  await act(async () => {
+    mounted.splice(0).forEach((root) => root.unmount());
+    resolveStream?.();
+    await Promise.resolve();
+  });
   jest.clearAllMocks();
 });
 
@@ -124,5 +130,20 @@ describe("useChat — interromper um turno em andamento", () => {
     send({ type: "cancelled" });
 
     expect(chat().activity).toBe("");
+    expect(chat().streaming).toBe(false);
+    expect(mockAbort).toHaveBeenCalledTimes(1);
+  });
+
+  test("cancelamento do servidor libera o temporizador mesmo antes do stream resolver", () => {
+    jest.useFakeTimers();
+    try {
+      const { chat } = mountChat();
+      startTurn(chat);
+      send({ type: "cancelled" });
+      act(() => jest.advanceTimersByTime(5000));
+      expect(chat().elapsedMs).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

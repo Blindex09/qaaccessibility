@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "id": "factory-contracts",
+      "type": "command",
+      "ok": true,
+      "reason": "`.venv\\Scripts\\python.exe -m pytest docs/audits/2026-09-04/test_factory_contracts.py tests/backend/unit/services/test_factory_adapter.py -o addopts= -q` exited 0"
+    },
+    {
+      "id": "factory-live-sample",
+      "type": "command",
+      "ok": true,
+      "reason": "`.venv\\Scripts\\python.exe docs/audits/2026-09-04-fixes/verify_evidence.py` exited 0"
+    },
+    {
+      "id": "pytest-config-present",
+      "type": "file-exists",
+      "ok": true,
+      "reason": "present: pytest.ini"
+    },
+    {
+      "id": "no-httpx-deprecation-suppression",
+      "type": "absent",
+      "ok": true,
+      "reason": "no /ignore:Using.*httpx.*deprecated/ in pytest.ini"
+    },
+    {
+      "id": "chat-preserves-partial-warning",
+      "type": "command",
+      "ok": true,
+      "reason": "`.venv\\Scripts\\python.exe -m pytest docs/audits/2026-09-04/test_partial_warning_contract.py -o addopts= -q` exited 0"
+    }
+  ],
+  "failed": []
+}

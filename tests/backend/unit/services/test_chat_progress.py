@@ -97,6 +97,52 @@ class TestCancelRegistry:
         assert chat_progress.request_cancel(token) is False
 
 
+class TestSteerRegistry:
+    """Canal de redirecionamento/correção de um turno em andamento, sem
+    descartar o progresso já feito (diferente do cancelamento acima) --
+    CLAUDE.md, "agente = modelo + harness" -> comportamento conversacional
+    obrigatório."""
+
+    def test_request_steer_registers_pending_correction(self):
+        token = chat_progress.new_cancel_token()
+        try:
+            assert chat_progress.request_steer(token, "checa só o contraste") is True
+            assert chat_progress.pop_pending_steer(token) == "checa só o contraste"
+        finally:
+            chat_progress.clear_cancel_token(token)
+
+    def test_pop_pending_steer_without_request_returns_none(self):
+        token = chat_progress.new_cancel_token()
+        try:
+            assert chat_progress.pop_pending_steer(token) is None
+        finally:
+            chat_progress.clear_cancel_token(token)
+
+    def test_pop_pending_steer_consumes_it_once(self):
+        token = chat_progress.new_cancel_token()
+        try:
+            chat_progress.request_steer(token, "olha só os formulários")
+            assert chat_progress.pop_pending_steer(token) == "olha só os formulários"
+            # Consumida -- a próxima checagem entre iterações não vê a mesma
+            # correção de novo.
+            assert chat_progress.pop_pending_steer(token) is None
+        finally:
+            chat_progress.clear_cancel_token(token)
+
+    def test_request_steer_unknown_token_returns_false(self):
+        # Turno já terminou (token nunca existiu/já foi limpo) -- nada pendente.
+        assert chat_progress.request_steer("naoexiste", "x") is False
+
+    def test_clear_cancel_token_also_drops_pending_steer(self):
+        token = chat_progress.new_cancel_token()
+        chat_progress.request_steer(token, "corrige isso")
+        chat_progress.clear_cancel_token(token)
+        # Turno encerrado: nem o token de cancelamento nem a correção pendente
+        # devem sobreviver (evita vazamento do dict entre turnos).
+        assert chat_progress.pop_pending_steer(token) is None
+        assert chat_progress.request_steer(token, "y") is False
+
+
 @pytest.mark.asyncio
 async def test_cancel_event_is_awaitable_asyncio_event():
     """Precisa ser asyncio.Event (não threading.Event) -- é aguardado junto com

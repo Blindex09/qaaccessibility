@@ -1,0 +1,11 @@
+version: 1
+name: qaaccessibility-external-frontend
+gates:
+  - id: frontend-suite
+    type: command
+    run: cd web && npm test -- --runInBand
+    timeout: 600000
+  - id: frontend-typecheck
+    type: command
+    run: cd web && npm run typecheck
+    timeout: 180000

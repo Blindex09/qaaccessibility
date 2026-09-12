@@ -23,7 +23,7 @@ import { LivePreviewModal } from "./LivePreviewModal";
 
 /**
  * Chat agentico de acessibilidade com streaming token-a-token.
- * O agente conversa, pensa quando necessario, chama a tool de análise e
+ * O agente conversa, processa quando necessário, chama a tool de análise e
  * narra tudo em tempo real (eventos SSE de /chat/stream).
  */
 interface Attachment {
@@ -74,43 +74,6 @@ function ToolCallCard({ toolCall, messageIndex }: { toolCall: ToolCallData; mess
 }
 
 /**
- * Raciocínio do modelo do turno corrente, numa seção recolhível PERSISTENTE
- * -- diferente da linha de status transitória ("Raciocinando: ...") que some
- * assim que o próximo evento chega, este texto continua disponível depois do
- * turno terminar, pra quem quiser revisar como o modelo chegou à resposta.
- * Fechado por padrão (mesmo padrão do <details> "Ver raciocínio do modelo"
- * do projeto de referência).
- */
-function ReasoningSection({ text }: { text: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const contentId = React.useId();
-  if (!text.trim()) return null;
-
-  return (
-    <View style={[styles.statusGroupContainer, { marginTop: 8 }]}>
-      <TouchableOpacity
-        onPress={() => setExpanded(!expanded)}
-        style={styles.statusGroupHeader}
-        accessibilityRole="button"
-        accessibilityLabel={expanded ? "Ocultar raciocínio do modelo" : "Ver raciocínio do modelo"}
-        accessibilityState={{ expanded }}
-        aria-expanded={expanded}
-        aria-controls={contentId}
-      >
-        <Text style={styles.statusGroupHeaderText}>
-          {expanded ? "- Ocultar raciocínio do modelo" : "+ Ver raciocínio do modelo"}
-        </Text>
-      </TouchableOpacity>
-      {expanded && (
-        <View id={contentId} style={styles.statusGroupContent}>
-          <Text style={[styles.statusLineText, { whiteSpace: "pre-wrap" }] as any}>{text}</Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
-/**
  * Fontes reais consultadas por ferramentas de pesquisa (deep_research,
  * tavily_search, exa_search) no turno corrente -- links clicáveis, cada um
  * abrindo em nova aba (pesquisa externa: nunca navega a própria conversa
@@ -138,6 +101,82 @@ function SourcesSection({ sources }: { sources: { title: string; url: string }[]
           </View>
         ))}
       </View>
+    </View>
+  );
+}
+
+/**
+ * Atualizações da squad em um feed consultável. Os itens têm foco próprio e
+ * as setas percorrem o feed; não há aria-live, portanto nada é falado sem que
+ * a pessoa escolha consultar o andamento.
+ */
+function ActivityFeed({
+  label,
+  messages,
+}: {
+  label: string;
+  messages: { content: string; groupKey?: string }[];
+}) {
+  if (!messages.length) return null;
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const current = event.currentTarget;
+    const feed = current.parentElement;
+    const items = feed
+      ? Array.from(
+          feed.querySelectorAll<HTMLElement>("[data-execution-status='true'], [data-squad-status='true']"),
+        )
+      : [];
+    const index = items.indexOf(current);
+    const nextIndex = event.key === "ArrowDown" ? index + 1 : index - 1;
+    if (nextIndex >= 0 && nextIndex < items.length) {
+      event.preventDefault();
+      event.stopPropagation();
+      items[nextIndex].focus();
+    }
+  };
+
+  return (
+    <View
+      style={styles.squadFeed}
+      accessibilityRole={Platform.OS === "web" ? undefined : "list"}
+      {...(Platform.OS === "web"
+          ? { "aria-label": `${label}. Use as setas para navegar entre as atualizações.` }
+        : {})}
+    >
+      <Text style={styles.squadFeedTitle}>{label}</Text>
+      {messages.map((message, index) =>
+        Platform.OS === "web" ? (
+          React.createElement(
+            "div",
+            {
+              key: message.groupKey || `${message.content}-${index}`,
+              role: "listitem",
+              tabIndex: 0,
+              "data-execution-status": "true",
+              // Compatibilidade com o contrato de automação existente da
+              // squad; o feed agora também serve para os especialistas.
+              "data-squad-status": "true",
+              "aria-label": message.content,
+              onKeyDown: handleKeyDown,
+              style: {
+                color: colors.text.tertiary,
+                fontFamily: font.body,
+                fontSize: 13,
+                lineHeight: "19px",
+                padding: "3px 4px",
+                outlineOffset: 2,
+              },
+            },
+            message.content,
+          )
+        ) : (
+          <View key={message.groupKey || `${message.content}-${index}`}>
+            <Text style={styles.statusLineText}>{message.content}</Text>
+          </View>
+        ),
+      )}
     </View>
   );
 }
@@ -276,10 +315,20 @@ function processInlineLinks(lineText: string, itemKey: string | number) {
   return parts.length > 0 ? parts : lineText;
 }
 
+function cleanAssistantMarkup(text: string): string {
+  return text
+    .replace(/```[\w-]*\s*\n?/g, "")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*(?:[-*_]\s*){3,}$/gm, "")
+    .replace(/[*_~`]/g, "")
+    .replace(/(^|\s)>(?=\s)/gm, "$1")
+    .trim();
+}
+
 function renderTextWithLinks(text: string) {
   if (!text) return null;
 
-  const rawLines = text.split("\n");
+  const rawLines = cleanAssistantMarkup(text).split("\n");
   const blocks: React.ReactNode[] = [];
   let currentListItems: React.ReactNode[] = [];
   let isOrderedList = false;
@@ -429,13 +478,13 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
     announcement,
     elapsedMs,
     durationMs,
-    reasoningText,
     turnSources,
     pendingClarify,
     sessionUsage,
     send,
     answerClarify,
     stop,
+    steer,
     conversationId,
     startNewConversation,
     switchConversation,
@@ -669,6 +718,24 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
     void send(message, displayText, anexosDoTurno);
   }
 
+  // Ação do botão principal e do Enter enquanto o turno está rodando: com
+  // texto digitado, redireciona/corrige sem perder o progresso já feito
+  // (CLAUDE.md, "agente = modelo + harness" -> comportamento conversacional
+  // obrigatório); com o campo vazio, continua parando o turno como antes.
+  function handlePrimaryAction() {
+    if (!streaming) {
+      handleSend();
+      return;
+    }
+    const correction = input.trim();
+    if (!correction) {
+      stop();
+      return;
+    }
+    setInput("");
+    void steer(correction);
+  }
+
   return (
     <View
       style={[
@@ -845,10 +912,15 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                     </View>
                   )}
 
-                  {/* Raciocínio recolhível do modelo */}
-                  {isLastTurn && !!reasoningText && (
-                    <ReasoningSection text={reasoningText} />
-                  )}
+                  <ActivityFeed
+                    label="Andamento da squad"
+                    messages={turn.statuses.filter((message) => message.kind === "squad")}
+                  />
+
+                  <ActivityFeed
+                    label="Andamento dos especialistas"
+                    messages={turn.statuses.filter((message) => message.kind === "agent" || message.kind === "phase")}
+                  />
 
                   {/* Uma região por grupo de ferramenta, igual ao agent-chat-app. */}
                   {turn.statuses
@@ -1007,14 +1079,17 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
           // não ativava nada. Derivar do mesmo `PLACEHOLDER_MENSAGEM` impede que
           // voltem a divergir. Achado pelo próprio pipeline do produto
           // auditando a própria interface, confirmado em duas execuções.
-          accessibilityLabel={ROTULO_ACESSIVEL_MENSAGEM}
-          editable={!streaming}
+          accessibilityLabel={
+            streaming
+              ? `${ROTULO_ACESSIVEL_MENSAGEM} — digite uma correção para redirecionar o assistente sem perder o que já foi feito`
+              : ROTULO_ACESSIVEL_MENSAGEM
+          }
           multiline
           autoComplete="off"
           onKeyPress={(e: any) => {
             if (e.nativeEvent.key === "Enter" && !e.nativeEvent.shiftKey) {
               e.preventDefault();
-              handleSend();
+              handlePrimaryAction();
             }
           }}
         />
@@ -1035,28 +1110,29 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
           >
             <Text style={styles.attachActionText}>Anexar arquivos</Text>
           </TouchableOpacity>
-          {/* `accessibilityState.disabled` (-> aria-disabled) em vez de
-              `disabled`: o segundo tira o botão do tab order, e quem navega por
-              teclado ou leitor de tela não o encontra nem descobre POR QUE está
-              indisponível. Com aria-disabled ele continua alcançável e é
-              anunciado como "Enviar mensagem, botão, indisponível", com o
-              motivo no próprio nome. `handleSend` já não faz nada sem conteúdo,
-              então nenhum guarda se perde. Padrão do WAI-ARIA APG; achado pelo
-              próprio pipeline auditando esta interface (WCAG 2.1.1, 2026-08-31). */}
+          {/* O estado nativo disabled mantém a semântica correta para teclado,
+              automação e leitores de tela; o rótulo continua explicando como
+              tornar o controle disponível. `handleSend` também mantém o guarda
+              para chamadas programáticas. */}
           <TouchableOpacity
-            onPress={streaming ? stop : handleSend}
+            onPress={handlePrimaryAction}
             accessibilityRole="button"
             accessibilityState={{ disabled: naoPodeEnviar }}
+            disabled={naoPodeEnviar}
             accessibilityLabel={
               streaming
-                ? "Parar geração"
+                ? input.trim()
+                  ? "Redirecionar o assistente com esta correção, sem perder o progresso já feito"
+                  : "Parar geração"
                 : naoPodeEnviar
                   ? "Enviar mensagem — digite uma mensagem ou anexe um arquivo primeiro"
                   : "Enviar mensagem"
             }
             style={[styles.sendBtn, streaming && styles.stopBtn, naoPodeEnviar && styles.sendBtnDisabled]}
           >
-            <Text style={styles.sendText}>{streaming ? "Parar" : "Enviar mensagem"}</Text>
+            <Text style={styles.sendText}>
+              {streaming ? (input.trim() ? "Redirecionar" : "Parar") : "Enviar mensagem"}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1251,6 +1327,15 @@ const styles = StyleSheet.create({
   } as any,
   activity: { alignSelf: "flex-start", paddingVertical: 6, paddingHorizontal: 10 },
   activityText: { color: colors.accent.text, fontFamily: font.body, fontSize: 13, fontStyle: "italic" },
+  squadFeed: {
+    alignSelf: "stretch",
+    marginTop: 4,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: colors.border.DEFAULT,
+    borderRadius: 8,
+  },
+  squadFeedTitle: { color: colors.text.secondary, fontFamily: font.body, fontSize: 12, marginBottom: 3 },
   statusLine: { alignSelf: "stretch", paddingVertical: 2, paddingHorizontal: 4 },
   statusLineText: { color: colors.text.tertiary, fontFamily: font.body, fontSize: 13, lineHeight: 19 },
   usageNoteRow: { marginTop: 8 },
@@ -1299,7 +1384,9 @@ const styles = StyleSheet.create({
   stopBtn: {
     backgroundColor: colors.danger.DEFAULT,
   },
-  sendBtnDisabled: { opacity: 0.5 },
+  // Não reduzir opacity: o texto branco precisa manter contraste AA no estado
+  // desabilitado (o navegador já comunica a indisponibilidade pelo atributo).
+  sendBtnDisabled: { backgroundColor: "#373890" },
   sendText: { color: colors.text.onAccent, fontFamily: font.display, fontSize: 15, fontWeight: "700" },
   statusGroupContainer: {
     marginVertical: 6,

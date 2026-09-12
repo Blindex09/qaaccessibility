@@ -11,6 +11,7 @@ Estes testes fixam o que faz dela real: estados transicionam por execução,
 portões bloqueiam de verdade, e o handoff de um papel é a entrada do próximo.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -91,6 +92,35 @@ async def test_papel_transiciona_in_progress_e_done_e_emite_a_decisao():
     estados = [e["status"] for e in eventos if e["type"] == "squad_task" and e["task_id"] == "product-scope"]
     assert estados == ["in_progress", "done"], "o estado tem de transicionar de verdade"
     assert squad.plan.task("cycle-planning").status is TaskStatus.DONE
+
+
+async def test_papel_longo_emite_progresso_enquanto_ainda_executa(monkeypatch):
+    """Um papel lento não pode deixar a UI silenciosa durante a chamada de IA."""
+    import backend.src.agents.squad.coordinator as coordinator_module
+
+    monkeypatch.setattr(coordinator_module, "_ROLE_PROGRESS_INTERVAL_SECONDS", 0.01)
+    squad = SquadCoordinator("auditar uma pagina")
+
+    async def papel_lento(_context):
+        await asyncio.sleep(0.03)
+        return _decisao(SquadRole.PRODUCT_OWNER)
+
+    with patch(
+        "backend.src.agents.squad.coordinator.run_product_owner",
+        new=papel_lento,
+    ), patch(
+        "backend.src.agents.squad.coordinator.run_tech_lead",
+        new=AsyncMock(return_value=_decisao(SquadRole.TECH_LEAD)),
+    ), patch(
+        "backend.src.agents.squad.coordinator.run_engineering_manager",
+        new=AsyncMock(return_value=_decisao(SquadRole.ENGINEERING_MANAGER)),
+    ):
+        eventos = [evento async for evento in squad.run_planning()]
+
+    progresso = [e for e in eventos if e["type"] == "squad_progress"]
+    assert progresso
+    assert progresso[0]["role"] == SquadRole.PRODUCT_OWNER.value
+    assert progresso[0]["message"] == "Definindo o escopo e os critérios de aceite."
 
 
 async def test_papel_que_entrega_com_ressalva_conclui_e_nao_trava_a_cadeia():

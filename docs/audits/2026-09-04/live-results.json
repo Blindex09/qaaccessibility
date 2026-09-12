@@ -1,0 +1,17 @@
+{
+  "timestamp_utc": "2026-09-04T23:05:25.082414+00:00",
+  "keys_found": [
+    "factory",
+    "ollama"
+  ],
+  "agent_suite_passed": false,
+  "factory": {
+    "catalog_ok": true,
+    "model_count": 47,
+    "generation": "not_run_unverified_tool_boundary"
+  },
+  "ollama": {
+    "http_status": 429,
+    "quota_indicated": true
+  }
+}

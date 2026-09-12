@@ -21,14 +21,24 @@ _DEPRECATED_OR_RETIRED_MODEL_IDS = {
     "kimi-k2.5", "kimi-latest", "kimi-thinking-preview", "kimi-k3", "kimi-k3:cloud",
 }
 
+# Lifecycle belongs to the hosting provider, not just the upstream model ID.
+# Factory's authenticated list_models still exposes this ID (2026-09-04).
+_PROVIDER_ACTIVE_EXCEPTIONS = {("factory", "kimi-k3")}
+
 
 def test_catalogo_nao_tem_modelos_deprecados_conhecidos():
     for provider, models in _CATALOG.items():
         for model_id in models:
-            assert model_id not in _DEPRECATED_OR_RETIRED_MODEL_IDS, (
+            assert model_id not in _DEPRECATED_OR_RETIRED_MODEL_IDS or (provider, model_id) in _PROVIDER_ACTIVE_EXCEPTIONS, (
                 f"{provider}/{model_id} está deprecado/retirado, não deveria "
                 "continuar selecionável no catálogo"
             )
+
+
+def test_factory_lifecycle_exception_does_not_allow_ollama_kimi_k3():
+    assert ("factory", "kimi-k3") in _PROVIDER_ACTIVE_EXCEPTIONS
+    assert ("ollama-cloud", "kimi-k3") not in _PROVIDER_ACTIVE_EXCEPTIONS
+    assert "kimi-k3" in _DEPRECATED_OR_RETIRED_MODEL_IDS
 
 
 def test_catalogo_nao_expoe_modelos_preview():

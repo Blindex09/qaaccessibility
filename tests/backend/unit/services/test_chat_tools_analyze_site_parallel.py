@@ -1,7 +1,7 @@
-"""Testes de regressao para a paralelizacao de analyze_site.
+"""Testes de regressao para a execução agentic de analyze_site.
 
-Garante que _run_site_crawl_and_analyze renderiza URLs e executa o pipeline de
-analise em paralelo (asyncio.gather + semaforos), em vez de sequencialmente.
+Garante que _run_site_crawl_and_analyze renderiza e audita as URLs sem perder
+nenhuma página, enquanto o controlador mantém uma única execução de auditoria.
 """
 
 from unittest.mock import MagicMock, patch
@@ -12,8 +12,8 @@ from backend.src.services.chat_tools import _run_site_crawl_and_analyze
 
 
 @pytest.mark.anyio
-async def test_analyze_site_urls_run_analyses_in_parallel():
-    """Duas URLs fornecidas disparam duas chamadas de orchestrate em paralelo."""
+async def test_analyze_site_urls_run_analyses_in_single_agentic_cycle():
+    """Duas URLs fornecidas são processadas pelo mesmo ciclo agentic."""
     urls = ["https://a.example.org", "https://b.example.org"]
 
     fetched: list[str] = []

@@ -1,0 +1,34 @@
+{
+  "provider": "factory",
+  "model_requested": "auto",
+  "mode": "golden",
+  "sdk_patched": false,
+  "passed": true,
+  "cases": [
+    {
+      "name": "missing_alt",
+      "passed": true,
+      "success": true,
+      "error": null
+    },
+    {
+      "name": "decorative_control",
+      "passed": true,
+      "success": true,
+      "error": null
+    },
+    {
+      "name": "unnamed_button",
+      "passed": true,
+      "success": true,
+      "error": null
+    },
+    {
+      "name": "injection",
+      "passed": true,
+      "success": true,
+      "error": null
+    }
+  ],
+  "duration_seconds": 68.33
+}

@@ -1,0 +1,61 @@
+{
+  "passed": false,
+  "results": [
+    {
+      "id": "factory-contracts",
+      "type": "command",
+      "ok": false,
+      "reason": "`.venv\\Scripts\\python.exe -m pytest docs/audits/2026-09-04/test_factory_contracts.py -o addopts= -q` failed: FAILED docs/audits/2026-09-04/test_factory_contracts.py::test_permissions_and_deadline_explicit\r 6 failed, 1 passed in 0.77s"
+    },
+    {
+      "id": "live-agent-quality",
+      "type": "command",
+      "ok": false,
+      "reason": "`.venv\\Scripts\\python.exe docs/audits/2026-09-04/live_probe.py --verify` failed: LIVE_AGENT_GATES_UNMET: real quality not established"
+    },
+    {
+      "id": "pytest-config-present",
+      "type": "file-exists",
+      "ok": true,
+      "reason": "present: pytest.ini"
+    },
+    {
+      "id": "no-httpx-deprecation-suppression",
+      "type": "absent",
+      "ok": false,
+      "reason": "pytest.ini:11 matches /ignore:Using.*httpx.*deprecated/"
+    },
+    {
+      "id": "chat-preserves-partial-warning",
+      "type": "command",
+      "ok": false,
+      "reason": "`.venv\\Scripts\\python.exe -m pytest docs/audits/2026-09-04/test_partial_warning_contract.py -o addopts= -q` failed: FAILED docs/audits/2026-09-04/test_partial_warning_contract.py::test_chat_tool_preserves_partial_analysis_warning\r 1 failed in 0.27s"
+    }
+  ],
+  "failed": [
+    {
+      "id": "factory-contracts",
+      "type": "command",
+      "ok": false,
+      "reason": "`.venv\\Scripts\\python.exe -m pytest docs/audits/2026-09-04/test_factory_contracts.py -o addopts= -q` failed: FAILED docs/audits/2026-09-04/test_factory_contracts.py::test_permissions_and_deadline_explicit\r 6 failed, 1 passed in 0.77s"
+    },
+    {
+      "id": "live-agent-quality",
+      "type": "command",
+      "ok": false,
+      "reason": "`.venv\\Scripts\\python.exe docs/audits/2026-09-04/live_probe.py --verify` failed: LIVE_AGENT_GATES_UNMET: real quality not established"
+    },
+    {
+      "id": "no-httpx-deprecation-suppression",
+      "type": "absent",
+      "ok": false,
+      "reason": "pytest.ini:11 matches /ignore:Using.*httpx.*deprecated/"
+    },
+    {
+      "id": "chat-preserves-partial-warning",
+      "type": "command",
+      "ok": false,
+      "reason": "`.venv\\Scripts\\python.exe -m pytest docs/audits/2026-09-04/test_partial_warning_contract.py -o addopts= -q` failed: FAILED docs/audits/2026-09-04/test_partial_warning_contract.py::test_chat_tool_preserves_partial_analysis_warning\r 1 failed in 0.27s"
+    }
+  ]
+}

@@ -67,11 +67,10 @@ async def test_no_regression_vs_recorded_baseline(case: dict, baseline: dict, al
 
 
 @pytest.mark.asyncio
-async def test_baseline_model_matches_or_flags_drift(baseline: dict, alto_model_id: str) -> None:
+async def test_baseline_model_matches_or_flags_drift(baseline: dict, alto_model_id: str, record_property) -> None:
     """Não falha o build -- só documenta quando o 'alto' resolvido mudou desde o baseline
     (dado que resolve_alto_model é dinâmico por design, isso é esperado e não é bug)."""
-    if baseline["model"] != alto_model_id:
-        pytest.skip(
-            f"modelo alto mudou desde o baseline: {baseline['model']} -> {alto_model_id} "
-            "(esperado com roteamento dinamico; considere recapturar o baseline)"
-        )
+    assert baseline["model"] and alto_model_id
+    record_property("baseline_model", baseline["model"])
+    record_property("current_model", alto_model_id)
+    record_property("model_drift", baseline["model"] != alto_model_id)

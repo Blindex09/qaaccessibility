@@ -303,6 +303,12 @@ _CATALOG: dict[str, dict[str, ModelInfo]] = {
         "grok-4.20-0309-non-reasoning": ModelInfo("grok-4.20-0309-non-reasoning", "Grok 4.20 Non-Reasoning", release_date="2026-03-09"),
         "grok-4.5": ModelInfo("grok-4.5", "Grok 4.5", reasoning=True, release_date="2026-07-08"),
     },
+    "factory": {
+        "auto": ModelInfo("auto", "Factory Router", reasoning=True, release_date="2026-01-01"),
+        "inkling": ModelInfo("inkling", "Inkling", reasoning=True, release_date="2026-01-01"),
+        "glm-5.3": ModelInfo("glm-5.3", "GLM 5.3", reasoning=True, release_date="2026-01-01"),
+        "kimi-k3": ModelInfo("kimi-k3", "Kimi K3", reasoning=True, release_date="2026-01-01"),
+    },
     "ollama-cloud": {
         # IDs verificados 2026-08-11 CONTRA A CHAMADA REAL da API ao vivo
         # (ollama_cloud_adapter.discover_ollama_cloud_descriptors(), 18 modelos

@@ -286,8 +286,19 @@ class AIAgent:
         context_drift_callback: Callable[[str], None] | None = None,
         images: list[dict[str, str]] | None = None,
         enable_native_web_search: bool = False,
+        cancel_check: Callable[[], bool] | None = None,
+        steer_check: Callable[[], str | None] | None = None,
     ):
         self.model = model
+        self.cancel_check = cancel_check
+        # Redirecionar um turno em andamento sem perder o progresso já feito
+        # (CLAUDE.md, "agente = modelo + harness" -> comportamento
+        # conversacional obrigatório). Consultado ENTRE iterações do loop de
+        # tool-calling -- nunca no meio de uma chamada de LLM/ferramenta já em
+        # andamento, mesma limitação de transporte do cancel_check. Quando
+        # retorna texto, é injetado como uma nova mensagem de usuário sem
+        # descartar nada do que já foi produzido.
+        self.steer_check = steer_check
         self.provider = (provider or "").strip().lower()
         self.api_key = api_key
         self.base_url = base_url
@@ -546,7 +557,7 @@ class AIAgent:
             return None
 
         # Agentic / Auto: cascata entre múltiplos provedores com API key ativa
-        providers_order = ["openai", "anthropic", "gemini", "xai", "ollama-cloud", "ollama"]
+        providers_order = ["openai", "anthropic", "gemini", "xai", "factory", "ollama-cloud", "ollama"]
         for p in providers_order:
             env_var = f"{p.upper().replace('-', '_')}_API_KEY"
             key = os.getenv(env_var) or os.getenv(f"{p.upper()}_API_KEY")
@@ -568,6 +579,18 @@ class AIAgent:
         from backend.src.shared.error_formatter import format_human_friendly_error
 
         def _run_current() -> dict[str, Any]:
+            if self.provider == "factory":
+                from backend.src.services.factory_adapter import run_factory
+
+                return run_factory(
+                    user_message, self.ephemeral_system_prompt, self.model, self.api_key,
+                    history=self.prefill_messages, response_schema=self.response_schema,
+                    tools=self._get_api_tools(), execute_tools=self._execute_tool_calls,
+                    stream_callback=self.stream_delta_callback,
+                    thinking_callback=self.thinking_callback or self.reasoning_callback,
+                    cancel_check=self.cancel_check, max_tool_calls=self.max_iterations,
+                    timeout=900 if self.enabled_toolsets else 180, images=self.images,
+                )
             if self.provider == "anthropic":
                 return self._run_anthropic(user_message)
             if self.provider == "gemini":
@@ -646,6 +669,8 @@ class AIAgent:
             response_schema=self.response_schema,
             context_drift_callback=self.context_drift_callback,
             images=self.images,
+            cancel_check=self.cancel_check,
+            steer_check=self.steer_check,
         )
         fallback_result = secondary.run_conversation(user_message, task_id=task_id)
         if fallback_result.get("failed"):
@@ -852,6 +877,10 @@ class AIAgent:
         usage_total = _empty_usage()
 
         for _iteration in range(self.max_iterations):
+            if self.steer_check:
+                steer_msg = self.steer_check()
+                if steer_msg:
+                    input_items.append({"role": "user", "content": steer_msg})
             kwargs: dict[str, Any] = {
                 "model": self.model,
                 "input": input_items,
@@ -1058,6 +1087,10 @@ class AIAgent:
         for _iteration in range(self.max_iterations):
             # Long-Horizon: comprime historico se ultrapassar o limite de contexto
             messages = self._compress_history_if_needed(messages)
+            if self.steer_check:
+                steer_msg = self.steer_check()
+                if steer_msg:
+                    messages.append({"role": "user", "content": steer_msg})
             kwargs = {token_limit_kwarg: self.max_tokens}
             if "temperature" in self.request_overrides:
                 kwargs["temperature"] = self.request_overrides["temperature"]
@@ -1376,6 +1409,10 @@ class AIAgent:
 
         for _iteration in range(self.max_iterations):
             messages = self._compress_history_if_needed(messages)
+            if self.steer_check:
+                steer_msg = self.steer_check()
+                if steer_msg:
+                    messages.append({"role": "user", "content": steer_msg})
 
             stream = client.chat(
                 model=self.model,
@@ -1609,6 +1646,10 @@ class AIAgent:
         for _iteration in range(self.max_iterations):
             # Long-Horizon: comprime historico se ultrapassar o limite de contexto
             messages = self._compress_history_if_needed(messages)
+            if self.steer_check:
+                steer_msg = self.steer_check()
+                if steer_msg:
+                    messages.append({"role": "user", "content": steer_msg})
             kwargs: dict[str, Any] = {}
             if "temperature" in self.request_overrides:
                 kwargs["temperature"] = self.request_overrides["temperature"]
@@ -1868,6 +1909,13 @@ class AIAgent:
         usage_total = _empty_usage()
 
         for _iteration in range(self.max_iterations):
+            # steer_check NAO esta ligado neste loop: a Interactions API usa
+            # `next_input` stateful (function_result items), e o formato exato
+            # de um item de texto de usuario avulso misturado com esses
+            # resultados nao foi confirmado na documentacao (mesma cautela da
+            # nota de thoughtSignature abaixo) -- arriscar o formato quebraria
+            # silenciosamente turnos Gemini em vez de so nao ter steer. Redirecionar
+            # um turno Gemini em andamento cai no cancelamento (best-effort) por ora.
             # Risco conhecido (auditoria 2026-07-26, nao implementado): Gemini 3
             # exige o echo de `thoughtSignature` em partes function_call na
             # proxima chamada (400 se omitido). Aqui usamos `store: True` +

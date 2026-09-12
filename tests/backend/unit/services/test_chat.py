@@ -53,6 +53,18 @@ class TestAnalyzePageTool:
         out = json.loads(analyze_page({}))
         assert "error" in out
 
+    def test_invalid_browserless_url_reports_configuration_not_site_block(self):
+        failure = RuntimeError("BrowserType.connect_over_cdp: Invalid URL")
+        with patch(
+            "backend.src.services.browser.fetch_rendered_html_and_screenshot",
+            new=AsyncMock(side_effect=failure),
+        ):
+            out = json.loads(analyze_page({"url": "https://example.com"}))
+
+        assert out["error_code"] == "browserless_invalid_url"
+        assert out["failure_source"] == "configuração interna do Browserless/CDP"
+        assert "Não há evidência de bloqueio" in out["diagnostic"]
+
     def test_url_path_fetches_and_analyzes(self):
         issues = [{"id": "p-1", "criterion": "1.1.1", "severity": "high",
                    "element": "img", "description": "x"}]
@@ -184,6 +196,17 @@ class TestAnalyzeSiteTool:
     def test_no_input_returns_error(self):
         out = json.loads(analyze_site({}))
         assert "error" in out
+
+    def test_all_render_failures_preserve_configuration_diagnostic(self):
+        failure = RuntimeError("BrowserType.connect_over_cdp: Invalid URL")
+        with patch(
+            "backend.src.services.browser.fetch_rendered_html_and_screenshot",
+            new=AsyncMock(side_effect=failure),
+        ):
+            out = json.loads(analyze_site({"urls": ["https://example.com"]}))
+
+        assert out["error_code"] == "browserless_invalid_url"
+        assert "Não há evidência de bloqueio" in out["diagnostic"]
 
     def test_crawl_site_path_crawls_and_analyzes(self):
         from backend.src.services.crawler import CrawlPageResult
@@ -421,15 +444,21 @@ class _FakeAgent:
         self._cb = kwargs
 
     def run_conversation(self, user_message, **_k):
-        assert self._cb["thinking_callback"] is not None
-        assert self._cb["reasoning_callback"] is not None
-        self._cb["thinking_callback"]("Analisando o problema...")
-        self._cb["reasoning_callback"]("Raciocinando sobre WCAG 2.2...")
+        # Raciocínio do modelo é privado: o runtime não registra callbacks que
+        # possam encaminhar esse conteúdo para a interface.
+        assert self._cb.get("thinking_callback") is None
+        assert self._cb.get("reasoning_callback") is None
         self._cb["tool_start_callback"]("id1", "analyze_page", {})
         self._cb["tool_complete_callback"]("id1", "analyze_page", {}, "{}")
         self._cb["stream_delta_callback"]("Ola")
         self._cb["stream_delta_callback"](" mundo")
         return {"final_response": "Ola mundo", "failed": False}
+
+
+def test_clean_newlines_preserves_human_friendly_formatting():
+    from backend.src.services.chat_runtime import clean_newlines
+
+    assert clean_newlines("Título\r\n\r\n- item\r\n\r\n`código`") == "Título\n\n- item\n\n`código`"
 
 
 class _FailingAgent:
@@ -440,6 +469,20 @@ class _FailingAgent:
         return {"failed": True, "error": "provider 400"}
 
 
+class _RawToolErrorAgent:
+    def __init__(self, **kwargs):
+        self._cb = kwargs
+
+    def run_conversation(self, user_message, **_k):
+        self._cb["tool_complete_callback"](
+            "id-raw",
+            "analyze_page",
+            {},
+            "{\"error\": \"BrowserType.connect_over_cdp: Invalid URL\\nCall log: secret-token\"}",
+        )
+        return {"final_response": "A análise não pôde ser concluída.", "failed": False}
+
+
 @pytest.mark.asyncio
 async def test_stream_chat_emits_event_sequence():
     with patch("backend.src.services.chat_runtime.AIAgent", new=_FakeAgent):
@@ -447,13 +490,24 @@ async def test_stream_chat_emits_event_sequence():
 
     types = [e["type"] for e in events]
     assert types[0] == "stream_id"
-    assert "thinking" in types
-    assert "reasoning" in types
+    assert "thinking" not in types
+    assert "reasoning" not in types
     assert "tool_start" in types
     assert "tool_result" in types
     assert types.count("token") == 2
     assert types[-1] == "done"
     assert events[-1]["final"] == "Ola mundo"
+
+
+@pytest.mark.asyncio
+async def test_stream_chat_sanitizes_raw_tool_errors_before_emitting_them():
+    with patch("backend.src.services.chat_runtime.AIAgent", new=_RawToolErrorAgent):
+        events = [ev async for ev in stream_chat("audita isto", history=[])]
+
+    tool_error = next(ev for ev in events if ev["type"] == "tool_result")
+    assert "connect_over_cdp" not in tool_error["error"]
+    assert "secret-token" not in tool_error["error"]
+    assert "mecanismo interno de navegação" in tool_error["error"]
 
 
 @pytest.mark.asyncio

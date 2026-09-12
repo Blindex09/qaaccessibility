@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 
 class TestModelsRoute:
-    def test_lists_six_chat_providers_with_models(self, client):
+    def test_lists_seven_chat_providers_with_models(self, client):
         from types import SimpleNamespace
         mock_info = SimpleNamespace(release_date="2026-01-01")
         with patch("agent.models_dev.fetch_models_dev", return_value={}), patch(
@@ -17,8 +17,8 @@ class TestModelsRoute:
         assert resp.status_code == 200
         data = resp.json()
         ids = [p["id"] for p in data["providers"]]
-        # "agentic" (lógico) vem primeiro; depois os 5 providers concretos
-        assert ids == ["agentic", "openai", "anthropic", "gemini", "xai", "ollama-cloud"]
+        # "agentic" (lógico) vem primeiro; depois os 6 providers concretos
+        assert ids == ["agentic", "openai", "anthropic", "gemini", "xai", "ollama-cloud", "factory"]
         assert "Groq" not in [p["label"] for p in data["providers"]]
         # "agentic" é um provider lógico: só expõe "alto", sem modelos concretos
         agentic = data["providers"][0]

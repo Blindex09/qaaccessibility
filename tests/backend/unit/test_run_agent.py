@@ -1,4 +1,5 @@
 import json
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -1842,3 +1843,109 @@ class TestNativeWebSearchInParallelWithTavilyExa:
         tool_types = [t.get("type") for t in tools_sent if isinstance(t, dict)]
         assert "web_search" not in tool_types
         assert "google_search" not in tool_types
+
+
+class TestSteerCheck:
+    """Redirecionar um turno em andamento (POST /chat/steer -> chat_progress ->
+    steer_check) injeta a correção como próxima mensagem de usuário, sem
+    descartar o progresso (tool_call + resultado) já produzido -- CLAUDE.md,
+    "agente = modelo + harness" -> comportamento conversacional obrigatório."""
+
+    def test_openai_responses_injects_steer_message_between_iterations(self):
+        call_obj = MagicMock()
+        call_obj.type = "function_call"
+        call_obj.call_id = "call_1"
+        call_obj.id = "call_1"
+        call_obj.name = "noop_tool"
+        call_obj.arguments = "{}"
+        call_obj.model_dump.return_value = {
+            "type": "function_call", "call_id": "call_1", "id": "call_1",
+            "name": "noop_tool", "arguments": "{}",
+        }
+
+        def _response(output):
+            resp = MagicMock()
+            resp.status = "completed"
+            resp.output = output
+            resp.output_text = "final" if not output else ""
+            resp.usage = None
+            return resp
+
+        first_response = _response([call_obj])
+        second_response = _response([])
+        calls: list[dict] = []
+
+        def _create(**kwargs):
+            calls.append(kwargs)
+            return first_response if len(calls) == 1 else second_response
+
+        mock_client = MagicMock()
+        mock_client.responses.create.side_effect = _create
+
+        steer_calls = {"n": 0}
+
+        def steer_check():
+            steer_calls["n"] += 1
+            # Sem correção pendente na 1a iteração; a correção chega só depois
+            # do primeiro tool_call já ter sido processado.
+            return None if steer_calls["n"] == 1 else "na verdade, olhe só os formulários"
+
+        agent = _build_agent("openai", "gpt-5.6")
+        agent.max_iterations = 3
+        agent.steer_check = steer_check
+        with (
+            patch.object(agent, "_execute_tool_calls", return_value={"call_1": "{}"}),
+            patch("openai.OpenAI", return_value=mock_client),
+        ):
+            result = agent._run_openai("hello")
+
+        assert result["failed"] is False
+        assert len(calls) == 2
+        # A correção entra no `input` da 2a chamada junto com o replay do
+        # tool_call e seu resultado -- nada do que já foi produzido some.
+        second_call_input = calls[1]["input"]
+        assert {"role": "user", "content": "na verdade, olhe só os formulários"} in second_call_input
+        assert any(item.get("type") == "function_call_output" for item in second_call_input)
+
+    def test_chat_completions_injects_steer_message_between_iterations(self):
+        """Mesmo canal, formato de mensagens do endpoint Chat Completions
+        (compartilhado por xAI/Ollama Cloud via _run_chat_completions). Sem
+        callback de streaming -> passa pelo ramo síncrono do loop."""
+        agent = _build_agent("xai", "grok-5")
+        seen_messages: list[list[Any]] = []
+
+        first = MagicMock()
+        first.usage = None
+        first.choices = [MagicMock(message=MagicMock(
+            content=None,
+            tool_calls=[MagicMock(id="call_1", function=MagicMock(name="noop_tool", arguments="{}"))],
+        ))]
+        second = MagicMock()
+        second.usage = None
+        second.choices = [MagicMock(message=MagicMock(content="final", tool_calls=None))]
+
+        def _create(**kwargs):
+            seen_messages.append(list(kwargs["messages"]))
+            return first if len(seen_messages) == 1 else second
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = _create
+
+        steer_calls = {"n": 0}
+
+        def steer_check():
+            steer_calls["n"] += 1
+            return None if steer_calls["n"] == 1 else "checa só o contraste"
+
+        agent.max_iterations = 3
+        agent.steer_check = steer_check
+        with (
+            patch.object(agent, "_execute_tool_calls", return_value={"call_1": "{}"}),
+            patch("openai.OpenAI", return_value=mock_client),
+        ):
+            result = agent._run_chat_completions("hello")
+
+        assert result["failed"] is False
+        assert len(seen_messages) == 2
+        assert {"role": "user", "content": "checa só o contraste"} in seen_messages[1]
+        assert any(isinstance(m, dict) and m.get("role") == "tool" for m in seen_messages[1])

@@ -186,6 +186,84 @@ nome ou é removido, esta tabela deve ser atualizada na mesma entrega.
 
 ---
 
+## 12. Matriz complementar de Verification, Validation e Evals
+
+Esta seção consolida os nomes usados nas validações solicitadas para o
+projeto. Os termos são relacionados, mas não intercambiáveis: testes de
+unidade verificam pequenas unidades; validação de sistema verifica o produto
+integrado; evals verificam comportamento, trajetória, segurança e qualidade
+do agente.
+
+### 12.1 Camadas de Verification and Validation
+
+| Conceito | O que verifica | Evidência no projeto |
+|----------|----------------|----------------------|
+| Unit Tests | Funções, classes e regras isoladas | `tests/backend/unit/`; `web/src/**/__tests__/` |
+| Component / Module Tests | Um módulo completo, isolado de dependências externas | `tests/backend/unit/agents/`; testes de services e routes |
+| Integration Tests | Fluxo entre módulos e rotas com dependências controladas | `tests/backend/integration/` |
+| E2E Tests | Sistema real atravessando frontend, backend e navegador | `tests/web/e2e/`; scripts `scripts/run_*e2e.py` |
+| System-Level Validation / System Validation | Aplicação integrada inicializa, monta rotas e mantém invariantes globais | `tests/backend/smoke/test_smoke.py`; `test_agent_contracts.py` |
+| Acceptance Testing | Critérios observáveis do usuário são satisfeitos | Jest de telas/hooks e `tests/web/e2e/accessibility.spec.ts` |
+| Runtime Verification | O artefato compilado executa em ambiente semelhante ao uso | `npx expo export:web`; Lighthouse; Playwright E2E |
+| Production Verification / Runtime Verification | O comportamento observado em execução real é seguro, resiliente e mensurável | `tests/backend/real_llm/test_09_production_observability_real.py`; traces e telemetry |
+| Production Observability | Logs, métricas, hooks, custo, latência e trajetória explicam a execução | `services/telemetry.py`; `test_telemetry_instrumentation.py`; `test_telemetry_scoring.py` |
+| Continuous Verification and Validation | Repetição automática desses gates a cada alteração e antes da liberação | CI, `ruff`, `mypy`, `tsc`, Jest, pytest, build e Lighthouse |
+
+### 12.2 Componentes e comportamento de agentes
+
+| Conceito | Critério | Evidência |
+|----------|----------|-----------|
+| Component Evals | Um agente isolado retorna schema e invariantes válidos com entrada representativa | `real_llm/test_01_component_real.py` (provider real, opt-in); contratos em `unit/test_agent_contracts.py` |
+| Agent Evals | O agente toma a decisão correta para um cenário comportamental | `real_llm/test_02_agent_evals_real.py`; `unit/test_prompt_regression.py` |
+| Trajectory Evals | A sequência de decisões, retries, tools e transições é correta, não apenas o resultado final | `real_llm/test_03_trajectory_evals_real.py`; `services/trace_replay.py` |
+| Tool/Integration Evals | A ferramenta correta é escolhida com argumentos, permissões e efeitos corretos | testes de `chat_tools`, `tool_approval`, `mcp_server`, `remote_runners` e integrações |
+| E2E Environment Evals | O contrato permanece válido através do ambiente HTTP completo | `real_llm/test_04_e2e_environment_real.py`; rotas de integração |
+| Adversarial Evals | Prompt injection, input não confiável, output malformado, timeout e falha parcial não sequestram nem quebram o sistema | `real_llm/test_05_adversarial_evals_real.py`; `test_security_ssrf.py`; contratos adversariais |
+| Accessibility Validation | O resultado e a própria UI são utilizáveis e conformes com WCAG/axe | `real_llm/test_06_accessibility_evals_real.py`; `tests/web/e2e/accessibility.spec.ts`; Lighthouse |
+| Runtime/Production Evals | Logs, hooks, erros, degradação e observabilidade funcionam durante uma execução real | `real_llm/test_09_production_observability_real.py`; telemetry e error formatter |
+
+Os testes `real_llm` são deliberadamente opt-in porque consomem tempo e
+créditos de provider. Para executá-los:
+
+```powershell
+$env:RUN_REAL_LLM_TESTS="1"
+$env:OLLAMA_API_KEY="..."
+python -m pytest tests/backend/real_llm -q
+```
+
+Sem essas variáveis, `pytest` deve reportar esses testes como `skipped`, e
+nunca como aprovação de comportamento contra um modelo real.
+
+### 12.3 Golden Tasks / Golden Scenarios
+
+**Golden Tasks** ou **Golden Scenarios** são casos representativos, estáveis
+e versionados que definem o comportamento que não pode regredir. No projeto,
+a fonte única é `tests/backend/unit/test_prompt_regression.py::GOLDEN_CASES`:
+
+| Caso | Cenário | Expectativa |
+|------|---------|-------------|
+| GC001 | imagem sem `alt` | detectar conteúdo não textual (1.1.1) |
+| GC002 | botão sem nome acessível | detectar nome/role/value (4.1.2) |
+| GC003 | campo de formulário sem label | detectar associação e identificação do campo |
+| GC004 | link formado apenas por imagem sem `alt` | detectar nome discernível/conteúdo não textual |
+| GC005 | salto de heading (`h1` → `h3`) | detectar ordem e hierarquia de headings |
+
+Esses casos possuem duas formas de execução:
+
+- **Offline/determinística:** mocks e regras de contrato, usada no CI e sem
+  custo externo (`test_prompt_regression.py`, 9 testes aprovados na última
+  execução).
+- **Real/behavioral:** os mesmos casos enviados ao agente e ao provider real,
+  usada para medir recall, variância e drift (`test_02_agent_evals_real.py`,
+  `test_07_regression_evals_real.py` e `test_11_multi_run_and_replay_real.py`).
+
+Um caso novo deve nascer de uma falha real ou de um requisito importante,
+ser sanitizado, ganhar expectativa explícita e entrar na regressão permanente.
+Resultado final, trajetória, uso de ferramentas, segurança, acessibilidade e
+observabilidade devem ser avaliados conforme o risco do cenário.
+
+---
+
 ## Resumo executivo
 
 | Conceito | Promessas | Evidências | Status |
@@ -671,5 +749,18 @@ Limitação conhecida: o produto ainda não possui quadro persistente de backlog
 reatribuição manual ou histórico de cerimônias. O plano é gerado por turno e o
 progresso é apresentado na conversa; isso não deve ser descrito como Scrum
 persistente até essa camada ser implementada.
+
+### Revalidação das falhas de 2026-09-04
+
+O [relatório de correções](audits/2026-09-04-fixes/REPORT.md) separa regressões
+automatizadas, chamadas reais Factory, golden scenarios, trajetória de agentes
+e gates Skillgate. Os resultados anteriores em `audits/2026-09-04` são baseline,
+não o estado após as correções. Testes ignorados e limites de produção continuam
+explicitamente fora da aprovação.
+
+Atualização da rodada: os 41 casos opt-in foram executados com Factory;
+[41/41 tiveram aprovação após reexecuções](audits/2026-09-04-fixes/REAL-41.md).
+A suíte comum mantém opt-in para chamadas pagas; isso não significa que os
+casos deixaram de ser executados na auditoria. Ollama permanece separado por quota.
 
 ---

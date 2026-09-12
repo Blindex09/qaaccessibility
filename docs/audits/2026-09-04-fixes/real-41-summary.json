@@ -1,0 +1,217 @@
+{
+  "provider": "factory",
+  "model": "auto",
+  "total": 41,
+  "passed": 41,
+  "cases": [
+    {
+      "test": "tests.backend.real_llm.test_01_component_real::test_perceiver_real_call_returns_valid_schema",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_01_component_real::test_robustness_real_call_returns_valid_schema",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_01_component_real::test_perceiver_clean_html_does_not_hallucinate_issues",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_02_agent_evals_real::test_golden_case_detected_by_real_agent[GC001]",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_02_agent_evals_real::test_golden_case_detected_by_real_agent[GC002]",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_02_agent_evals_real::test_golden_case_detected_by_real_agent[GC003]",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_02_agent_evals_real::test_golden_case_detected_by_real_agent[GC004]",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_02_agent_evals_real::test_golden_case_detected_by_real_agent[GC005]",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_03_trajectory_evals_real::test_trajectory_completes_successfully",
+      "status": "passed",
+      "source": "real-41-3344a087.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_03_trajectory_evals_real::test_trajectory_ran_core_agents",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_03_trajectory_evals_real::test_trajectory_triggered_conditional_agents_by_structure",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_03_trajectory_evals_real::test_trajectory_no_agent_hangs_or_fails_silently",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_03_trajectory_evals_real::test_trajectory_final_state_deduplicates_issues",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_04_e2e_environment_real::test_e2e_analyze_file_returns_200",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_04_e2e_environment_real::test_e2e_analyze_file_response_matches_agent_result_contract",
+      "status": "passed",
+      "source": "real-41-3344a087.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_04_e2e_environment_real::test_e2e_analyze_file_detects_real_issue_end_to_end",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_04_e2e_environment_real::test_e2e_analyze_file_rejects_oversized_upload",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_05_adversarial_evals_real::test_prompt_injection_in_html_body_does_not_hijack_output",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_05_adversarial_evals_real::test_prompt_injection_html_comment_does_not_leak_system_prompt",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_05_adversarial_evals_real::test_injected_fake_severity_does_not_override_real_assessment",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_06_accessibility_evals_real::test_accessibility_eval_pipeline_succeeds",
+      "status": "passed",
+      "source": "real-41-3344a087.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_06_accessibility_evals_real::test_accessibility_eval_recall_meets_minimum_threshold",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_06_accessibility_evals_real::test_accessibility_eval_clean_page_has_low_false_positive_rate",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_07_regression_evals_real::test_no_regression_vs_recorded_baseline[GC001]",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_07_regression_evals_real::test_no_regression_vs_recorded_baseline[GC002]",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_07_regression_evals_real::test_no_regression_vs_recorded_baseline[GC003]",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_07_regression_evals_real::test_no_regression_vs_recorded_baseline[GC005]",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_07_regression_evals_real::test_baseline_model_matches_or_flags_drift",
+      "status": "passed",
+      "source": "real-41-3344a087.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_08_online_evals_real::test_online_eval_scores_good_trace_as_passing",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_08_online_evals_real::test_online_eval_scores_bad_trace_lower_than_good_trace",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_08_online_evals_real::test_online_eval_noop_without_provider",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_09_production_observability_real::test_unreachable_endpoint_produces_humanized_error_not_a_crash",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_09_production_observability_real::test_real_call_emits_structured_logs_not_print",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_09_production_observability_real::test_json_parse_failure_from_real_provider_fails_explicitly_not_silently",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_09_production_observability_real::test_hooks_fire_during_a_real_call",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_09_production_observability_real::test_hook_registered_by_test_never_breaks_a_real_call",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_10_planning_real::test_planner_produces_a_real_ordered_plan",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_10_planning_real::test_planner_output_converts_to_usable_fixer_instruction",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_10_planning_real::test_planner_does_not_invent_a_fixed_priority_regardless_of_input",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_11_multi_run_and_replay_real::test_golden_case_multi_run_statistical_eval",
+      "status": "passed",
+      "source": "real-41.xml"
+    },
+    {
+      "test": "tests.backend.real_llm.test_11_multi_run_and_replay_real::test_trace_replay_reproduces_result_without_calling_llm_again",
+      "status": "passed",
+      "source": "real-41.xml"
+    }
+  ],
+  "sources": [
+    "real-41.xml",
+    "real-41-3344a087.xml"
+  ]
+}

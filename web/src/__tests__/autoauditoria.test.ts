@@ -69,13 +69,11 @@ describe("WCAG 2.5.3 Label in Name -- campo de mensagem", () => {
   });
 });
 
-describe("WCAG 2.1.1 Keyboard -- botoes indisponiveis continuam alcancaveis", () => {
-  test("o botao de enviar nao usa `disabled`", () => {
-    // `disabled` no React Native Web tira do tab order: quem navega por teclado
-    // nao encontra o botao nem descobre POR QUE esta indisponivel.
+describe("WCAG 2.1.1 Keyboard -- botoes indisponiveis comunicam seu estado", () => {
+  test("o botao de enviar usa o estado nativo disabled", () => {
     const bloco = CHAT.slice(CHAT.indexOf("onPress={streaming ? stop : handleSend}"));
     const fim = bloco.indexOf("</TouchableOpacity>");
-    expect(bloco.slice(0, fim)).not.toMatch(/\sdisabled=\{/);
+    expect(bloco.slice(0, fim)).toMatch(/\sdisabled=\{naoPodeEnviar\}/);
   });
 
   test("usa accessibilityState.disabled (-> aria-disabled)", () => {

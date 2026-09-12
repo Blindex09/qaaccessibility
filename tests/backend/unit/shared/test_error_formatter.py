@@ -67,3 +67,23 @@ def test_format_network_timeout():
     assert "provedor de IA" in out
     assert "Ollama" in out
 
+
+def test_format_browserless_error_does_not_expose_raw_details():
+    raw = (
+        "BrowserType.connect_over_cdp: Invalid URL\n"
+        "Call log: retrieving websocket url from secret-token-value"
+    )
+    out = format_human_friendly_error(raw)
+    assert "mecanismo interno de navegação" in out
+    assert "connect_over_cdp" not in out
+    assert "secret-token-value" not in out
+    assert "Call log" not in out
+
+
+def test_format_unknown_error_does_not_return_technical_detail():
+    raw = "Traceback (most recent call last): RuntimeError: internal secret"
+    out = format_human_friendly_error(raw)
+    assert "Não foi possível concluir esta etapa" in out
+    assert "Traceback" not in out
+    assert "internal secret" not in out
+

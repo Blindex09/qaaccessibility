@@ -86,6 +86,29 @@ class TestChatClarifyRoute:
         assert resp.json() == {"delivered": False}
 
 
+class TestChatSteerRoute:
+    def test_steer_delivers_to_running_turn(self, client):
+        from backend.src.services import chat_progress
+
+        token = chat_progress.new_cancel_token()
+        try:
+            resp = client.post("/chat/steer", json={"stream_id": token, "message": "checa só o contraste"})
+            assert resp.status_code == 200
+            assert resp.json() == {"delivered": True}
+            assert chat_progress.pop_pending_steer(token) == "checa só o contraste"
+        finally:
+            chat_progress.clear_cancel_token(token)
+
+    def test_steer_unknown_stream_id_not_delivered(self, client):
+        resp = client.post("/chat/steer", json={"stream_id": "naoexiste", "message": "x"})
+        assert resp.status_code == 200
+        assert resp.json() == {"delivered": False}
+
+    def test_steer_requires_non_empty_message(self, client):
+        resp = client.post("/chat/steer", json={"stream_id": "qualquer", "message": ""})
+        assert resp.status_code == 422
+
+
 class TestChatHistoryRoutes:
     def test_get_history_returns_persisted_messages(self, client, tmp_path, monkeypatch):
         monkeypatch.setattr("tempfile.gettempdir", lambda: str(tmp_path))

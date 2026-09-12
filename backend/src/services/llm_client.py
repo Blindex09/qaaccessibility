@@ -388,6 +388,10 @@ async def call_llm(
     # modelo estiver fora do ar, o proximo da cadeia e tentado automaticamente
     # antes de desistir -- nunca fica sem garantia de JSON so porque um unico
     # modelo falhou.
+    if provider == "factory" and not api_key:
+        import os
+
+        api_key = os.getenv("FACTORY_API_KEY")
     candidates: list[tuple[str, str, str | None, str | None]] = [(provider, model, api_key, base_url)]
     if provider == "opencode-go" and response_schema is not None:
         from backend.src.services.model_router import resolve_structured_output_chain

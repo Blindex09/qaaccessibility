@@ -1,7 +1,7 @@
 import json
 import logging
 
-from backend.src.services.llm_client import call_llm, extract_json_array
+from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
 
 logger = logging.getLogger(__name__)
@@ -124,8 +124,8 @@ async def run_a11y_expert_reviewer(
         len(issues),
     )
 
-    # Batch processing: quando muitos issues, divide em lotes de 20
-    BATCH_SIZE = 20
+    # Enriched output is substantially longer than the input: bound both.
+    BATCH_SIZE = 6
     if len(issues) > BATCH_SIZE:
         return await _review_in_batches(
             issues, batch_size=BATCH_SIZE, known_false_positive_patterns=known_false_positive_patterns
@@ -156,7 +156,7 @@ async def _review_single_batch(
     issues: list[AccessibilityIssue],
     known_false_positive_patterns: list[dict] | None = None,
 ) -> AgentResult:
-    """Processa um único lote de issues (ate ~20 itens)."""
+    """Processa um único lote de issues (ate 6 itens no fluxo padrão)."""
     issues_json = json.dumps(
         [i.model_dump() for i in issues],
         ensure_ascii=False,
@@ -172,6 +172,8 @@ async def _review_single_batch(
             ),
             temperature=0.1,
             max_tokens=16384,
+            response_schema=ISSUES_RESPONSE_SCHEMA,
+            agent_label="a11y_expert_reviewer",
         )
 
         reviewed_dicts = extract_json_array(raw)
@@ -211,7 +213,7 @@ async def _review_single_batch(
 
 async def _review_in_batches(
     issues: list[AccessibilityIssue],
-    batch_size: int = 20,
+    batch_size: int = 6,
     known_false_positive_patterns: list[dict] | None = None,
 ) -> AgentResult:
     """

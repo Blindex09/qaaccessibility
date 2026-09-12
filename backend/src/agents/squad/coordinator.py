@@ -34,6 +34,7 @@ CLAUDE.md nunca é invertida, e nenhuma palavra-chave do texto do usuário
 condiciona o fluxo.
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from typing import Any
@@ -56,6 +57,15 @@ logger = logging.getLogger(__name__)
 # aqui (ver `record_*`), nunca reimplementados.
 _PLANNING_TASK_IDS = ("product-scope", "tech-approach", "cycle-planning")
 _CLOSING_TASK_IDS = ("qa-validation", "release-readiness")
+_ROLE_PROGRESS_INTERVAL_SECONDS = 12.0
+
+_ROLE_PROGRESS_MESSAGES = {
+    SquadRole.PRODUCT_OWNER: "Definindo o escopo e os critérios de aceite.",
+    SquadRole.TECH_LEAD: "Avaliando a abordagem técnica e os riscos.",
+    SquadRole.ENGINEERING_MANAGER: "Organizando a sequência do trabalho e as dependências.",
+    SquadRole.QA_LEAD: "Preparando a evidência e as verificações necessárias.",
+    SquadRole.RELEASE: "Avaliando a prontidão da entrega e o risco residual.",
+}
 
 
 def build_squad_plan(objective: str) -> SquadPlan:
@@ -290,7 +300,29 @@ class SquadCoordinator:
             return
 
         yield self._transition(task, TaskStatus.IN_PROGRESS)
-        decision: RoleDecision = await runner(self._context())
+        role_task = asyncio.create_task(runner(self._context()))
+        try:
+            while True:
+                try:
+                    decision = await asyncio.wait_for(
+                        asyncio.shield(role_task),
+                        timeout=_ROLE_PROGRESS_INTERVAL_SECONDS,
+                    )
+                    break
+                except asyncio.TimeoutError:
+                    yield {
+                        "type": "squad_progress",
+                        "task_id": task.id,
+                        "role": task.role.value,
+                        "message": _ROLE_PROGRESS_MESSAGES.get(
+                            task.role,
+                            f"{task.role.value}: o trabalho continua em andamento.",
+                        ),
+                    }
+        finally:
+            if not role_task.done():
+                role_task.cancel()
+                await asyncio.gather(role_task, return_exceptions=True)
         self.plan.decisions.append(decision)
         yield {
             "type": "squad_decision",

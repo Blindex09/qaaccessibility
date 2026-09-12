@@ -6,6 +6,7 @@ import {
   fetchChatHistory,
   sendCancel,
   sendClarify,
+  sendSteer,
   streamChat,
   type ChatEvent,
   type SquadPlan,
@@ -51,7 +52,7 @@ export interface ChatMessage {
   content: string;
   /** Conteúdo original da mensagem (com base64 de anexos) para enviar ao backend. */
   rawContent?: string;
-  kind?: "agent" | "phase" | "tool" | "clarify";
+  kind?: "agent" | "phase" | "squad" | "tool" | "clarify" | "steer";
   groupKey?: string;
   /** Estado estruturado da execução; evita inferir sucesso/falha a partir do texto visível. */
   toolCall?: ToolCallData;
@@ -225,11 +226,6 @@ export function useChat() {
   const [durationMs, setDurationMs] = useState<number | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [conversationId, setConversationId] = useState(initialConversationId);
-  /** Raciocínio acumulado do turno corrente -- diferente da linha de status
-   * transitória ("Raciocinando: ...", que some), fica disponível numa seção
-   * recolhível ("Ver raciocínio") mesmo depois do turno terminar. Reseta a
-   * cada novo `send()`. */
-  const [reasoningText, setReasoningText] = useState("");
   /** Fontes reais citadas pelas ferramentas de pesquisa neste turno (dedup
    * por URL), pra seção "Fontes consultadas". Reseta a cada novo `send()`. */
   const [turnSources, setTurnSources] = useState<ChatSource[]>([]);
@@ -242,6 +238,14 @@ export function useChat() {
   const announcementClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+    elapsedTimerRef.current = null;
+    if (announceTimerRef.current) clearTimeout(announceTimerRef.current);
+    if (announcementClearTimerRef.current) clearTimeout(announcementClearTimerRef.current);
+  }, []);
   /** ID do turno em andamento (evento `stream_id`), usado por `stop()` para
    * pedir cancelamento explícito ao backend além do abort() da conexão. */
   const streamIdRef = useRef<string | null>(null);
@@ -343,7 +347,6 @@ export function useChat() {
       setActivity("");
       setDurationMs(null);
       setElapsedMs(0);
-      setReasoningText("");
       setTurnSources([]);
       const startedAt = globalThis.performance?.now?.() ?? Date.now();
       const elapsedTimer = setInterval(() => {
@@ -531,10 +534,7 @@ export function useChat() {
                 break;
               case "thinking":
               case "reasoning":
-                if (event.text) {
-                  setReasoningText((current) => current + event.text);
-                  setActivity("Pensando...");
-                }
+                if (event.text) setActivity("Pensando...");
                 break;
               case "phase":
                 setActivity(event.text);
@@ -542,6 +542,15 @@ export function useChat() {
                 break;
               case "agent":
                 pushStatus(_agentLine(event), "agent", false);
+                break;
+              case "analysis_partial":
+                pushStatus(
+                  event.agent
+                    ? `Especialista ${event.completed}/${event.total} concluído: ${event.agent}`
+                    : `Página ${event.completed}/${event.total} concluída: ${event.issues ?? 0} achado(s) acumulado(s)`,
+                  "phase",
+                  false,
+                );
                 break;
               case "squad_plan":
                 setSquadPlan(event.plan);
@@ -565,8 +574,14 @@ export function useChat() {
                     : current,
                 );
                 if (event.status === "in_progress") {
-                  pushStatus(`${squadRoleLabel(event.role)}: ${event.title}`, "phase", false);
+                  pushStatus(`${squadRoleLabel(event.role)}: ${event.title}`, "squad", false);
                 }
+                break;
+              case "squad_progress":
+                // O pulso fica visível no feed navegável. Não é live region:
+                // a pessoa consulta as atualizações com as setas, quando quiser.
+                setActivity(`${squadRoleLabel(event.role)}: ${event.message}`);
+                pushStatus(`${squadRoleLabel(event.role)}: ${event.message}`, "squad", false);
                 break;
               case "squad_decision": {
                 setSquadPlan((current) =>
@@ -585,10 +600,10 @@ export function useChat() {
                       }
                     : current,
                 );
-                // O resumo do papel e anunciado: quem usa leitor de tela
-                // acompanha a squad trabalhando, nao so um contador mudo.
+                // O resumo permanece no feed navegável da squad; não é anúncio
+                // automático para o leitor de tela.
                 if (event.summary) {
-                  pushStatus(`${squadRoleLabel(event.role)}: ${event.summary}`, "phase", false);
+                  pushStatus(`${squadRoleLabel(event.role)}: ${event.summary}`, "squad", false);
                 }
                 break;
               }
@@ -653,6 +668,11 @@ export function useChat() {
                 // leitura antes deste evento chegar -- mas cobre o caso de
                 // cancelamento vindo de outra aba/dispositivo com o mesmo stream_id.
                 setActivity("");
+                clearInterval(elapsedTimer);
+                if (elapsedTimerRef.current === elapsedTimer) elapsedTimerRef.current = null;
+                setStreaming(false);
+                setPendingClarify(null);
+                controller.abort();
                 break;
               case "error":
                 setActivity("");
@@ -682,11 +702,14 @@ export function useChat() {
       } finally {
         clearInterval(elapsedTimer);
         if (elapsedTimerRef.current === elapsedTimer) elapsedTimerRef.current = null;
-        setDurationMs((globalThis.performance?.now?.() ?? Date.now()) - startedAt);
-        setStreaming(false);
-        setActivity("");
-        setPendingClarify(null);
-        abortRef.current = null;
+        // An older aborted request must not reset a newer turn (or an unmounted hook).
+        if (abortRef.current === controller) {
+          setDurationMs((globalThis.performance?.now?.() ?? Date.now()) - startedAt);
+          setStreaming(false);
+          setActivity("");
+          setPendingClarify(null);
+          abortRef.current = null;
+        }
       }
     },
     [announce, messages, streaming],
@@ -713,6 +736,34 @@ export function useChat() {
     },
     [pendingClarify],
   );
+
+  // Redireciona/corrige o turno em andamento sem perder o progresso já feito
+  // (diferente de `stop`, que descarta o turno). Best-effort: só é entregue na
+  // próxima checagem entre chamadas de ferramenta no backend (chat_progress.py).
+  // Registra a correção no histórico visível (mesmo padrão de `answerClarify`)
+  // e retorna se foi de fato entregue, para quem chama decidir se avisa o
+  // usuário de outra forma quando o turno já tiver terminado.
+  const steer = useCallback(async (correction: string): Promise<boolean> => {
+    const trimmed = correction.trim();
+    if (!trimmed || !streamIdRef.current) return false;
+    let delivered = false;
+    try {
+      delivered = await sendSteer(streamIdRef.current, trimmed);
+    } catch {
+      delivered = false;
+    }
+    setMessages((m) => [
+      ...m,
+      {
+        role: "status",
+        content: delivered
+          ? `Você redirecionou: ${trimmed}`
+          : `Não foi possível redirecionar agora (o turno já terminou): ${trimmed}`,
+        kind: "steer",
+      },
+    ]);
+    return delivered;
+  }, []);
 
   const stop = useCallback(() => {
     // abort() é o que garante a UI parar já — não espera a resposta do
@@ -743,7 +794,6 @@ export function useChat() {
     announcement,
     elapsedMs,
     durationMs,
-    reasoningText,
     turnSources,
     /** Quadro da squad: tarefas, papeis, estados, decisoes e portoes. */
     squadPlan,
@@ -752,6 +802,7 @@ export function useChat() {
     send,
     answerClarify,
     stop,
+    steer,
     /** Id da conversa corrente -- estável entre reloads (persistido em localStorage). */
     conversationId,
     /** `false` enquanto o histórico persistido ainda está sendo buscado no mount/troca de conversa. */

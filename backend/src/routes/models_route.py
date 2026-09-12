@@ -19,6 +19,7 @@ CHAT_PROVIDERS: list[tuple[str, str]] = [
     ("gemini", "Google Gemini"),
     ("xai", "xAI Grok"),
     ("ollama-cloud", "Ollama Cloud"),
+    ("factory", "Factory AI / Droid"),
 ]
 
 

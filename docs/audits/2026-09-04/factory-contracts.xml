@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="6" skipped="0" tests="7" time="0.693" timestamp="2026-09-04T20:05:23.082553-03:00" hostname="felipe"><testcase classname="docs.audits.2026-09-04.test_factory_contracts" name="test_positive_control_response_is_returned" time="0.456" /><testcase classname="docs.audits.2026-09-04.test_factory_contracts" name="test_prior_turn_context_reaches_sdk" time="0.002"><failure message="AssertionError: previous turns discarded&#10;assert 'CONTEXT_CANARY_914' in &quot;call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>)&quot;&#10; +  where &quot;call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>)&quot; = str(call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>))&#10; +    where call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>) = &lt;AsyncMock id='2314151017168'&gt;.call_args">sdk = &lt;AsyncMock id='2314151017168'&gt;
+
+    def test_prior_turn_context_reaches_sdk(sdk):
+        invoke(prefill_messages=[{"role": "user", "content": "CONTEXT_CANARY_914"}])
+&gt;       assert "CONTEXT_CANARY_914" in str(sdk.call_args), "previous turns discarded"
+E       AssertionError: previous turns discarded
+E       assert 'CONTEXT_CANARY_914' in "call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>)"
+E        +  where "call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>)" = str(call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>))
+E        +    where call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>) = &lt;AsyncMock id='2314151017168'&gt;.call_args
+
+docs\audits\2026-09-04\test_factory_contracts.py:37: AssertionError</failure></testcase><testcase classname="docs.audits.2026-09-04.test_factory_contracts" name="test_output_schema_reaches_sdk" time="0.014"><failure message="AssertionError: schema discarded&#10;assert None == {'type': 'object', 'properties': {'issues': {'type': 'array'}}}&#10; +  where None = &lt;built-in method get of dict object at 0x0000021ACE2C82C0&gt;('output')&#10; +    where &lt;built-in method get of dict object at 0x0000021ACE2C82C0&gt; = {'model': 'auto', 'api_key': <REDACTED:secret>}.get&#10; +      where {'model': 'auto', 'api_key': <REDACTED:secret>} = call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>).kwargs&#10; +        where call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>) = &lt;AsyncMock id='2314129565456'&gt;.call_args">sdk = &lt;AsyncMock id='2314129565456'&gt;
+
+    def test_output_schema_reaches_sdk(sdk):
+        schema = {"type": "object", "properties": {"issues": {"type": "array"}}}
+        invoke(response_schema=schema)
+&gt;       assert sdk.call_args.kwargs.get("output") == schema, "schema discarded"
+E       AssertionError: schema discarded
+E       assert None == {'type': 'object', 'properties': {'issues': {'type': 'array'}}}
+E        +  where None = &lt;built-in method get of dict object at 0x0000021ACE2C82C0&gt;('output')
+E        +    where &lt;built-in method get of dict object at 0x0000021ACE2C82C0&gt; = {'model': 'auto', 'api_key': <REDACTED:secret>}.get
+E        +      where {'model': 'auto', 'api_key': <REDACTED:secret>} = call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>).kwargs
+E        +        where call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>) = &lt;AsyncMock id='2314129565456'&gt;.call_args
+
+docs\audits\2026-09-04\test_factory_contracts.py:43: AssertionError</failure></testcase><testcase classname="docs.audits.2026-09-04.test_factory_contracts" name="test_qa_toolset_reaches_sdk" time="0.012"><failure message="AssertionError: no QA tool bridge&#10;assert (None)">sdk = &lt;AsyncMock id='2314151388368'&gt;
+
+    def test_qa_toolset_reaches_sdk(sdk):
+        invoke(enabled_toolsets=["a11y_tools"])
+        config = sdk.call_args.kwargs.get("config")
+&gt;       assert config and getattr(config, "mcp_servers", ()), "no QA tool bridge"
+E       AssertionError: no QA tool bridge
+E       assert (None)
+
+docs\audits\2026-09-04\test_factory_contracts.py:49: AssertionError</failure></testcase><testcase classname="docs.audits.2026-09-04.test_factory_contracts" name="test_usage_not_reported_as_zero" time="0.002"><failure message="AssertionError: unknown/real usage reported as zero&#10;assert 0 != 0">sdk = &lt;AsyncMock id='2314151389584'&gt;
+
+    def test_usage_not_reported_as_zero(sdk):
+&gt;       assert invoke()["usage"]["total_tokens"] != 0, "unknown/real usage reported as zero"
+E       AssertionError: unknown/real usage reported as zero
+E       assert 0 != 0
+
+docs\audits\2026-09-04\test_factory_contracts.py:53: AssertionError</failure></testcase><testcase classname="docs.audits.2026-09-04.test_factory_contracts" name="test_system_instruction_uses_sdk_boundary" time="0.008"><failure message="AssertionError: system text demoted into user prompt&#10;assert (None)">sdk = &lt;AsyncMock id='2314151083216'&gt;
+
+    def test_system_instruction_uses_sdk_boundary(sdk):
+        invoke(ephemeral_system_prompt="SYSTEM_CANARY_915")
+        config = sdk.call_args.kwargs.get("config")
+&gt;       assert config and getattr(config, "system_prompt", None), "system text demoted into user prompt"
+E       AssertionError: system text demoted into user prompt
+E       assert (None)
+
+docs\audits\2026-09-04\test_factory_contracts.py:59: AssertionError</failure></testcase><testcase classname="docs.audits.2026-09-04.test_factory_contracts" name="test_permissions_and_deadline_explicit" time="0.002"><failure message="AssertionError: no SDK deadline&#10;assert None&#10; +  where None = &lt;built-in method get of dict object at 0x0000021ACE2E6B80&gt;('timeout')&#10; +    where &lt;built-in method get of dict object at 0x0000021ACE2E6B80&gt; = {'model': 'auto', 'api_key': <REDACTED:secret>}.get&#10; +      where {'model': 'auto', 'api_key': <REDACTED:secret>} = call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>).kwargs&#10; +        where call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>) = &lt;AsyncMock id='2314151436624'&gt;.call_args">sdk = &lt;AsyncMock id='2314151436624'&gt;
+
+    def test_permissions_and_deadline_explicit(sdk):
+        invoke()
+&gt;       assert sdk.call_args.kwargs.get("timeout"), "no SDK deadline"
+E       AssertionError: no SDK deadline
+E       assert None
+E        +  where None = &lt;built-in method get of dict object at 0x0000021ACE2E6B80&gt;('timeout')
+E        +    where &lt;built-in method get of dict object at 0x0000021ACE2E6B80&gt; = {'model': 'auto', 'api_key': <REDACTED:secret>}.get
+E        +      where {'model': 'auto', 'api_key': <REDACTED:secret>} = call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>).kwargs
+E        +        where call('Audit the supplied HTML.', model='auto', api_key= <REDACTED:secret>) = &lt;AsyncMock id='2314151436624'&gt;.call_args
+
+docs\audits\2026-09-04\test_factory_contracts.py:64: AssertionError</failure></testcase></testsuite></testsuites>

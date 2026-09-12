@@ -197,17 +197,14 @@ _EFFORT_TIMEOUT_SECONDS: dict[str, float] = {
     # ligação tradeoff -> reasoning_effort (llm_client.py) faz o modelo
     # "pensar mais" por design em tarefas complexas -- pesquisa confirma que
     # raciocínio pode ser 5-10x mais lento que sem raciocínio, e o padrão de
-    # mercado 2026 pra modelos com raciocínio é 180-300s de timeout conforme
-    # a profundidade. Um timeout FIXO de 180s pra qualquer esforço penalizava
-    # justamente as tarefas que MAIS precisam de qualidade (esforço alto) --
-    # confirmado ao vivo: 11/23 agentes deram timeout numa rodada real após
-    # essa mudança, todos "Timeout after 180.0s".
-    "none": 180.0,
-    "low": 210.0,
-    "medium": 240.0,
-    "high": 300.0,
+    # O timeout é o orçamento de uma única tentativa. O fluxo antigo somava
+    # até 240s + 240s por especialista e prendia a conversa em filas longas.
+    "none": 90.0,
+    "low": 90.0,
+    "medium": 120.0,
+    "high": 150.0,
 }
-_DEFAULT_AGENT_TIMEOUT = 180.0
+_DEFAULT_AGENT_TIMEOUT = 90.0
 
 
 def _get_agent_timeout() -> float:
@@ -237,61 +234,28 @@ async def _timed(name: str, coro_factory) -> tuple[AgentResult, float]:
     captura de excecoes. Nunca propaga excecao — erros sao convertidos em
     AgentResult de falha. Retorna (AgentResult, duration_ms).
 
-    Achado real (2026-08-11, "nada pode falhar" -- pedido do usuário,
-    pesquisa 2026 de resiliência de API de LLM confirma retry+backoff como
-    padrão pra timeout): se a primeira tentativa estourar o timeout, refaz
-    UMA vez (fresh coroutine, mesmo timeout já adaptado ao esforço) antes de
-    desistir -- muitos timeouts são fila/latência transitória do provider,
-    não um problema real da tarefa em si. `coro_factory` (não uma coroutine
-    já criada) é o que torna esse retry possível: uma coroutine só pode ser
-    aguardada uma vez.
+    Cada especialista tem uma única tentativa. Retries de SDK continuam sob
+    controle do provider; o orquestrador não empilha um segundo timeout sobre
+    eles. Falha isolada vira resultado parcial e o restante do ciclo continua.
     """
     loop = asyncio.get_running_loop()
     start = loop.time()
     chat_progress.emit({"type": "agent", "phase": "start", "agent": name})
     timeout = _get_agent_timeout()
-    result: AgentResult | None = None
-
-    for attempt in range(2):
-        retry_token = None
-        if attempt == 1:
-            # Achado real (2026-08-11, confirmado ao vivo contra dequeuniversity
-            # mars page apos o fix de timeout adaptativo+retry): retry com o
-            # MESMO esforco de raciocinio nao ajuda quando o agente e
-            # genuinamente lento por conteudo grande/denso (ex.: robustness,
-            # aria_specialist estouraram 240s DUAS vezes seguidas) -- o
-            # segundo timeout so soma tempo de espera sem mudar o resultado.
-            # Retry rebaixa o tradeoff em +3 (uma escala de esforco abaixo,
-            # ver _reasoning_effort_for_tradeoff em llm_client.py) SO para essa
-            # tentativa, dentro do Task isolado deste agente (ContextVar nao
-            # vaza pros outros agentes rodando em paralelo) -- troca um pouco
-            # de qualidade por uma chance real de terminar dentro do timeout,
-            # em vez de garantidamente falhar de novo com o mesmo esforco.
-            from backend.src.services.complexity_router import get_current_tradeoff, set_current_tradeoff
-
-            retry_token = set_current_tradeoff(get_current_tradeoff() + 3)
+    if chat_progress.is_cancelled():
+        result = AgentResult(agent=name, success=False, data={}, error="Cancelado pelo usuário")
+    else:
         try:
             result = await asyncio.wait_for(coro_factory(), timeout=timeout)
-            break
         except asyncio.TimeoutError:
-            if attempt == 0:
-                logger.warning(
-                    "[Orchestrator] Agente '%s' estourou o timeout (%.0fs) na 1a tentativa; refazendo uma vez com esforço reduzido.",
-                    name,
-                    timeout,
-                )
-                continue
-            result = AgentResult(agent=name, success=False, data={}, error=f"Timeout after {timeout}s (2 tentativas)")
+            logger.warning(
+                "[Orchestrator] Agente '%s' atingiu o orçamento de %.0fs; seguindo com resultado parcial.",
+                name,
+                timeout,
+            )
+            result = AgentResult(agent=name, success=False, data={}, error=f"Timeout after {timeout}s")
         except Exception as exc:
             result = AgentResult(agent=name, success=False, data={}, error=str(exc))
-            break
-        finally:
-            if retry_token is not None:
-                from backend.src.services.complexity_router import reset_current_tradeoff
-
-                reset_current_tradeoff(retry_token)
-
-    assert result is not None
     duration_ms = (loop.time() - start) * 1000
     chat_progress.emit(
         {
@@ -657,12 +621,18 @@ async def _run_analysis_pipeline(
         logger.info("[Orchestrator] Agente pulado: %s -- %s", name, reason)
 
     max_concurrent = get_settings().a11y_max_concurrent_agents
+    modo_execucao = "batch paralelo" if batch_collect else "ciclo agentic sequencial"
     logger.info(
-        "[Orchestrator] Disparando sub-agentes em paralelo (max_concurrent=%d, timeout=%.0fs)",
-        max_concurrent,
+        "[Orchestrator] Disparando especialistas (%s, timeout=%.0fs)",
+        modo_execucao,
         _get_agent_timeout(),
     )
-    chat_progress.emit({"type": "phase", "text": "Analisando a página com especialistas em acessibilidade..."})
+    chat_progress.emit(
+        {
+            "type": "phase",
+            "text": "Analisando a página com especialistas em acessibilidade...",
+        }
+    )
 
     semaphore = asyncio.Semaphore(max_concurrent)
 
@@ -678,7 +648,25 @@ async def _run_analysis_pipeline(
         finally:
             batch_collector.disable(collect_token)
     else:
-        tuples = await asyncio.gather(*[_run_with_semaphore(name, func) for name, func in agents])
+        # Fluxo interativo inspirado no NVDA Studio: um controlador mantém uma
+        # única execução viva, entrega cada papel assim que termina e só então
+        # passa ao próximo. O modo batch acima é deliberadamente separado e
+        # não é usado pelo chat.
+        tuples = []
+        for completed, (name, func) in enumerate(agents, start=1):
+            agent_tuple = await _run_with_semaphore(name, func)
+            tuples.append(agent_tuple)
+            chat_progress.emit(
+                {
+                    "type": "analysis_partial",
+                    "agent": name,
+                    "completed": completed,
+                    "total": len(agents),
+                }
+            )
+            if chat_progress.is_cancelled():
+                logger.info("[Orchestrator] Ciclo agentic interrompido após o papel '%s'", name)
+                break
 
     all_issues: list[AccessibilityIssue] = []
     metrics: list[AgentMetrics] = []
@@ -694,28 +682,28 @@ async def _run_analysis_pipeline(
             )
         )
 
-    for result, duration_ms in tuples:
-        issues_found = len(result.data.get("issues", []))
+    for agent_result, duration_ms in tuples:
+        issues_found = len(agent_result.data.get("issues", []))
         metrics.append(
             AgentMetrics(
-                agent=result.agent,
+                agent=agent_result.agent,
                 duration_ms=round(duration_ms, 1),
                 issues_found=issues_found,
-                success=result.success,
+                success=agent_result.success,
             )
         )
-        all_issues.extend(_extract_issues(result))
-        if not result.success:
+        all_issues.extend(_extract_issues(agent_result))
+        if not agent_result.success:
             logger.warning(
                 "[Orchestrator] Agente '%s' falhou (%.0fms): %s",
-                result.agent,
+                agent_result.agent,
                 duration_ms,
-                result.error,
+                agent_result.error,
             )
         else:
             logger.debug(
                 "[Orchestrator] Agente '%s' concluido em %.0fms -- %d issues",
-                result.agent,
+                agent_result.agent,
                 duration_ms,
                 issues_found,
             )

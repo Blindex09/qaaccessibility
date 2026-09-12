@@ -26,6 +26,7 @@ _PROTECTED_ENV_NAMES = {
     "WEBHOOK_SECRET",
     "OTEL_EXPORTER_OTLP_HEADERS",
     "QA_API_TOKEN",
+    "FACTORY_API_KEY",
 }
 
 
@@ -42,7 +43,7 @@ class Settings(BaseSettings):
     # Configurações (nenhum provider e assumido sem configuração explicita).
     llm_provider: str = Field(
         default="",
-        description="Provedor de LLM: openai, gemini, anthropic, xai, ollama-cloud",
+        description="Provedor de LLM: openai, gemini, anthropic, xai, ollama-cloud, factory",
     )
     llm_api_key: str | None = Field(default=None, description="Chave de API para o provedor")
     llm_base_url: str | None = Field(default=None, description="URL base para o provedor")
@@ -131,13 +132,13 @@ class Settings(BaseSettings):
         ge=1,
         description="Maximo de sub-agentes de análise rodando em paralelo (default 3 para evitar limites de taxa de API)",
     )
-    # Timeout por sub-agente. run_agent.AIAgent não implementa retry/backoff
-    # próprio hoje — o valor generoso (180s) é para acomodar providers lentos
-    # (ex.: Ollama Cloud) em uma única tentativa, não para sobreviver a retries.
+    # Timeout por sub-agente. O orquestrador faz uma única tentativa; um
+    # timeout maior não pode transformar uma conversa interativa em uma fila
+    # de muitos minutos.
     agent_timeout_seconds: float = Field(
-        default=180.0,
+        default=90.0,
         gt=0,
-        description="Timeout wall-clock por sub-agente, em segundos (180s para acomodar providers lentos como Ollama Cloud)",
+        description="Timeout wall-clock por sub-agente, em segundos (90s por padrão)",
     )
 
     # Cache de respostas dos agentes de analise (exact-match, nao semantico --

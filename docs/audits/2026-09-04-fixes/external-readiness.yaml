@@ -1,0 +1,23 @@
+version: 1
+name: qaaccessibility-external-readiness
+gates:
+  - id: backend-suite
+    type: command
+    run: .venv\Scripts\python.exe -m pytest tests/backend -q
+    timeout: 600000
+  - id: backend-lint
+    type: command
+    run: .venv\Scripts\ruff.exe check backend tests/backend
+    timeout: 120000
+  - id: backend-typecheck
+    type: command
+    run: .venv\Scripts\python.exe -m mypy backend/src
+    timeout: 180000
+  - id: frontend-suite
+    type: command
+    run: cd web && npm test -- --runInBand
+    timeout: 600000
+  - id: frontend-typecheck
+    type: command
+    run: cd web && npm run typecheck
+    timeout: 180000

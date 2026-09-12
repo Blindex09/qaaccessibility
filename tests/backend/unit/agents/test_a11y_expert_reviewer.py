@@ -50,6 +50,21 @@ def _make_reviewed_response(issues: list[dict]) -> str:
 
 @pytest.mark.asyncio
 class TestA11yExpertReviewer:
+    async def test_review_batches_are_bounded_and_request_schema(self):
+        from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA
+
+        with patch(
+            "backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer.call_llm",
+            new=AsyncMock(return_value="[]"),
+        ) as call:
+            result = await run_a11y_expert_reviewer([AccessibilityIssue(**ISSUE_REAL) for _ in range(13)])
+        assert result.success is True
+        assert call.await_count == 3
+        for request in call.await_args_list:
+            assert request.kwargs["response_schema"] == ISSUES_RESPONSE_SCHEMA
+            assert request.kwargs["agent_label"] == "a11y_expert_reviewer"
+        assert result.data["batch_count"] == 3
+
     async def test_contract_on_success(self):
         """Contrato basico: agent, success, data com issues."""
         with patch(

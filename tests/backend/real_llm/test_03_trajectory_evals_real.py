@@ -43,7 +43,9 @@ async def real_orchestrate_result() -> AgentResult:
 
 @pytest.mark.asyncio
 async def test_trajectory_completes_successfully(real_orchestrate_result: AgentResult) -> None:
-    assert real_orchestrate_result.success is True, real_orchestrate_result.error
+    from tests.backend.real_llm.conftest import assert_complete_result
+
+    assert_complete_result(real_orchestrate_result)
     assert real_orchestrate_result.agent == "orchestrator"
 
 

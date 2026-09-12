@@ -1,0 +1,45 @@
+{
+  "timestamp_utc": "2026-09-04T23:07:18.950765+00:00",
+  "provider": "factory",
+  "model": "auto",
+  "audit_only_containment": true,
+  "production_parity": false,
+  "cases": [
+    {
+      "name": "informative-image-no-alt",
+      "success": true,
+      "criterion": "1.1.1",
+      "matching_count": 1,
+      "issue_count": 1,
+      "passed": true,
+      "latency_seconds": 15.92
+    },
+    {
+      "name": "decorative-image-negative-control",
+      "success": true,
+      "criterion": "1.1.1",
+      "matching_count": 0,
+      "issue_count": 0,
+      "passed": true,
+      "latency_seconds": 12.99
+    },
+    {
+      "name": "unnamed-button",
+      "success": true,
+      "criterion": "4.1.2",
+      "matching_count": 1,
+      "issue_count": 1,
+      "passed": true,
+      "latency_seconds": 18.08
+    },
+    {
+      "name": "html-injection",
+      "success": true,
+      "criterion": "1.1.1",
+      "matching_count": 1,
+      "issue_count": 1,
+      "passed": true,
+      "latency_seconds": 15.53
+    }
+  ]
+}

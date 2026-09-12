@@ -1,0 +1,103 @@
+{
+  "target": "C:\\qaaccessibility",
+  "results": [
+    {
+      "project": "agent-eval-harness",
+      "category": "trajectory, tool-use, suite and gate evaluation",
+      "status": "passed",
+      "evidence": "{\"evaluator\":\"agent-eval-harness\",\"total\":3,\"passed\":3,\"failed\":0,\"output\":\"reports/qaaccessibility-agent-eval.json\"}",
+      "output": null
+    },
+    {
+      "project": "agent-health",
+      "category": "native evaluator and trajectory observability",
+      "status": "passed",
+      "evidence": "{\"evaluator\":\"OpenSearch Agent Health\",\"status\":\"native_code_evaluator_passed\",\"scenarios\":3,\"output\":\"C:\\\\qaaccessibility\\\\docs\\\\audits\\\\cross-project\\\\external-evaluator-runs\\\\agent-health.json\"}",
+      "output": null
+    },
+    {
+      "project": "A2E",
+      "category": "trajectory evaluator",
+      "status": "passed",
+      "evidence": "{\"evaluator\": \"A2E.native-code-evaluators\", \"total\": 3, \"qa_successful\": 3, \"output\": \"C:\\\\qaaccessibility\\\\docs\\\\audits\\\\cross-project\\\\external-evaluator-runs\\\\a2e.json\"}",
+      "output": null
+    },
+    {
+      "project": "agentfit",
+      "category": "agent evaluation",
+      "status": "passed",
+      "evidence": "{\"evaluator\": \"agentfit.core.Evaluator\", \"total\": 3, \"output\": \"C:\\\\aprovacao\\\\agentfit\\\\qaaccessibility-audit.json\"}\n\u001b[32m2026-09-08 05:33:29.405\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36magentfit.core.evaluator\u001b[0m:\u001b[36m_evaluate_dimension\u001b[0m:\u001b[36m382\u001b[0m - \u001b[33m\u001b[1mInput validation failed for dimension autonomy_escalation\u001b[0m\n\u001b[32m2026-09-08 05:33:29.408\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36magentfit.core.evaluator\u001b[0m:\u001b[36m_evaluate_dimension\u001b[0m:\u001b[36m382\u001b[0m - \u001b[33m\u001b[1mInput validation failed for dimension autonomy_escalation\u001b[0m\n\u001b[32m2026-09-08 05:33:29.420\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36magentfit.core.evaluator\u001b[0m:\u001b[36m_evaluate_dimension\u001b[0m:\u001b[36m382\u001b[0m - \u001b[33m\u001b[1mInput validation failed for dimension autonomy_escalation\u001b[0m",
+      "output": null
+    },
+    {
+      "project": "agentevals",
+      "category": "trajectory evaluation",
+      "status": "passed",
+      "evidence": "{\"evaluator\": \"agentevals.trajectory.match\", \"passed\": 3, \"failed\": 0, \"output\": \"C:\\\\aprovacao\\\\agentevals\\\\python\\\\qaaccessibility-audit.json\"}",
+      "output": null
+    },
+    {
+      "project": "AgentOps-Bench",
+      "category": "reliability and safety scoring",
+      "status": "passed",
+      "evidence": "{\"evaluator\": \"agentops-bench.native-scoring\", \"reliability_rate\": 1.0, \"safety_overall\": [1.0, 1.0, 1.0], \"output\": \"C:\\\\aprovacao\\\\agentops-bench\\\\results\\\\qaaccessibility-audit.json\"}",
+      "output": null
+    },
+    {
+      "project": "HarnessFix",
+      "category": "remediation lifecycle scoring",
+      "status": "passed",
+      "evidence": "{\"evaluator\": \"HarnessFix\", \"status\": \"native_swe_metrics_passed\", \"trajectories_seen\": 3, \"reason\": \"The QAAccessibility fixer stage was mapped to HarnessFix's native SWE lifecycle contract.\", \"qaaccessibility_execution_verified\": true, \"fix_stage\": {\"native_metrics\": {\"mode\": \"swe\", \"total_instances\": 1, \"metrics\": {\"resolved_rate\": 1.0, \"error_rate\": 0.0, \"empty_patch_rate\": 0.0, \"invalid_submission_rate\": 0.0, \"unresolved_rate\": 0.0, \"avg_api_calls\": 1.0, \"avg_instance_cost\": 0.0, \"loop_rate\": 0.0, \"verification_effort_ratio\": 0.0, \"syntax_error_rate\": 0.0}}, \"records\": 1, \"plan_diff_audit\": {\"passed\": true, \"changed_files\": [\"index.html\"], \"changed_file_count\": 1, \"max_files_to_modify\": 1, \"forbidden_touches\": [], \"out_of_scope\": [], \"syntax_failures\": [], \"fix_coverage\": {\"add-label\": {\"covered\": true, \"touched_files\": [\"index.html\"]}}, \"violations\": []}, \"target_metric_comparison\": {\"metrics\": [{\"metric\": \"resolved_rate\", \"baseline\": 0.0, \"current\": 1.0, \"direction\": \"higher\", \"delta\": 1.0, \"improved\": true}], \"aggregate_delta\": 1.0, \"improved_metric_count\": 1}}}",
+      "output": null
+    },
+    {
+      "project": "skillgate",
+      "category": "deterministic repository gate",
+      "status": "failed",
+      "evidence": "skillgate audit · qaaccessibility\n  no .skillgate/done.yaml — auditing against built-in defaults\n\n  ✓ instruction-sync  2 instruction files in sync with AGENTS.md\n  ✗ tests-pass  `npm test --silent` failed: Command failed: npm test --silent\n  ✓ no-stray-todos  no /(//|#)\\s*(TODO|FIXME)/ in src/**/*.{ts,js}\n  ✓ no-secrets  no /ghp_[A-Za-z0-9]{36}|sk_live_[A-Za-z0-9]{16,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/ in **/*.{ts,js,json,md,yaml,yml,env}\n\n✗ 1 of 4 checks would let your agent reach \"done\" unfinished: tests-pass\n→ Lock it in: `skillgate init`, then wire it into your agent — https://github.com/renezander030/skillgate#install",
+      "output": null
+    },
+    {
+      "project": "unlazy",
+      "category": "acceptance-ledger status",
+      "status": "passed",
+      "evidence": "GATES.md: 5 gates\nALL MET (5 met)",
+      "output": null
+    },
+    {
+      "project": "adl",
+      "category": "agent discipline skill",
+      "status": "not_applicable",
+      "evidence": "skill installation/goal contract, not an external agent evaluator",
+      "output": null
+    },
+    {
+      "project": "aga-verify-agent",
+      "category": "completion verifier skill",
+      "status": "not_applicable",
+      "evidence": "requires an accepted task and candidate snapshot, not a generic agent trajectory",
+      "output": null
+    },
+    {
+      "project": "ArgusAgent",
+      "category": "persistent agent runtime",
+      "status": "not_applicable",
+      "evidence": "runtime under test has no evaluator adapter for QA",
+      "output": null
+    },
+    {
+      "project": "horizon",
+      "category": "generate-execute-repair benchmark",
+      "status": "not_applicable",
+      "evidence": "benchmark runner has no QA trajectory adapter",
+      "output": null
+    },
+    {
+      "project": "Zaofu",
+      "category": "multi-agent runtime",
+      "status": "not_applicable",
+      "evidence": "runtime under test has no evaluator adapter for QA",
+      "output": null
+    }
+  ]
+}

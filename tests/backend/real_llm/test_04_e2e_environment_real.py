@@ -45,6 +45,8 @@ def test_e2e_analyze_file_response_matches_agent_result_contract(e2e_analyze_res
     body = e2e_analyze_response["body"]
     assert body["agent"] == "orchestrator"
     assert body["success"] is True
+    assert body["data"].get("complete") is True, body["data"].get("warning")
+    assert all(m["success"] for m in body["data"]["agent_metrics"])
     assert "issues" in body["data"]
     assert "agent_metrics" in body["data"]
 

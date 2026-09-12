@@ -42,7 +42,9 @@ async def accessibility_eval_result():
 
 @pytest.mark.asyncio
 async def test_accessibility_eval_pipeline_succeeds(accessibility_eval_result) -> None:
-    assert accessibility_eval_result.success is True, accessibility_eval_result.error
+    from tests.backend.real_llm.conftest import assert_complete_result
+
+    assert_complete_result(accessibility_eval_result)
 
 
 @pytest.mark.asyncio

@@ -29,6 +29,7 @@ import {
 
 let emit: (event: ChatEvent) => void;
 let resolveStream: () => void;
+let mounted: TestRenderer.ReactTestRenderer[] = [];
 
 jest.mock("../../services/chat", () => ({
   __esModule: true,
@@ -61,7 +62,7 @@ function Probe({ out }: { out: { chat?: Chat } }) {
 function mountChat(): { chat: () => Chat } {
   const out: { chat?: Chat } = {};
   act(() => {
-    TestRenderer.create(<Probe out={out} />);
+    mounted.push(TestRenderer.create(<Probe out={out} />));
   });
   return {
     chat: () => {
@@ -93,7 +94,13 @@ beforeEach(() => {
   jest.useFakeTimers();
 });
 
-afterEach(() => {
+afterEach(async () => {
+  await act(async () => {
+    await Promise.resolve();
+  });
+  act(() => {
+    for (const renderer of mounted.splice(0)) renderer.unmount();
+  });
   jest.useRealTimers();
   jest.clearAllMocks();
 });

@@ -28,7 +28,7 @@ ALTO_MODEL = "alto"
 
 # Ordem de prioridade historica -- usada como desempate quando o preço não
 # decide (tradeoff baixo, ou custos empatados), não mais como unico criterio.
-_AUTO_PROVIDER_PRIORITY = ["openai", "anthropic", "gemini", "xai", "ollama-cloud", "ollama"]
+_AUTO_PROVIDER_PRIORITY = ["openai", "anthropic", "gemini", "xai", "factory", "ollama-cloud", "ollama"]
 
 # OpenCode Go expõe uma cadeia de modelos verificados para Structured Outputs
 # garantidos (achado documentado em docs/CAPACIDADES_E_COMPORTAMENTO_IA.md,
@@ -100,13 +100,13 @@ def resolve_alto_model(
     if provider.lower() in ("agentic", "auto"):
         import os
 
-        for p in ["openai", "anthropic", "gemini", "xai", "ollama-cloud", "ollama"]:
+        for p in ["openai", "anthropic", "gemini", "xai", "factory", "ollama-cloud", "ollama"]:
             env_var = f"{p.upper().replace('-', '_')}_API_KEY"
             if os.getenv(env_var) or os.getenv(f"{p.upper()}_API_KEY"):
                 res = resolve_alto_model(p, allow_extra_usage, needs_vision, tradeoff)
                 if res:
                     return res
-        for p in ["openai", "anthropic", "gemini", "xai"]:
+        for p in ["openai", "anthropic", "gemini", "xai", "factory"]:
             res = resolve_alto_model(p, allow_extra_usage, needs_vision, tradeoff)
             if res:
                 return res
@@ -191,7 +191,7 @@ def resolve_fast_model(provider: str, allow_extra_usage: bool = False) -> str:
     if provider.lower() in ("agentic", "auto"):
         import os
 
-        for p in ["openai", "anthropic", "gemini", "xai", "ollama-cloud", "ollama"]:
+        for p in ["openai", "anthropic", "gemini", "xai", "factory", "ollama-cloud", "ollama"]:
             env_var = f"{p.upper().replace('-', '_')}_API_KEY"
             if os.getenv(env_var) or os.getenv(f"{p.upper()}_API_KEY"):
                 res = resolve_fast_model(p, allow_extra_usage)
@@ -287,13 +287,13 @@ def resolve_code_model(
     if provider.lower() in ("agentic", "auto"):
         import os
 
-        for p in ["openai", "anthropic", "gemini", "xai", "ollama-cloud", "ollama"]:
+        for p in ["openai", "anthropic", "gemini", "xai", "factory", "ollama-cloud", "ollama"]:
             env_var = f"{p.upper().replace('-', '_')}_API_KEY"
             if os.getenv(env_var) or os.getenv(f"{p.upper()}_API_KEY"):
                 res = resolve_code_model(p, allow_extra_usage, needs_vision, tradeoff)
                 if res:
                     return res
-        for p in ["openai", "anthropic", "gemini", "xai"]:
+        for p in ["openai", "anthropic", "gemini", "xai", "factory"]:
             res = resolve_code_model(p, allow_extra_usage, needs_vision, tradeoff)
             if res:
                 return res
@@ -530,7 +530,7 @@ def resolve_provider(provider: str) -> str:
     if p in ("agentic", "auto", ""):
         import os
 
-        for candidate in ["openai", "anthropic", "gemini", "xai", "ollama-cloud", "ollama"]:
+        for candidate in ["openai", "anthropic", "gemini", "xai", "factory", "ollama-cloud", "ollama"]:
             env_var = f"{candidate.upper().replace('-', '_')}_API_KEY"
             if os.getenv(env_var) or os.getenv(f"{candidate.upper()}_API_KEY") or candidate == "ollama":
                 return candidate

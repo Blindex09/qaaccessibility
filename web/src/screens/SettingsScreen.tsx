@@ -24,13 +24,14 @@ const PROVIDERS = [
   { id: "gemini", label: "Gemini", placeholderUrl: "https://generativelanguage.googleapis.com" },
   { id: "xai", label: "xAI (Grok)", placeholderUrl: "https://api.x.ai/v1" },
   { id: "ollama-cloud", label: "Ollama Cloud", placeholderUrl: "https://ollama.com/v1" },
+  { id: "factory", label: "Factory AI / Droid", placeholderUrl: "" },
 ];
 
 interface Props {
   onBack: () => void;
 }
 
-const PROVIDER_IDS = ["agentic", "openai", "anthropic", "gemini", "xai", "ollama-cloud"];
+const PROVIDER_IDS = ["agentic", "openai", "anthropic", "gemini", "xai", "ollama-cloud", "factory"];
 
 // Chaves de serviços de terceiros, salvas via POST /settings/service-key
 // (write-only: o backend nunca as devolve pelo GET /settings, só confirma
@@ -76,6 +77,7 @@ export function SettingsScreen({ onBack }: Props) {
   const anthropicRef = React.useRef<any>(null);
   const xaiRef = React.useRef<any>(null);
   const ollamaCloudRef = React.useRef<any>(null);
+  const factoryRef = React.useRef<any>(null);
 
   const providerRefs = {
     agentic: agenticRef,
@@ -84,6 +86,7 @@ export function SettingsScreen({ onBack }: Props) {
     anthropic: anthropicRef,
     xai: xaiRef,
     "ollama-cloud": ollamaCloudRef,
+    factory: factoryRef,
   };
 
   // Form State

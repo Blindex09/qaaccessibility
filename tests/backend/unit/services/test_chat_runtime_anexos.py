@@ -1,14 +1,13 @@
 """Regressao: o fato "tem anexo" e estrutural, nunca inferido do texto.
 
-Bug real (2026-08-30): o gate do clarifier era
-``"[Arquivos anexados" in message or "===" in message``. A segunda metade
-casava com QUALQUER mensagem contendo um separador markdown, um diff ou uma
-tabela ASCII -- exatamente o que um usuario de QA cola no chat -- e nesses
-casos a triagem semantica do primeiro turno era pulada em silencio.
+Bug real (2026-08-30): o gate do clarifier inferia anexos a partir do texto.
+Isso casava com QUALQUER mensagem contendo um separador markdown, um diff ou
+uma tabela ASCII -- exatamente o que um usuario de QA cola no chat -- e nesses
+casos a triagem semantica do primeiro turno era pulada em silencio. O contrato
+agora usa somente o campo estruturado de anexos.
 """
 
 from backend.src.services.chat_runtime import (
-    _LEGACY_ATTACHMENT_MARKER,
     _compor_mensagem_com_anexos,
 )
 
@@ -22,7 +21,7 @@ class TestComporMensagemComAnexos:
         """O ponto do bug: '===' no texto do usuario nao e sinal de anexo."""
         texto = "olha esse trecho:\n=== saida do terminal ===\nfoo"
         assert _compor_mensagem_com_anexos(texto, []) == texto
-        assert _LEGACY_ATTACHMENT_MARKER not in _compor_mensagem_com_anexos(texto, [])
+        assert "Arquivos fornecidos para análise" not in _compor_mensagem_com_anexos(texto, [])
 
     def test_anexo_estruturado_entra_no_prompt_com_nome_e_conteudo(self):
         saida = _compor_mensagem_com_anexos(
@@ -30,6 +29,7 @@ class TestComporMensagemComAnexos:
             [{"name": "index.html", "content": "<img src=x>"}],
         )
         assert saida.startswith("analisa")
+        assert "Arquivos fornecidos para análise:" in saida
         assert "=== index.html ===" in saida
         assert "<img src=x>" in saida
 

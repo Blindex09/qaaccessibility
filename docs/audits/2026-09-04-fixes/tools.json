@@ -1,0 +1,19 @@
+{
+  "provider": "factory",
+  "model_requested": "auto",
+  "mode": "tools",
+  "sdk_patched": false,
+  "passed": true,
+  "tool_executions": 1,
+  "streamed_chunks": 16,
+  "error": null,
+  "usage": {
+    "input_tokens": 3830,
+    "output_tokens": 399,
+    "total_tokens": 4229,
+    "cache_read_tokens": 9528,
+    "cache_creation_tokens": 0,
+    "factory_credits": 991.0
+  },
+  "duration_seconds": 15.78
+}

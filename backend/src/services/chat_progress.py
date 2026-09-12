@@ -1,7 +1,7 @@
-"""Canal de progresso, clarify e cancelamento para o chat agentico.
+"""Canal de progresso, clarify, cancelamento e steer para o chat agentico.
 
-Três mecanismos, todos para levar o que acontece DENTRO da execucao (orchestrator,
-subagentes, perguntas do agente, botão "parar") ate o stream SSE do chat:
+Quatro mecanismos, todos para levar o que acontece DENTRO da execucao (orchestrator,
+subagentes, perguntas do agente, botão "parar", correção do usuário) ate o stream SSE do chat:
 
 1. Sink de progresso (ContextVar): o `chat_runtime` registra uma funcao que
    empurra eventos na fila do stream. O `orchestrator` (que roda alguns niveis
@@ -22,6 +22,14 @@ subagentes, perguntas do agente, botão "parar") ate o stream SSE do chat:
    de dentro da thread worker do agente). Best-effort por natureza: para de
    entregar eventos ao cliente e cancela a task assim que possível, mas não
    aborta uma chamada HTTP síncrona do provider já em andamento na thread.
+
+4. Registro de steer: o usuário pode enviar uma correção/redirecionamento
+   enquanto o turno ainda está rodando via ``POST /chat/steer``. Fica pendente
+   até o loop de tool-calling do `AIAgent` consultar entre iterações
+   (`steer_check` em ``run_agent.py``) e injetar como nova mensagem de
+   usuário -- nada do que já foi produzido é descartado. Best-effort pela
+   mesma razão do cancelamento: não interrompe uma chamada de LLM/ferramenta
+   já em andamento, só o próximo ponto de checagem.
 """
 
 import asyncio
@@ -36,6 +44,9 @@ from typing import Any
 _sink: contextvars.ContextVar[Callable[[dict[str, Any]], None] | None] = contextvars.ContextVar(
     "chat_progress_sink", default=None
 )
+_cancel_check: contextvars.ContextVar[Callable[[], bool] | None] = contextvars.ContextVar(
+    "chat_progress_cancel_check", default=None
+)
 
 
 def set_sink(fn: Callable[[dict[str, Any]], None]) -> contextvars.Token:
@@ -46,6 +57,25 @@ def set_sink(fn: Callable[[dict[str, Any]], None]) -> contextvars.Token:
 def reset_sink(token: contextvars.Token) -> None:
     with contextlib.suppress(ValueError, LookupError):
         _sink.reset(token)
+
+
+def set_cancel_check(fn: Callable[[], bool] | None) -> contextvars.Token:
+    """Vincula o cancelamento do turno ao trabalho interno do agente."""
+    return _cancel_check.set(fn)
+
+
+def reset_cancel_check(token: contextvars.Token) -> None:
+    with contextlib.suppress(ValueError, LookupError):
+        _cancel_check.reset(token)
+
+
+def is_cancelled() -> bool:
+    """Consulta o cancelamento sem acoplar o orquestrador ao transporte SSE."""
+    fn = _cancel_check.get()
+    try:
+        return bool(fn and fn())
+    except Exception:
+        return False
 
 
 def emit(event: dict[str, Any]) -> None:
@@ -133,3 +163,29 @@ def request_cancel(token: str) -> bool:
 
 def clear_cancel_token(token: str) -> None:
     _cancel_events.pop(token, None)
+    _pending_steer.pop(token, None)
+
+
+# ── Steer: redirecionar um turno em andamento sem perder progresso ───────
+# Canal simetrico ao cancelamento acima, mas em vez de parar o turno, entrega
+# uma correcao/redirecionamento para ser injetada como proxima mensagem de
+# usuario no loop de tool-calling do AIAgent (ver run_agent.py::steer_check).
+# Best-effort pela mesma razao do cancelamento: so e consultado ENTRE
+# iteracoes, nunca aborta uma chamada de LLM/ferramenta ja em andamento.
+_pending_steer: dict[str, str] = {}
+
+
+def request_steer(token: str, message: str) -> bool:
+    """Registra uma correcao para o turno identificado por `token`. Sera
+    entregue (uma unica vez) na proxima checagem entre iteracoes. False se o
+    token nao existe (turno ja terminou/nao existe)."""
+    if token not in _cancel_events:
+        return False
+    _pending_steer[token] = message
+    return True
+
+
+def pop_pending_steer(token: str) -> str | None:
+    """Consome a correcao pendente para este turno, se houver. Chamado pelo
+    AIAgent a cada iteracao do loop de tool-calling."""
+    return _pending_steer.pop(token, None)

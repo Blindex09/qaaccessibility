@@ -1,4 +1,25 @@
-# Testes reais contra Ollama Cloud (`tests/backend/real_llm/`)
+# Testes reais contra Ollama Cloud ou Factory (`tests/backend/real_llm/`)
+
+> Atualização 2026-09-04: `REAL_LLM_PROVIDER` permite `ollama-cloud` (padrão)
+> ou `factory`. Factory usa `FACTORY_API_KEY` e modelo `auto`; `REAL_LLM_MODEL`
+> permite selecionar um ID específico. A suíte desliga cache de respostas e
+> failover automático para não aprovar chamadas por um provider de reserva.
+> A configuração anterior é restaurada no encerramento.
+>
+> Em PowerShell, com a chave já disponível no ambiente:
+> ```powershell
+> $env:RUN_REAL_LLM_TESTS = '1'
+> $env:REAL_LLM_PROVIDER = 'factory'
+> .venv\Scripts\python.exe -m pytest tests/backend/real_llm -o addopts= -o junit_family=xunit1 -q --junitxml=real-evals.xml
+> ```
+>
+> HTTP 429 de quota é bloqueio externo, não falha corrigível removendo `skip`.
+> Aprovação com Factory não prova disponibilidade ou qualidade do Ollama.
+> O teste de endpoint inacessível usa deliberadamente o adapter HTTP Ollama
+> contra loopback fechado e chave fictícia (Factory não usa `LLM_BASE_URL`).
+> A suíte inclui controles sem chamada paga — falha de parsing injetada,
+> no-op sem provider e metadados de baseline — além dos evals reais.
+> Mudança de modelo é registrada nas propriedades JUnit, não mais como skip.
 
 > Revisado em 2026-08-29: a suíte cresceu de 9 para 11 camadas
 > (`test_10_planning_real.py`, `test_11_multi_run_and_replay_real.py`) desde a

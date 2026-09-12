@@ -35,6 +35,37 @@ CLARIFY_TOOLSET = "clarify"
 _SEVERITY_DEDUCTION = {"critical": 20, "high": 10, "medium": 5, "low": 2}
 
 
+def _diagnose_analysis_failure(exc: Exception) -> dict[str, str]:
+    """Classifica falhas observáveis para impedir atribuições sem evidência."""
+    message = str(exc)
+    if "connect_over_cdp" in message and "Invalid URL" in message:
+        return {
+            "error_code": "browserless_invalid_url",
+            "failure_source": "configuração interna do Browserless/CDP",
+            "diagnostic": (
+                "A URL BROWSERLESS_WS_URL configurada não é uma URL WebSocket válida. "
+                "Não há evidência de bloqueio pela página analisada."
+            ),
+        }
+    if "BROWSERLESS_WS_URL" in message:
+        return {
+            "error_code": "browserless_not_configured",
+            "failure_source": "configuração interna do Browserless/CDP",
+            "diagnostic": (
+                "O Browserless não está configurado para renderização. "
+                "Não há evidência de bloqueio pela página analisada."
+            ),
+        }
+    return {
+        "error_code": "analysis_failure_unknown",
+        "failure_source": "indeterminada",
+        "diagnostic": (
+            "A análise falhou, mas a causa não foi determinada. "
+            "Não atribua a falha ao site sem evidência explícita."
+        ),
+    }
+
+
 def _safe_async_run(coro: Any) -> Any:
     """Executa uma corotina com segurança, criando thread isolada se já houver um loop ativo.
 
@@ -216,7 +247,9 @@ def analyze_page(args: dict[str, Any], **_kw: Any) -> str:
         result, resolved_content = _safe_async_run(_resolve_and_analyze(html, url, only_agents=only_agents))
     except Exception as exc:  # pragma: no cover - caminho de erro defensivo
         logger.error("[a11y_chat] analyze_page falhou: %s", exc)
-        return json.dumps({"error": f"Falha na análise: {exc}"}, ensure_ascii=True)
+        failure = {"error": f"Falha na análise: {exc}"}
+        failure.update(_diagnose_analysis_failure(exc))
+        return json.dumps(failure, ensure_ascii=True)
 
     if not result.success:
         return json.dumps({"error": result.error or "Análise sem resultado."}, ensure_ascii=True)
@@ -333,7 +366,7 @@ _ANALYZE_SITE_SCHEMA: dict[str, Any] = {
         "Analyze the accessibility of multiple pages or an entire website. "
         "Provide EITHER `url` (to crawl internal links starting from the root URL) "
         "OR `urls` (a list of specific URLs to analyze directly). "
-        "Optional `max_pages` limits the crawler (default 10, max 50). "
+        "Optional `max_pages` limits the crawler (default 3, max 50). "
         "Returns a consolidated summary: total issues, accessibility score (0-100), "
         "counts by severity, top issues, and audited page counts. "
         "Call this whenever the user wants to audit multiple URLs, a domain, or crawl a site."
@@ -358,7 +391,7 @@ _ANALYZE_SITE_SCHEMA: dict[str, Any] = {
             },
             "max_pages": {
                 "type": "integer",
-                "description": "Maximum number of pages to crawl. Default is 10, max is 50.",
+                "description": "Maximum number of pages to crawl. Default is 3, max is 50.",
             },
         },
         "required": ["pre_exec_msg"],
@@ -378,19 +411,18 @@ async def _run_site_crawl_and_analyze(
     interrompem as demais paginas.
     """
     from backend.src.agents.orchestrator.orchestrator import orchestrate
-    from backend.src.config.settings import get_settings
     from backend.src.routes.analyze import _extract_semantic_html
     from backend.src.services.browser import fetch_rendered_html_and_screenshot
     from backend.src.services.crawler import crawl_site
     from backend.src.shared.models import TaskType
 
-    # Limites de concorrencia: renderizacao de paginas (I/O de rede) e
-    # analise (LLM/custo de API). Usamos a mesma configuracao max_concurrent
-    # do orchestrator para analise, mas reservamos um semaforo separado.
+    # Renderizamos algumas páginas em paralelo, mas a auditoria é uma única
+    # execução agentic: páginas não abrem pipelines independentes ao mesmo
+    # tempo. Isso evita o comportamento antigo de multiplicar a squad inteira
+    # por cada página do crawl.
     max_render = 5
-    max_analysis = max(1, get_settings().a11y_max_concurrent_agents)
     render_sem = asyncio.Semaphore(max_render)
-    analysis_sem = asyncio.Semaphore(max_analysis)
+    render_errors: list[dict[str, str]] = []
 
     target_pages: list[tuple[str, str]] = []
 
@@ -405,6 +437,7 @@ async def _run_site_crawl_and_analyze(
                     return (u_clean, raw)
                 except Exception as exc:
                     logger.error("[a11y_chat] Falha ao renderizar URL %s: %s", u_clean, exc)
+                    render_errors.append(_diagnose_analysis_failure(exc))
                     return None
 
         render_tasks = [_render_one(u.strip()) for u in urls if u.strip()]
@@ -418,37 +451,50 @@ async def _run_site_crawl_and_analyze(
                 target_pages.append((page.url, page.html))
 
     if not target_pages:
-        return {"error": "Não foi possivel acessar nenhuma das URLs fornecidas."}
+        result: dict[str, Any] = {"error": "Não foi possivel acessar nenhuma das URLs fornecidas."}
+        if render_errors:
+            result.update(render_errors[0])
+        return result
 
     all_issues: list[dict[str, Any]] = []
     pages_ok = 0
     pages_failed = 0
 
-    chat_progress.emit_tool_progress(None, "analyze_site", f"Auditando {len(target_pages)} página(s) em paralelo...")
+    chat_progress.emit_tool_progress(None, "analyze_site", f"Iniciando execução agentic para {len(target_pages)} página(s)...")
 
-    async def _analyze_one(page_url: str, html: str) -> tuple[bool, list[dict[str, Any]]]:
-        async with analysis_sem:
-            try:
-                chat_progress.emit_tool_progress(None, "analyze_site", f"Analisando {page_url}...")
-                semantic_html = _extract_semantic_html(html)
-                res = await orchestrate(semantic_html, TaskType.ANALYZE)
-                if res.success:
-                    page_issues = res.data.get("issues", [])
-                    for issue in page_issues:
-                        issue["element"] = f"[{page_url}] {issue.get('element', '')}"
-                    return (True, page_issues)
-                return (False, [])
-            except Exception as exc:
-                logger.error("[a11y_chat] Erro ao analisar página %s: %s", page_url, exc)
-                return (False, [])
-
-    analysis_results = await asyncio.gather(*[_analyze_one(page_url, html) for page_url, html in target_pages])
-    for ok, page_issues in analysis_results:
+    for page_index, (page_url, html) in enumerate(target_pages, start=1):
+        try:
+            chat_progress.emit_tool_progress(
+                None,
+                "analyze_site",
+                f"Executando auditoria agentic na página {page_index}/{len(target_pages)}: {page_url}",
+            )
+            semantic_html = _extract_semantic_html(html)
+            res = await orchestrate(semantic_html, TaskType.ANALYZE)
+            if res.success:
+                page_issues = res.data.get("issues", [])
+                for issue in page_issues:
+                    issue["element"] = f"[{page_url}] {issue.get('element', '')}"
+                ok = True
+            else:
+                ok, page_issues = False, []
+        except Exception as exc:
+            logger.error("[a11y_chat] Erro ao analisar página %s: %s", page_url, exc)
+            ok, page_issues = False, []
         if ok:
             pages_ok += 1
             all_issues.extend(page_issues)
         else:
             pages_failed += 1
+        chat_progress.emit(
+            {
+                "type": "analysis_partial",
+                "page": page_url,
+                "completed": page_index,
+                "total": len(target_pages),
+                "issues": len(all_issues),
+            }
+        )
 
     chat_progress.emit_tool_progress(None, "analyze_site", "Consolidando resultados do site...")
 
@@ -472,7 +518,9 @@ def analyze_site(args: dict[str, Any], **_kw: Any) -> str:
     url = str(args.get("url", "")).strip()
     urls_raw = args.get("urls")
     urls = [str(u).strip() for u in urls_raw] if isinstance(urls_raw, list) else None
-    max_pages = args.get("max_pages", 10)
+    # Um pedido interativo começa com um lote pequeno. O usuário pode pedir
+    # explicitamente mais páginas quando quiser uma varredura ampla.
+    max_pages = args.get("max_pages", 3)
 
     if not url and not urls:
         return json.dumps(
@@ -482,7 +530,7 @@ def analyze_site(args: dict[str, Any], **_kw: Any) -> str:
     try:
         max_pages = int(max_pages)
     except (ValueError, TypeError):
-        max_pages = 10
+        max_pages = 3
     max_pages = max(1, min(max_pages, 50))
 
     try:
