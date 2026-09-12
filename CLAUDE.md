@@ -140,13 +140,14 @@ ação de alto risco.
 
 **Nota específica deste projeto** (apagar esta nota ao portar a regra acima para outro
 `CLAUDE.md`): aqui, "todo modelo/provider sem exceção" cobre OpenAI, Anthropic, Gemini, xAI,
-Ollama, Factory, OpenCode Go e `AgenticAutoProvider`. O texto integral e o histórico de por
-que esta regra existe (incluindo as fases do overhaul comportamental que removeram
-determinismo em excesso, commits `6c14d17`, `087539a`, `b5271da`, `fb49ffb`, `d046a10`) estão
-na seção "Atualização 2026-09-11" de `docs/AGENTIC_BEHAVIORAL_CONTRACT_AND_ACCEPTANCE.md`
-(nota: este documento ainda não existe neste repositório -- criar ao registrar o histórico
-completo desta regra, ou remover esta referência se o histórico ficar só nos commits). O
-mecanismo concreto de redirecionamento em tempo real é `POST /chat/steer` (`backend/src/routes/chat.py`,
+Ollama, Factory, OpenCode Go e `AgenticAutoProvider`. Uma versão anterior desta nota citava
+commits específicos e um documento (`docs/AGENTIC_BEHAVIORAL_CONTRACT_AND_ACCEPTANCE.md`) como
+o histórico completo de por que esta regra existe -- auditoria em 2026-09-12 confirmou que
+nenhum dos hashes citados existe no histórico git deste repositório e que o documento nunca
+chegou a ser criado, então a referência foi removida em vez de mantida sem verificação. Se o
+histórico completo for registrado no futuro, documentar aqui com um link real, não uma
+citação que não pode ser conferida. O mecanismo concreto de redirecionamento em tempo real é
+`POST /chat/steer` (`backend/src/routes/chat.py`,
 canal `chat_progress.request_steer`/`pop_pending_steer`) / botão "Redirecionar" que aparece no
 lugar de "Parar" quando há texto digitado durante o streaming (`web/src/screens/ChatScreen.tsx`).
 Cobre os providers OpenAI (Responses e Chat Completions), xAI, Ollama e Anthropic; Gemini e

@@ -2299,6 +2299,38 @@ def _mesma_marcacao(um: str, outro: str) -> bool:
         return um.strip() == outro.strip()
 
 
+def _sync_squad_remediation_done(**evidence: Any) -> None:
+    """Reflete no quadro da squad que a correção (`a11y-remediation`) de fato
+    rodou. A tarefa nasce sempre BLOCKED (ver `coordinator.build_squad_plan`)
+    e só chega até aqui depois que o gate real de aprovação
+    (`requires_approval=True` em `fix_and_zip_files`/`fix_local_project_files`)
+    já deixou passar -- isso NUNCA desbloqueia nada, só corrige o que o
+    quadro mostra depois do fato. Achado real de auditoria (2026-09-12):
+    `SquadCoordinator.unblock_remediation`/`record_done` existiam e eram
+    testados, mas nenhum lugar do runtime os chamava -- o quadro ficava
+    exibindo "bloqueado" pra sempre mesmo depois da correção real já ter
+    rodado e sido aprovada. Nunca deve derrubar a correção que já aconteceu:
+    qualquer falha aqui é só um quadro que não atualiza, não um erro real."""
+    try:
+        from backend.src.agents.squad.contracts import TaskStatus
+        from backend.src.agents.squad.coordinator import SquadCoordinator
+        from backend.src.services import squad_plan_store
+
+        snapshot = squad_plan_store.load_squad_plan()
+        if not snapshot:
+            return
+        coordinator = SquadCoordinator.restore(snapshot)
+        task = coordinator.plan.task("a11y-remediation")
+        if task.status is TaskStatus.DONE:
+            return
+        if task.status is TaskStatus.BLOCKED:
+            chat_progress.emit(coordinator.unblock_remediation())
+        chat_progress.emit(coordinator.record_done("a11y-remediation", **evidence))
+        squad_plan_store.save_squad_plan(coordinator.plan.to_dict())
+    except Exception as exc:
+        logger.warning("[a11y_chat] Falha ao sincronizar o quadro da squad após a correção: %s", exc)
+
+
 def fix_and_zip_files(args: dict[str, Any], **_kw: Any) -> str:
     files = args.get("files")
     if files is not None and not isinstance(files, list):
@@ -2381,6 +2413,11 @@ def fix_and_zip_files(args: dict[str, Any], **_kw: Any) -> str:
             result.get("download_url", ""),
             "sim" if get_last_fix() else "nao",
         )
+        if not result.get("error"):
+            _sync_squad_remediation_done(
+                total_files=result.get("total_files", 0),
+                download_url=result.get("download_url", ""),
+            )
         return json.dumps(result, ensure_ascii=True)
     except Exception as exc:
         logger.error("[a11y_chat] fix_and_zip_files falhou: %s", exc)
@@ -2521,6 +2558,9 @@ def fix_local_project_files(args: dict[str, Any], **_kw: Any) -> str:
     )
     if skipped_unsafe:
         result["skipped_files"] = skipped_unsafe
+
+    if written:
+        _sync_squad_remediation_done(project_dir=project_dir, written_files=len(written))
 
     return json.dumps(result, ensure_ascii=True)
 
@@ -3638,6 +3678,17 @@ def run_remote_test_tool(args: dict) -> str:
 
     if location in ("local", "install_local") and runner in ("cypress", "selenium") and remember_choice:
         local_exec_consent_store.set_consent(runner, "always")
+
+    # Consentimento "sempre" já registrado nesta sessão para este runner: não
+    # repete a pergunta de novo (era o objetivo documentado do consent store,
+    # mas nunca era de fato consultado aqui -- achado real de auditoria,
+    # 2026-09-12). Fato objetivo e verificável (consulta de sessão+runner),
+    # não um palpite de intenção -- o cartão de aprovação genérico
+    # (`requires_approval=True` em `run_remote_test`) continua disparando em
+    # toda chamada de qualquer forma, então isso só evita o SEGUNDO turno de
+    # pergunta via `clarify`, nunca pula o freio estrutural real.
+    if location is None and runner in ("cypress", "selenium") and local_exec_consent_store.has_standing_consent(runner):
+        location = "local"
 
     # Sem fallback silencioso pra cypress/selenium: é decisão do usuário, não
     # do modelo. Checagem estrutural (parâmetro ausente), não de palavra-chave.

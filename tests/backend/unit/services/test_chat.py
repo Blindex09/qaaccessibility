@@ -846,6 +846,73 @@ class TestFixAndZipFilesTool:
         assert "snippet.html" in json.dumps(out) or out.get("zip_filename")
 
 
+class TestFixAndZipFilesSyncsSquadBoard:
+    """Achado real de auditoria (2026-09-12): a tarefa `a11y-remediation`
+    nasce BLOCKED no quadro da squad e `SquadCoordinator.unblock_remediation`/
+    `record_done` existiam e eram testados isoladamente, mas nada no runtime
+    os chamava -- o quadro ficava mostrando "bloqueado" pra sempre mesmo
+    depois da correção real já ter rodado (e já ter passado pelo gate de
+    aprovação de verdade, `requires_approval=True`). `fix_and_zip_files`
+    agora sincroniza o quadro depois de corrigir com sucesso."""
+
+    @pytest.fixture(autouse=True)
+    def _clean_squad_plan(self):
+        from backend.src.services import squad_plan_store
+
+        squad_plan_store._sessions.clear()
+        yield
+        squad_plan_store._sessions.clear()
+
+    def _blocked_snapshot(self) -> dict:
+        from backend.src.agents.squad.coordinator import SquadCoordinator
+
+        return SquadCoordinator("Auditar e corrigir a página").plan.to_dict()
+
+    def test_successful_fix_unblocks_and_completes_the_remediation_task(self):
+        from backend.src.services import squad_plan_store
+
+        snapshot = self._blocked_snapshot()
+        assert any(
+            t["id"] == "a11y-remediation" and t["status"] == "blocked" for t in snapshot["tasks"]
+        )
+        squad_plan_store.save_squad_plan(snapshot)
+
+        fake_audit = AgentResult(agent="orchestrator", success=True, data={"issues": []})
+        fake_fix = AgentResult(
+            agent="fixer", success=True, data={"fixed_html": "<html>fixed</html>", "changes_summary": ["fixed img alt"]}
+        )
+        files = [{"path": "index.html", "content": "<html><img src=x></html>"}]
+
+        with patch("backend.src.agents.orchestrator.orchestrator.orchestrate", new=AsyncMock(return_value=fake_audit)), \
+             patch("backend.src.agents.fixer.fixer.run_fixer", new=AsyncMock(return_value=fake_fix)), \
+             patch("backend.src.services.chat_tools._render_html_to_screenshot", new=AsyncMock(return_value="fake_b64")), \
+             patch("backend.src.services.chat_tools._verify_layout_visually", new=AsyncMock(return_value={"layout_ok": True, "reasons": []})):
+            out = json.loads(fix_and_zip_files({"files": files}))
+
+        assert "error" not in out
+        updated = squad_plan_store.load_squad_plan()
+        remediation = next(t for t in updated["tasks"] if t["id"] == "a11y-remediation")
+        assert remediation["status"] == "done"
+        assert remediation["metadata"].get("approved_by_user") is True
+
+    def test_no_squad_plan_does_not_crash_the_fix(self):
+        """Sem quadro nenhum na sessão (ex.: correção direta sem conversa de
+        análise completa antes), a sincronia é só um no-op silencioso."""
+        fake_audit = AgentResult(agent="orchestrator", success=True, data={"issues": []})
+        fake_fix = AgentResult(
+            agent="fixer", success=True, data={"fixed_html": "<html>fixed</html>", "changes_summary": []}
+        )
+        files = [{"path": "index.html", "content": "<html><img src=x></html>"}]
+
+        with patch("backend.src.agents.orchestrator.orchestrator.orchestrate", new=AsyncMock(return_value=fake_audit)), \
+             patch("backend.src.agents.fixer.fixer.run_fixer", new=AsyncMock(return_value=fake_fix)), \
+             patch("backend.src.services.chat_tools._render_html_to_screenshot", new=AsyncMock(return_value="fake_b64")), \
+             patch("backend.src.services.chat_tools._verify_layout_visually", new=AsyncMock(return_value={"layout_ok": True, "reasons": []})):
+            out = json.loads(fix_and_zip_files({"files": files}))
+
+        assert "error" not in out
+
+
 class TestGenerateChecklistTool:
     """Achado real corrigido: o chat gerava o checklist como texto solto lido
     do JSON cru da última análise, reimplementando o que o ChecklistAgent
@@ -1007,6 +1074,72 @@ class TestRunRemoteTestToolLocationDecision:
             })
 
         assert local_exec_consent_store.has_standing_consent("cypress") is False
+
+    def test_standing_consent_is_actually_consulted_on_the_next_call(self):
+        """Achado real (auditoria 2026-09-12): `remember_choice` gravava o
+        consentimento, mas nada nesta função o CONSULTAVA de volta -- a
+        próxima chamada sem `location` continuava pedindo `clarify` de novo,
+        mesmo o usuário já tendo dito 'sempre aprovar' nesta sessão. Agora,
+        com consentimento 'always' já registrado, a ausência de `location`
+        não bloqueia mais a chamada -- ela roda direto como 'local'."""
+        from backend.src.services import local_exec_consent_store
+
+        local_exec_consent_store._sessions.clear()
+        try:
+            local_exec_consent_store.set_consent("selenium", "always")
+            with patch(
+                "backend.src.services.remote_runners.run_remote_selenium",
+                new=AsyncMock(return_value={"status": "ok", "runner": "selenium_local"}),
+            ) as mock_run:
+                out = json.loads(
+                    run_remote_test_tool({"runner": "selenium", "target_url": "https://example.com"})
+                )
+
+            assert "error" not in out
+            mock_run.assert_called_once()
+            _, kwargs = mock_run.call_args
+            assert kwargs.get("location") == "local"
+        finally:
+            local_exec_consent_store._sessions.clear()
+
+    def test_standing_consent_does_not_override_an_explicit_location(self):
+        """O consentimento salvo só preenche a AUSÊNCIA de `location` -- se o
+        usuário pedir 'cloud' explicitamente numa chamada futura, isso deve
+        prevalecer, nunca ser sobrescrito pelo 'sempre local' de antes."""
+        from backend.src.services import local_exec_consent_store
+
+        local_exec_consent_store._sessions.clear()
+        try:
+            local_exec_consent_store.set_consent("selenium", "always")
+            with patch(
+                "backend.src.services.remote_runners.run_remote_selenium",
+                new=AsyncMock(return_value={"status": "ok", "runner": "selenium_remote"}),
+            ) as mock_run:
+                run_remote_test_tool({
+                    "runner": "selenium", "target_url": "https://example.com", "location": "cloud",
+                })
+
+            _, kwargs = mock_run.call_args
+            assert kwargs.get("location") == "cloud"
+        finally:
+            local_exec_consent_store._sessions.clear()
+
+    def test_standing_consent_for_one_runner_does_not_leak_to_another(self):
+        from backend.src.services import local_exec_consent_store
+
+        local_exec_consent_store._sessions.clear()
+        try:
+            local_exec_consent_store.set_consent("selenium", "always")
+            with patch("backend.src.services.remote_runners.run_remote_accessibility_audit") as mock_run:
+                out = json.loads(
+                    run_remote_test_tool({"runner": "cypress", "target_url": "https://example.com"})
+                )
+
+            assert "error" in out
+            assert "clarify" in out["error"]
+            mock_run.assert_not_called()
+        finally:
+            local_exec_consent_store._sessions.clear()
 
 
 class TestRunRemoteTestToolFeedsDeliverables:
