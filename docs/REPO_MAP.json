@@ -218,6 +218,20 @@
       "responsibility": ""
     },
     {
+      "name": "interaction_pattern",
+      "file": "backend/src/agents/interaction_pattern/interaction_pattern.py",
+      "entry_points": [
+        "run_interaction_pattern"
+      ],
+      "id_prefixes": [
+        "pattern"
+      ],
+      "guidelines": [
+        "WAI-ARIA"
+      ],
+      "responsibility": "You are a WAI-ARIA interaction-pattern and content-structure specialist. Your ONLY"
+    },
+    {
       "name": "link_checker",
       "file": "backend/src/agents/link_checker/link_checker.py",
       "entry_points": [

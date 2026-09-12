@@ -27,7 +27,7 @@
 
 ---
 
-## 2. Os 29 especialistas de auditoria (o motor de detecção)
+## 2. Os 30 especialistas de auditoria (o motor de detecção)
 
 Cada um é um agente de IA com um `SYSTEM_PROMPT` focado — não um regex ou uma
 lista de keywords. Rodam em paralelo, coordenados pelo orquestrador (seção 3).
@@ -41,6 +41,7 @@ lista de keywords. Rodam em paralelo, coordenados pelo orquestrador (seção 3).
 | **Cognitivo** | `cognitive` | CAPTCHA sem alternativa, formulários sem feedback, linguagem complexa |
 | **Frameworks front-end** | `react_framework`, `vue_framework`, `angular_framework`, `svelte_framework`, `tailwind_css`, `web_components` | Anti-padrões específicos de cada framework (`div onClick` sem teclado no React, `v-if` matando `aria-live` no Vue, binding `[aria-label]` incorreto no Angular, Custom Elements/Shadow DOM) |
 | **Estruturas de conteúdo** | `forms_a11y`, `tables_data`, `link_checker`, `wcag_semantics`, `screen_reader` | Formulários, tabelas de dados, texto de link, headings/landmarks, compatibilidade real com leitor de tela |
+| **Escolha de padrão de interação** | `interaction_pattern` | Widget/elemento implementado com a semântica ERRADA para o que ele realmente faz (botão que deveria ser combobox/listbox real, texto que deveria ser heading, layout que na verdade é dado tabular) — reclassificação, não checklist de atributo faltando |
 | **Mobile** | `mobile_a11y` | Viewport/zoom (1.4.4), reflow (1.4.10), alvo de toque (2.5.8) — **só mobile web, não apps nativos** (ver seção 9) |
 | **Documentos** | `pdf_accessibility`, `excel_accessibility` | PDF/UA, tabelas/células mescladas/abas do Excel |
 | **Domínios emergentes** | `spatial_3d_xr`, `niche_domains` | WebXR/3D Canvas (W3C XAUR), Passkeys/WebAuthn, sonificação de dados, kiosks/POS, e-mails HTML |

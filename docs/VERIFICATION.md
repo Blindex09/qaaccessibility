@@ -14,13 +14,13 @@
 > Alinhamento doc ↔ código (2026-07-29): provider "agentic" exposto na rota `/models`, ordem sincronizada frontend ↔ backend, `resolve_model_and_provider` para suporte agêntico completo, mensagens de erro humanizadas em Português (400, 401, 402, 403, 404, 429, 500, 502, 503, 504, 529, timeouts)
 > Gaps 2026 fechados (2026-08-01): Dependency Compliance (pip-audit + npm audit no CI), Configuration Drift Detection (`config_drift.py`), Repository Intelligence (`REPO_MAP.json` + tool MCP `describe_repository`) — ver seção 13
 >
-> **Nota de revisão (2026-08-29):** o bloco de resumo acima e as seções abaixo
+> **Nota de revisão (2026-09-12):** o bloco de resumo acima e as seções abaixo
 > registram a contagem de agentes de análise vigente em 2026-08-01 ("25
 > agentes de análise", "SvelteFrameworkAgent, 25º especialista", "~34
 > sub-agentes"). Este documento é um log cronológico de evidência — as
 > entradas abaixo não foram reescritas retroativamente. A contagem real atual
-> é **29 especialistas de auditoria** (+ 14 agentes de orquestração/suporte =
-> 43 diretórios em `backend/src/agents/`) e **42 entradas** em
+> é **30 especialistas de auditoria** (+ 14 agentes de orquestração/suporte =
+> 44 diretórios em `backend/src/agents/`) e **43 entradas** em
 > `docs/REPO_MAP.json`. Ver `docs/CAPACIDADES_ACESSIBILIDADE.md` (seção 2)
 > para a lista completa e revalidada, e `docs/FERRAMENTAS.md` para a contagem
 > de ferramentas (38, não mais os totais antigos citados nas seções abaixo).

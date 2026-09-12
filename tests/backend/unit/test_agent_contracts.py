@@ -273,7 +273,7 @@ class TestOrchestratorIterationLimits:
             "run_react_framework", "run_angular_framework", "run_vue_framework",
             "run_tailwind_css", "run_screen_reader", "run_mobile_a11y",
             "run_forms_a11y", "run_widgets_a11y", "run_wcag_semantics",
-            "run_compliance_audit",
+            "run_interaction_pattern", "run_compliance_audit",
         ]
 
         def unique_issues(prefix: str, n: int) -> list[dict]:

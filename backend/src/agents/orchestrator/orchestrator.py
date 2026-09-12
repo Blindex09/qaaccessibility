@@ -16,6 +16,7 @@ from backend.src.agents.delegation_coordinator.delegation_coordinator import run
 from backend.src.agents.fixer.fixer import run_fixer
 from backend.src.agents.forms_a11y.forms_a11y import run_forms_a11y
 from backend.src.agents.gap_research.gap_research import run_gap_research_check
+from backend.src.agents.interaction_pattern.interaction_pattern import run_interaction_pattern
 from backend.src.agents.link_checker.link_checker import run_link_checker
 from backend.src.agents.mobile_a11y.mobile_a11y import run_mobile_a11y
 from backend.src.agents.niche_domains.niche_domains import run_niche_domains_agent
@@ -77,6 +78,7 @@ CORE_ANALYSIS_AGENTS = {
     "section508": "conformidade legal geral para página web",
     "screen_reader": "compatibilidade com leitor de tela e essencial em página web",
     "wcag_semantics": "semântica HTML e tecnologias assistivas",
+    "interaction_pattern": "escolha de padrão de interação (widget certo) e estrutura de heading/layout sempre relevantes para página web",
     "compliance_audit": "revisao consolidada WCAG/Section 508",
     "agentic_ai_ui": "interfaces de IA agêntica, live regions e modais HITL",
     "spatial_3d_xr": "WebXR XAUR 2026, Canvas Three.js/Babylon.js PAT DOM",
@@ -520,6 +522,7 @@ async def _run_analysis_pipeline(
         "tables_data": lambda: run_tables_data(html_content),
         "link_checker": lambda: run_link_checker(html_content),
         "wcag_semantics": lambda: run_wcag_semantics(html_content),
+        "interaction_pattern": lambda: run_interaction_pattern(html_content),
         "compliance_audit": lambda: run_compliance_audit(html_content),
         "agentic_ai_ui": lambda: run_agentic_ai_ui_agent(html_content),
         "spatial_3d_xr": lambda: run_spatial_3d_xr_agent(html_content),

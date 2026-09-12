@@ -101,6 +101,84 @@ class TestFixerAgent:
         assert result.agent == "fixer"
 
 
+RECLASSIFICATION_FIX_RESPONSE = {
+    "fixed_html": (
+        '<input type="text" id="city-search" oninput="filterCities()" role="combobox" '
+        'aria-expanded="false" aria-autocomplete="list" aria-controls="suggestions">'
+        '<ul class="suggestions" id="suggestions" role="listbox" aria-label="Sugestões de cidades"></ul>'
+        "<script>console.log('keyboard nav wiring');</script>"
+        '<h3 class="section-title">Horário de funcionamento</h3>'
+        "<p>Segunda a sexta, 9h às 18h.</p>"
+    ),
+    "changes_summary": [
+        "Reestruturado campo de busca com sugestões para um combobox ARIA real, com navegação por teclado",
+        "Promovido texto de seção para <h3>, mantendo a hierarquia existente",
+    ],
+}
+
+RECLASSIFICATION_ISSUE = {
+    "id": "pattern-1",
+    "guideline": "WAI-ARIA",
+    "criterion": "4.1.2 Name, Role, Value",
+    "severity": "high",
+    "element": '<input type="text" id="city-search"> + <ul class="suggestions">',
+    "description": "Campo de busca com sugestões sem semântica de combobox",
+    "suggestion": "Transformar em combobox ARIA real",
+    "suggestion_technical": "REQUIRES JS BEYOND MARKUP: add role=combobox etc.",
+}
+
+
+@pytest.mark.asyncio
+class TestFixerInteractionPatternReclassification:
+    """A categoria interaction_pattern pede reestruturação real (elemento/role
+    trocado, script novo de teclado quando necessário), não só atributos
+    adicionados a um elemento já correto -- ver fixer.py regra 10."""
+
+    async def test_restructure_fix_is_applied_and_summarized_distinctly(self):
+        html = (
+            '<input type="text" id="city-search" oninput="filterCities()">'
+            '<ul class="suggestions" id="suggestions"></ul>'
+            '<div class="section-title">Horário de funcionamento</div>'
+            "<p>Segunda a sexta, 9h às 18h.</p>"
+        )
+        with patch(
+            "backend.src.agents.fixer.fixer.call_llm",
+            new=AsyncMock(return_value=json.dumps(RECLASSIFICATION_FIX_RESPONSE)),
+        ):
+            result = await run_fixer(html, [RECLASSIFICATION_ISSUE])
+
+        assert result.success is True
+        fixed = result.data["fixed_html"]
+        # O elemento foi de fato trocado/reclassificado, não só atributado.
+        assert 'role="combobox"' in fixed
+        assert 'role="listbox"' in fixed
+        assert '<h3 class="section-title">Horário de funcionamento</h3>' in fixed
+        assert '<div class="section-title">' not in fixed
+        # Comportamento de teclado novo (script) preservado no HTML corrigido --
+        # a checagem de balanceamento de tags não deve rejeitar um <script> real.
+        assert "<script>" in fixed
+        # A mudança estrutural aparece nomeada distintamente no resumo, não
+        # misturada como se fosse um ajuste de atributo qualquer.
+        assert any("combobox" in c.lower() for c in result.data["changes_summary"])
+        assert any("h3" in c.lower() or "heading" in c.lower() or "título" in c.lower() or "seção" in c.lower() for c in result.data["changes_summary"])
+
+    async def test_restructure_fix_preserves_existing_click_handler(self):
+        """A reestruturação não pode descartar o comportamento que já
+        funcionava (oninput=filterCities já existia e deve continuar)."""
+        html = (
+            '<input type="text" id="city-search" oninput="filterCities()">'
+            '<ul class="suggestions" id="suggestions"></ul>'
+        )
+        with patch(
+            "backend.src.agents.fixer.fixer.call_llm",
+            new=AsyncMock(return_value=json.dumps(RECLASSIFICATION_FIX_RESPONSE)),
+        ):
+            result = await run_fixer(html, [RECLASSIFICATION_ISSUE])
+
+        assert result.success is True
+        assert "filterCities()" in result.data["fixed_html"]
+
+
 class TestExtractFixedSnippet:
     def test_extracts_img_tag(self):
         html = "<body><img src='logo.png' alt='Logo'/></body>"

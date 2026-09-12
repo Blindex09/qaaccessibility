@@ -62,6 +62,7 @@ EXPECTED_SAMPLE_SELECTED_AGENT_MOCKS = {
     "run_screen_reader",
     "run_forms_a11y",
     "run_wcag_semantics",
+    "run_interaction_pattern",
     "run_compliance_audit",
 }
 
@@ -100,6 +101,7 @@ def _patch_all_analysis_agents(overrides: dict | None = None) -> dict:
         "run_tables_data",
         "run_link_checker",
         "run_wcag_semantics",
+        "run_interaction_pattern",
         "run_compliance_audit",
         "run_agentic_ai_ui_agent",
         "run_spatial_3d_xr_agent",
@@ -191,8 +193,8 @@ class TestOrchestratorRefactored:
             result = await orchestrate(sample_html, TaskType.ANALYZE, screenshot_base64="fake_screenshot")
         assert result.success is True
         assert "agent_metrics" in result.data
-        # 22 métricas (20 subagentes selecionados + 1 visual + 1 classificador)
-        assert len(result.data["agent_metrics"]) == 22
+        # 23 métricas (21 subagentes selecionados + 1 visual + 1 classificador)
+        assert len(result.data["agent_metrics"]) == 23
         patches["run_visual_a11y"].assert_called_once()
 
     async def test_analyze_result_includes_agent_metrics(self, sample_html):
@@ -203,7 +205,7 @@ class TestOrchestratorRefactored:
         assert "agent_metrics" in result.data
         assert result.data["audit"]["run_id"].startswith("qa-")
         assert "counters" in result.data["audit"]
-        assert len(result.data["agent_metrics"]) == 21
+        assert len(result.data["agent_metrics"]) == 22
         for m in result.data["agent_metrics"]:
             assert "agent" in m
             assert "duration_ms" in m
@@ -356,7 +358,7 @@ class TestOrchestratorRefactored:
         assert result.error is not None
         assert "agentes" in result.error.lower()
         assert "agent_metrics" in result.data
-        assert len(result.data["agent_metrics"]) == 16
+        assert len(result.data["agent_metrics"]) == 17
 
     async def test_partial_failure_returns_success_true_with_warning(self, sample_html):
         """Quando alguns (não todos) agentes falham, success=True mas com campo 'warning'."""
