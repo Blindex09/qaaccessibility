@@ -31,8 +31,15 @@ _PROTECTED_ENV_NAMES = {
 
 
 class Settings(BaseSettings):
+    # pydantic-settings lê os arquivos NA ORDEM: valores do último ganham.
+    # Ordem espelha get_settings() (raiz é a persistência canônica que a
+    # tela de Configurações grava; backend/.env é override de deploy). Antes,
+    # só backend/.env era lido: as configurações não-secretas salvas na raiz
+    # (provider/modelo) se perdiam a cada reinício do servidor -- a chave
+    # volta pelo cofre DPAPI e o provider vazio derrubava o roteamento "Alto"
+    # com "Nenhum modelo elegível..." (reproduzido em 2026-10-02).
     model_config = SettingsConfigDict(
-        env_file="backend/.env",
+        env_file=(".env", "backend/.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

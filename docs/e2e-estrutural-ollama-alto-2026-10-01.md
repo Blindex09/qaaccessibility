@@ -85,23 +85,35 @@ verificado no navegador: painel abre no turno sem reload.
 - **Audiência das ferramentas de análise**: 18–20 especialistas por análise com
   contadores públicos de progresso e achados preliminares antes da revisão.
 
-## Limitações registradas (não corrigidas nesta rodada)
+## Limitações registradas na rodada de 2026-10-01 — estado atual (2026-10-02)
 
-- **LIMITAÇÃO-1**: o teto de 180s corre enquanto um card de aprovação HITL está
-  aberto; se a pessoa demora para clicar, o orçamento acaba depois da aprovação e
-  o turno entrega parcial. Sugestão futura: congelar o cronômetro enquanto
-  o card espera o humana (o cancelamento do humano continua funcionando).
-- **LIMITAÇÃO-2 (menor)**: `analyze_site` (crawl) não grava
-  `last_analyzed_content_store`, então um pedido de fix na conversa do crawl
-  re-analisa a página (`analyze_page` de novo). O fluxo se recupera sozinho
-  (re-análise + fix funcionaram), mas viola a regra de nunca reanalisar o mesmo alvo
-  no mesmo turno; correção candidata: `analyze_site` cachear o HTML da página
-  consolidada.
-- **LIMITAÇÃO-3**: o painel do Live Preview usa `localhost:8001` (BASE_URL) e
-  funcionou; em acessos de outros hosts o `resolved_public_base_url` dos links de
-  download já resolve, mas o `BASE_URL` do frontend continua fixo.
+- **LIMITAÇÃO-1 — CORRIGIDA em 2026-10-02**: a espera de card HITL (aprovação de
+  tool, clarify) não consome mais o orçamento do turno. Mecanismo:
+  `pause_for_user_gate()` em `execution_scope.py` + `wait_clarify` pausando o
+  budget (`chat_progress.py`) e o wait do stream usando
+  `effective_deadline()` (`chat_runtime.py`). Evidência real na interface
+  (`logs/backend.log`): `[UserGate] aguardando usuario ... restante=167s` ->
+  usuário demorou 76,6s -> `pausa fechada ... espera=76.6s, restante=167s` —
+  orçamento intacto, turno correu até a entrega completa (ZIP gerado).
+  Testes de regressão: `tests/backend/unit/services/test_user_gate_pause.py` (6).
+  Cancelamento e resposta durante a pausa cobertos.
+- **LIMITAÇÃO-2 — CORRIGIDA em 2026-10-02**: `analyze_site` (crawl) de página
+  única agora grava o HTML consolidado em `last_analyzed_content_store`
+  (`chat_tools.py`), então o fix pós-crawl não re-analisa a página. Evidência
+  real na interface: turno do crawl logou 1 scrape (`Executando scrape do
+  Firecrawl para https://example.com`); o turno seguinte de correção logou
+  NENHUM scrape novo e entregou o ZIP corrigido (196s). Testes de regressão:
+  `tests/backend/unit/services/test_crawl_fix_seam.py` (2 — página única
+  cacheia, multi-página não cacheia).
+- **LIMITAÇÃO-3 (ainda aberta)**: o painel do Live Preview usa `localhost:8001`
+  (BASE_URL) e funcionou; em acessos de outros hosts o `resolved_public_base_url`
+  dos links de download já resolve, mas o `BASE_URL` do frontend continua fixo.
 - Os pedidos de turnos repetidos (mesmo alvo já analisado) foram recusados conforme
   a regra de re-análise — o modelo usou o cache e entregou deliverables novos.
+- Correção acessória no mesmo trabalho: `backend/src/config/settings.py` agora
+  aceita `backend/.env` (além do `.env` da raiz) — provider/modelo deixaram de
+  se perder em restarts do backend (reproduzido antes: `Nenhum modelo elegível`
+  após restart).
 
 ## Verificação aplicada (pirâmide, degraus baratos primeiro)
 
