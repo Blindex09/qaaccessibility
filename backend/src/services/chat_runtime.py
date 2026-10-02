@@ -458,7 +458,10 @@ async def stream_chat(
             get = asyncio.create_task(queue.get())
             stop = asyncio.create_task(cancel.wait())
             budget = state.get("budget")
-            timeout = max(.001, budget.deadline - time.monotonic()) if budget else None
+            # Deadline EFETIVO: pausas de portão do usuário (cartão de
+            # aprovação/clarify bloqueando a thread worker) não consomem.
+            # Sem isso, o teto expirava enquanto o usuário apenas lia o cartão.
+            timeout = max(.001, budget.effective_deadline() - time.monotonic()) if budget else None
             done, pending = await asyncio.wait({get, stop}, timeout=timeout,
                                                return_when=asyncio.FIRST_COMPLETED)
             for waiter in pending:

@@ -35,6 +35,7 @@ subagentes, perguntas do agente, botão "parar", correção do usuário) ate o s
 import asyncio
 import contextlib
 import contextvars
+import logging
 import threading
 import uuid
 from collections.abc import Callable
@@ -47,6 +48,8 @@ _sink: contextvars.ContextVar[Callable[[dict[str, Any]], None] | None] = context
 _cancel_check: contextvars.ContextVar[Callable[[], bool] | None] = contextvars.ContextVar(
     "chat_progress_cancel_check", default=None
 )
+
+logger = logging.getLogger(__name__)
 
 
 def set_sink(fn: Callable[[dict[str, Any]], None]) -> contextvars.Token:
@@ -119,15 +122,38 @@ def new_clarify() -> tuple[str, threading.Event]:
 
 
 def wait_clarify(rid: str, ev: threading.Event, timeout: float = 300.0) -> str:
-    """Bloqueia ate o usuário responder (ou timeout). Retorna a resposta ("" se não veio)."""
+    """Bloqueia ate o usuário responder (ou timeout). Retorna a resposta ("" se não veio).
+
+    A espera é de HUMANO, nao de máquina: o orçamento do turno fica em pausa
+    enquanto o cartão (de aprovação da tool, de clarify, etc.) está aberto --
+    o tempo que o usuário demora para clicar não consome o teto e não termina
+    o turno com entrega parcial. Cancelamento e continue funcionando (a rota
+    /chat/cancel independe desse loop)."""
     import time
 
-    from backend.src.services.execution_scope import remaining_seconds
+    from backend.src.services.execution_scope import (
+        current_budget,
+        pause_for_user_gate,
+        remaining_seconds,
+    )
 
+    # Log de auditoria: abre/fecha da espera humana e quanto orçamento ela NÃO gastou.
+    budget = current_budget()
+    logger.info(
+        "[UserGate] esperando usuario (rid=%s, pausa=%s, restante=%.0fs)",
+        rid[:8], "sim" if budget is not None else "sem-budget",
+        remaining_seconds(timeout) if budget is not None else -1.0,
+    )
     try:
-        deadline = time.monotonic() + remaining_seconds(timeout)
-        while not ev.is_set() and not is_cancelled() and time.monotonic() < deadline:
-            ev.wait(timeout=min(.1, max(0.0, deadline - time.monotonic())))
+        with pause_for_user_gate():
+            deadline = time.monotonic() + remaining_seconds(timeout)
+            while not ev.is_set() and not is_cancelled() and time.monotonic() < deadline:
+                ev.wait(timeout=min(.1, max(0.0, deadline - time.monotonic())))
+        if budget is not None:
+            logger.info(
+                "[UserGate] pausa fechada (rid=%s, espera=%.1fs, restante=%.0fs)",
+                rid[:8], budget.paused_total, remaining_seconds(timeout),
+            )
         return _answers.pop(rid, "")
     finally:
         _pending.pop(rid, None)
