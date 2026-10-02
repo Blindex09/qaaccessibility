@@ -3,6 +3,19 @@ Qaaccessibility— instruções operacionais para agentes
 Este arquivo é lido automaticamente no início de qualquer sessão de agente
 neste repositório. Não é material de estudo — são regras de processo.
 
+## Mobilização contextual da squad
+
+O chat atua como coordenador da squad de acessibilidade. O classificador escolhe
+`squad_roles` e sua ordem pelo contexto, sem uma sequência obrigatória de gestão
+e sem uma regra que dispense a squad em auditorias pequenas. Os especialistas
+das ferramentas de análise são membros da mesma squad. Durante o trabalho, o
+agente pode usar `consult_squad` para consultar outros papéis ou rever a abordagem
+com os resultados reais. Não converter essa seleção em palavras-chave, regex ou
+heurística de intenção. Uma consulta de QA define/revisa evidências; não significa
+que testes foram executados. Handoffs não concedem aprovação para mutações.
+O harness valida IDs, contratos, permissões, cancelamento e orçamento agregado.
+As rotinas batch de planejamento não são a política de seleção do chat.
+
 ## Antes de declarar qualquer implementação concluída
 
 **Não é opcional.** Antes de dizer "pronto" pra qualquer mudança de código
@@ -27,12 +40,14 @@ Eles não são referência passiva — são checklist operacional.
      esgotar os degraus baratos antes — E2E confirma, não descobre.
 
 2. **`docs/conceitos-ia-para-desenvolvimento-de-software.md`** — engenharia
-   de sistemas com IA (Harness Engineering, roteamento determinístico,
+   de sistemas com IA (Harness Engineering, roteamento contextual,
    decomposição, Agent Evals, trajetória, custo, loop detection,
    checkpoints, graceful degradation). Aplicável sempre que a mudança tocar
    o pipeline de agentes (Planner/Critic/Orchestrator/sub-agentes): a
-   decisão de CONTEÚDO é da IA, a decisão de ROTEAMENTO é determinística
-   (nunca inverter isso); ao decompor uma tarefa grande em partes, garantir
+   decisão de conteúdo, classificação e escolha de modelo é da IA; o harness
+   valida elegibilidade, credenciais, contratos e limites operacionais.
+   Contingências técnicas não substituem julgamento semântico.
+   Ao decompor uma tarefa grande em partes, garantir
    que quem AVALIA o resultado também sabe que existem partes (não só quem
    gera).
 
@@ -93,6 +108,34 @@ Um agente é **modelo + harness**, dois papéis que nunca se invertem:
   determinístico — nunca depende do modelo "decidir" parar.
 - **Timeouts e limites operacionais**: todo laço, retry ou orçamento de execução tem um teto
   agregado imposto pelo código, não apenas a soma de laços independentes sem controle central.
+- **Orçamento adaptativo único — o tempo se adapta e nunca deve esbarrar no teto**: tempo,
+  tokens e turnos partem da complexidade que o classificador inteligente atribuiu e dos
+  recursos realmente selecionados, e o prazo se adapta conforme as tarefas executam — a
+  adaptação recalcula o deadline a partir do início original (retry não reinicia o relógio).
+  O teto é dimensionado pela complexidade declarada e pelas ondas de trabalho selecionadas
+  para que a execução normal convirja com folga: atingir o teto de tempo é sinal de
+  orçamento mal dimensionado, não o comportamento esperado. Não criar um segundo contador
+  de rodadas que interrompa antes do orçamento agregado; o deadline central é o único teto
+  operacional da fase. Se mesmo assim o teto for alcançado, vale a entrega parcial honesta
+  descrita abaixo.
+- **Economia sem sacrificar precisão**: compartilhar contexto, cachear fatos já provados,
+  executar especialistas independentes em ondas controladas e emitir progresso conforme
+  cada papel termina. A economia nunca pode ocultar uma etapa que o relatório apresenta como
+  concluída.
+- **Loop adaptativo — nunca loop infinito**: todo laço de execução (tool-loop, delegações,
+  reparos de JSON, espera de steering/esclarecimento) é encerrado por algo real — convergência
+  (não há mais nada útil a fazer), deadline agregado, cancelamento do usuário ou detecção de
+  repetição (a mesma decisão voltou a aparecer). O teto que encerra o laço vem do orçamento
+  central, nunca de um contador paralelo cego, e nenhum laço pode girar indefinidamente;
+  uma decisão repetida encerra o laço com o que já está provado em vez de insistir.
+- **Loops protegidos e entrega parcial honesta**: se o orçamento acabar, houver cancelamento
+  ou a trajetória deixar de convergir, preservar o melhor resultado verificável. Distinguir
+  artefato utilizável com ressalvas de falha bloqueante; nunca chamar um resultado parcial de
+  completo.
+- **Julgamento entre modelos no Alto**: quando o classificador indicar que a qualidade merece
+  o custo adicional, o roteador pode consultar candidatos atuais do catálogo e pedir uma
+  síntese julgada. O vencedor nunca é fixo por nome, ordem ou keyword; tarefas simples usam
+  uma única chamada, e uma falha do julgamento preserva a melhor resposta verificável já obtida.
 - **Validação de schema/contrato**: entrada e saída estruturada são validadas contra um
   contrato explícito antes de seguir adiante.
 - **Sintaxe e integridade de arquivo**: uma edição/gravação só é aceita se preservar a
@@ -119,6 +162,12 @@ tamanho, um schema) — nunca para "deixar o comportamento mais previsível" ou 
 passar mais fácil". Ao escrever ou revisar um teste: se ele exige que o código adivinhe ou
 force uma categoria de intenção por palavra-chave em vez de deixar o modelo julgar, o teste
 está pedindo o tipo errado de determinismo — não aceitar.
+
+O classificador inteligente deve interpretar a intenção e a complexidade no contexto. Uma
+ambiguidade material e vaga pede uma pergunta curta e específica; uma continuação curta cujo
+sentido esteja determinado pelo histórico deve prosseguir sem perguntar de novo. O harness
+garante apenas o caminho de pergunta, cancelamento e retomada; não decide a intenção por
+keywords, regex ou heurística fixa.
 
 ### Comportamento conversacional obrigatório
 
@@ -153,3 +202,40 @@ lugar de "Parar" quando há texto digitado durante o streaming (`web/src/screens
 Cobre os providers OpenAI (Responses e Chat Completions), xAI, Ollama e Anthropic; Gemini e
 Factory ainda não têm steer ligado (ver comentários em `run_agent.py`/`factory_adapter.py` --
 cancelamento best-effort continua disponível para os dois).
+
+### Evidência operacional de 2026-09-30
+
+O turno compartilha um único orçamento em `execution_scope.py`, incluindo
+triagem, consultor de rotas, ferramentas, especialistas e reparação de JSON.
+A complexidade declarada pela IA adapta o prazo a partir do início original;
+retry não reinicia o relógio. Planejamento gerencial depende de uma decisão
+estruturada da IA, não da presença de URL/anexo ou de palavras no pedido.
+
+Cada instância de `AIAgent` captura suas concessões de ferramentas ao nascer.
+O dispatcher verifica concessão, schema e aprovação antes de chamar o handler.
+A configuração não pode desativar aprovação de ferramentas assim marcadas.
+Atualizações públicas estruturadas são separadas de raciocínio privado e de
+JSON; a interface mantém um feed consultável com setas, sem anunciar progresso
+automaticamente. Cancelamento preserva texto recebido e encerra cartões ativos.
+O narrador recebe fatos estruturais observados do HTML original; ausência de
+achados não permite inventar elementos presentes nem certificar conformidade.
+Especialista de semântica, revisor, papéis da squad e chat compartilham a calibração normativa
+de `backend/src/shared/normative_calibration.py`: técnicas recomendadas não
+são requisitos obrigatórios isolados, e decisões WCAG exigem evidência contextual.
+
+O pedido, histórico e atualizações já comunicadas acompanham as chamadas dos
+especialistas por `request_context.py`; a ponte síncrona/assíncrona das ferramentas
+preserva esse contexto e o orçamento. Redirecionamentos consumidos pelo agente
+também atualizam o escopo dos próximos especialistas. O revisor recebe o HTML
+original da captura, inclusive em cada lote, não apenas os achados consolidados.
+Uma remoção da lista de achados não é automaticamente aprendida como falso positivo:
+pode ser apenas um item fora do escopo. O julgamento continua sendo da IA.
+Eventos de quadro/roteamento são estado interno, não narração pública. Cada resposta
+guarda sua própria duração; histórico sem esse dado não exibe um tempo inventado
+nem a mensagem fixa “Processamento concluído”.
+
+Isso não é uma declaração de conformidade integral: sandbox uniforme,
+credenciais curtas por execução, recuperação durável de todos os módulos,
+latência de primeira atualização e comportamento de todos os providers ainda
+exigem evidência adicional. Consulte
+`docs/implementacao-regras-mestras-2026-09-30.md` para testes e limitações reais.

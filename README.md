@@ -71,7 +71,7 @@ Analisador de acessibilidade com IA, seguindo WCAG 2.2, WAI-ARIA e ADA/Section 5
 - **Roteamento por Cascateamento (Model Cascading)**: otimiza custos rodando a auto-correção (Self-Healing) primeiro em modelos rápidos/baratos e escalando automaticamente para modelos de reasoning de ponta caso falhe nas validações do Axe-core no browser
 - **Checklist Híbrido (Auto + Manual QA)**: combina o escaneamento automático com tarefas de QA manual guiadas e customizadas para os elementos da página (alt text, alvos de toque, ordem de foco)
 - **Portões de Build no CI/CD**: script integrado de Git e workflow de GitHub Actions pronto para bloquear commits se houver violações críticas/graves de acessibilidade no código do projeto ou site de teste
-- **Squad de acessibilidade com papéis reais**: seis papéis são agentes com prompt e responsabilidade próprios — Product Owner (escopo e critérios de aceite), Tech Lead (abordagem e riscos técnicos), Engineering Manager (sequenciamento e dependências), QA Lead (evidência, verificação manual e veredito), Scrum Master (triagem de bloqueios) e Release (prontidão e risco residual). O `handoff` de um papel é literalmente a entrada do próximo. Developer, especialista A11y e documentação **não** foram reimplementados: são o `fixer`, o `a11y_expert_reviewer` e `checklist`/`reporter`/`vpat_reporter` que já existem. O quadro persiste por conversa (`squad_plan_store`), os estados transicionam por execução real (`READY → IN_PROGRESS → DONE/BLOCKED`) e os portões bloqueiam de verdade: entrega não fecha sem documentação, que não fecha sem QA, e a correção nasce `BLOCKED` até aprovação explícita. A especificação completa está em [`docs/ARQUITETURA_SQUAD_ACESSIBILIDADE.md`](docs/ARQUITETURA_SQUAD_ACESSIBILIDADE.md).
+- **Squad de acessibilidade com papéis reais**: seis papéis são agentes com prompt e responsabilidade próprios — Product Owner (escopo e critérios de aceite), Tech Lead (abordagem e riscos técnicos), Engineering Manager (sequenciamento e dependências), QA Lead (evidência, verificação manual e veredito), Scrum Master (triagem de bloqueios) e Release (prontidão e risco residual). O `handoff` de um papel é literalmente a entrada do próximo. Developer, especialista A11y e documentação **não** foram reimplementados: são o `fixer`, o `a11y_expert_reviewer` e `checklist`/`reporter`/`vpat_reporter` que já existem. O quadro persiste por conversa (`squad_plan_store`), os estados transicionam por execução real (`READY → IN_PROGRESS → DONE/BLOCKED`) e os portões bloqueiam de verdade: entrega não fecha sem documentação, que não fecha sem QA. Com aprovação ligada, a correção nasce `BLOCKED` até aprovação explícita; com ela desligada, nasce `READY`. A especificação completa está em [`docs/ARQUITETURA_SQUAD_ACESSIBILIDADE.md`](docs/ARQUITETURA_SQUAD_ACESSIBILIDADE.md).
 - **Verificação de anúncios de leitor de tela contra a árvore de acessibilidade REAL** (`POST /analyze/screen-reader`, tool de chat `verify_screen_reader_announcements`): cruza a árvore de acessibilidade computada pelo motor real do navegador (Chromium/CDP via `page.accessibility.snapshot()` — a mesma API que NVDA/JAWS/Narrator consultam no Windows) contra regras determinísticas de nome acessível ausente ou genérico. Diferente do resto do pipeline (que estima problemas a partir do HTML bruto via LLM), aqui o achado é confirmado pelo próprio motor de acessibilidade do navegador. Se o NVDA real estiver rodando na máquina (`nvda_service.py`, DLL oficial `nvdaControllerClient.dll`), os achados podem ser lidos em voz alta para confirmação humana. Requer `BROWSERLESS_WS_URL` configurado.
 - **Revisão de acessibilidade pré-desenvolvimento / shift-left** (`POST /analyze/design-review`, tool de chat `design_review`): único agente do projeto que não audita HTML/código já existente — lê um requisito, user story ou descrição de componente/fluxo em texto livre e antecipa riscos de acessibilidade (com critérios WCAG 2.2 prováveis, severidade, motivo específico e recomendação acionável) antes de qualquer linha de código ser escrita.
 - **Criação automática de tickets em Jira e Azure DevOps** (`create_jira_issue`/`create_azure_devops_work_item` no chat, via `ticket_integrations.py`): abre issues/work items reais a partir de um achado de acessibilidade, com severidade mapeada para prioridade (Jira) ou `Microsoft.VSTS.Common.Severity` (Azure DevOps). Configuração via `JIRA_BASE_URL`/`JIRA_EMAIL`/`JIRA_API_TOKEN`/`JIRA_PROJECT_KEY` ou `AZURE_DEVOPS_ORG`/`AZURE_DEVOPS_PROJECT`/`AZURE_DEVOPS_PAT`; sem credenciais, simula a criação (mesmo padrão de `create_github_issue`).
@@ -143,6 +143,7 @@ qaaccessibility/
 │   │   ├── services/                # api.ts (settings) + chat.ts (streaming SSE + getModels)
 │   │   ├── hooks/                   # useChat
 │   │   └── design/                  # tokens + helpers
+│   ├── index.js                      # ponto de entrada local do Expo (compatível com pnpm)
 │   ├── App.tsx
 │   ├── package.json
 │   └── AI_MODULE_SPEC.md
@@ -211,6 +212,10 @@ OrchestratorAgent
 ```
 
 **Resiliência do pipeline:** cada agente é executado com `asyncio.wait_for(...)` e timeout configurável (`AGENT_TIMEOUT_SECONDS`, padrão 180s), com captura de exceções via `_timed()`. Uma falha isolada não afeta os demais agentes. O resultado `ANALYZE` inclui `agent_metrics: []` com `duration_ms`, `issues_found` e `success` por agente.
+
+**Observabilidade por execução:** o orquestrador anexa um `audit` com eventos e contadores de ferramentas, chamadas ao modelo e aprovação. O registro acompanha ferramentas paralelas, recupera seus hooks após uma limpeza e redige os valores dos argumentos. O contrato e os testes reais estão em [`docs/modules/audit_observability.md`](docs/modules/audit_observability.md).
+
+**Aprovação e execução de ferramentas:** o portão usa a configuração liga/desliga, confirma os argumentos exatos antes de agir quando ligado e registra a decisão estruturada por chamada. Contratos, correções e teste real: [`tools/APPROVAL_EXECUTION.md`](tools/APPROVAL_EXECUTION.md).
 
 **Análise de projetos:** `/analyze/project` aceita múltiplos arquivos (HTML, CSS, JS, TS, TSX, Vue, Svelte). Monta contexto unificado anotado com limite de 400 KB. Ignora node_modules, .git, dist, build, .next. Retornado no mesmo contrato `AgentResult`.
 
@@ -283,13 +288,22 @@ Ver `.env.example` para todas as variáveis necessárias.
 
 ### Modelo "Alto" (seleção automática)
 
-`LLM_MODEL=alto` (padrão da tela de Configurações) ativa o roteamento automático:
+`LLM_MODEL=alto` ativa o roteamento dinâmico em todas as tarefas:
 o usuário só escolhe o **provedor** e a **chave de API**, e o backend resolve o
 **melhor modelo recente e com suporte a ferramentas** daquele provedor. O catálogo
 é live-first: consulta a API de modelos do provider e usa o catálogo estático local
 (`agent/models_dev.py`) apenas como fallback offline. O ranking considera reasoning,
 janela de contexto e custo. Modelos concretos continuam disponíveis como override
 manual na UI.
+
+A interface guarda a última escolha de modelo separadamente por provedor, tanto
+para a análise quanto para o chat com override próprio. Ao voltar a um provedor,
+recupera essa escolha. Na primeira utilização, sem histórico, o roteador
+seleciona automaticamente; não há modelo concreto imposto como padrão. A opção
+Alto permanece disponível para escolha explícita. `APPROVAL_ENABLED=true` pede
+confirmação para ferramentas com gravação ou efeito externo; com `false`, elas
+executam sem confirmação adicional, mantendo validação de argumentos e demais
+limites de segurança.
 
 ## Mapa de contratos locais
 
@@ -302,7 +316,8 @@ Cada pasta de primeiro nível possui um `AI_MODULE_SPEC.md` obrigatório:
 > **Pré-requisito:** crie `backend/.env` a partir de `.env.example`. Não há provider
 > assumido por padrão — escolha um dos providers suportados (OpenAI, Anthropic,
 > Gemini, xAI ou Ollama Cloud) e informe a chave de API na tela de **Configurações**
-> (ou direto em `LLM_PROVIDER`/`LLM_API_KEY`). O modelo padrão é `alto` (seleção automática).
+> (ou direto em `LLM_PROVIDER`/`LLM_API_KEY`). Sem escolha anterior de modelo,
+> a primeira utilização faz seleção automática.
 
 ### Backend
 

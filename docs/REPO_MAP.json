@@ -126,6 +126,16 @@
       "responsibility": "You are an accessibility compliance auditor."
     },
     {
+      "name": "component_contracts",
+      "file": "backend/src/agents/component_contracts/component_contracts.py",
+      "entry_points": [
+        "run_component_contracts"
+      ],
+      "id_prefixes": [],
+      "guidelines": [],
+      "responsibility": "You are an accessible component contract specialist. Your job is to audit the"
+    },
+    {
       "name": "css_analyzer",
       "file": "backend/src/agents/css_analyzer/css_analyzer.py",
       "entry_points": [

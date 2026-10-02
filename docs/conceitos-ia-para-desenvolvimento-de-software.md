@@ -8,26 +8,28 @@
 > testar o resultado".
 > Criado em 2026-08-09.
 
-## 1. Roteamento determinístico + conteúdo da IA — um princípio arquitetural, não lei universal
+## 1. Roteamento contextual + harness determinístico
 
-**Princípio arquitetural adotado neste projeto** (NVDAStudio), não uma regra
-obrigatória de todo sistema agêntico: **a IA decide o QUÊ (conteúdo,
-estratégia, julgamento semântico) — código determinístico decide o
-COMO/QUANDO (roteamento entre modelos, validação de contrato, escalação).**
+Atualização de 2026-09-30: a referência antiga a escolha fixa de modelo
+contradizia a regra permanente de AGENTS.md e CLAUDE.md. No QA Accessibility,
+**a IA interpreta intenção, complexidade, preferência e escolhe modelos**;
+**o harness valida catálogo, capacidades, contexto, credenciais, schema,
+cancelamento e orçamento**. Escolha de qualidade/custo não é classificação
+por nome de modelo ou palavra-chave.
 
-Por quê essa escolha aqui: se a própria IA decide pra onde a chamada vai
-(qual modelo, qual fallback), o sistema fica difícil de auditar e de prever
-custo. Fixando isso em código determinístico, e deixando a IA decidir só o
-conteúdo dentro do escopo já roteado, o sistema fica previsível e testável
-— mas ainda flexível onde importa (julgamento sobre código, texto,
-contexto).
+O consultor de rotas trabalha sem ferramentas e com bootstrap explícito,
+para não consultar a si próprio. Seu plano não concede capacidades: somente
+IDs já elegíveis são aceitos. Se indisponível, a contingência usa confiabilidade
+observada e ordem do catálogo, sem inventar uma classificação. A decisão e
+sua origem ficam registradas. Modelo explicitamente escolhido é respeitado;
+fallback de contrato técnico e coleta batch continuam caminhos separados.
 
 **Isso não é a única arquitetura válida.** Existem sistemas agênticos
 legítimos e bem-sucedidos onde o próprio agente escolhe ferramentas,
 sub-agentes, estratégia, sequência de execução e quando parar — delegando
-justamente o roteamento pra IA. A escolha aqui prioriza previsibilidade e
-custo auditável sobre adaptabilidade máxima; outro projeto, com outra
-tolerância a risco/custo, pode legitimamente escolher o oposto. Vale decidir
+justamente o roteamento pra IA. O QA adota esse julgamento contextual com
+limites auditáveis; outro projeto, com outra tolerância a risco/custo, pode
+legitimamente escolher outra abordagem. Vale decidir
 essa escolha conscientemente, não assumi-la como padrão universal da
 indústria.
 

@@ -43,14 +43,15 @@ avançado ao longo dos turnos:
 | 8 | `release-readiness` | Release | `documentation-release` |
 
 As três primeiras são o planejamento da squad e rodam **antes** da análise: é o
-Engineering Manager quem fecha as dependências externas (aprovação do usuário,
-credencial, browser) antes de a squad executar.
+Engineering Manager quem fecha as dependências externas (aprovação do usuário
+quando ligada, credencial, browser) antes de a squad executar.
 
-`a11y-remediation` nasce `BLOCKED` e só é liberada por aprovação explícita.
+`a11y-remediation` nasce `BLOCKED` com aprovação ligada e é liberada por
+aprovação explícita. Com aprovação desligada, nasce `READY`.
 `qa-validation` depende da **análise**, não da correção: uma auditoria sem
 correção aprovada continua tendo QA e entrega.
 
-### Por que a correção é incondicional e bloqueada
+### Por que a correção sempre entra no plano
 
 Antes, o `chat_runtime` decidia por regex de palavras-chave
 (`corrig|remedi|fix|implementar|aplicar`) se a etapa 3 entrava no plano. Isso
@@ -63,11 +64,11 @@ quebrava de dois jeitos:
   "deixe acessível" não casam com nenhuma daquelas raízes — o plano chegava ao
   modelo sem etapa de correção justamente quando o usuário pediu correção.
 
-Hoje a etapa existe sempre, visível e explicitamente inalcançável sem
-aprovação. A autorização real nunca esteve no plano: está no
-`requires_approval` das ferramentas de mutação e na regra 13 do prompt do chat
-(checkpoint de remediação). Regressão coberta em
-`tests/backend/unit/agents/test_squad_coordinator.py`.
+Hoje a etapa existe sempre e o estado inicial acompanha `APPROVAL_ENABLED`.
+A autorização real está no portão `requires_approval` das ferramentas de
+mutação, que pede confirmação quando a configuração está ligada. O plano não
+substitui esse portão. Regressão coberta em
+`tests/backend/unit/agents/test_squad_coordinator_state.py`.
 
 As tarefas usam estados `BACKLOG`, `READY`, `IN_PROGRESS`, `BLOCKED`, `REVIEW` e
 `DONE`. O plano também informa dependências, critérios de aceite e portões de
