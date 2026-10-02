@@ -71,3 +71,6 @@ web/web-build/
 chaves*.txt
 **/chaves*.txt
 *api*key*.txt
+
+# Evidências locais de verificação (regeneradas por rodadas de QA)
+artifacts/
