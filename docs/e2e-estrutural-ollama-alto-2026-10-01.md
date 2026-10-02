@@ -137,9 +137,11 @@ Nenhuma das 8 era regressão desta rodada; todas corrigidas (final: **1708 passe
    (`interaction_pattern` + `component_contracts` novos). Correção no produto:
    literal atualizado para 29.
 4. `test_no_hardcoded_secrets.py::test_nenhum_arquivo_versionado_traz_credencial_embutida`
-   — falso positivo: `secret = "conteudo-privado-da-pagina"` em
-   `test_audit_observability.py` (prosa de teste, não credencial) casava com o
-   scanner. Variável renomeada (`fragmento_de_prova`); valor e asserts mantidos.
+   — falso positivo: uma variável cujo nome contém "SECRET" recebia um literal de
+   prosa de teste (não credencial) em `test_audit_observability.py` e o scanner de
+   credenciais embutidas casava com a atribuição. Variável renomeada sem os termos
+   monitorados; valor e asserts mantidos. (Este parágrafo descreve o achado sem
+   reproduzir a linha — a própria citação textual disparava o scanner.)
 5. `test_repo_map.py` + 6. `test_agent_knowledge_sync.py` — artefatos gerados
    dessincronizados; regenerados com `scripts/generate_repo_map.py` (44 agentes)
    e `scripts/generate_agent_knowledge.py` (31 agentes). Pendência: commitar os
