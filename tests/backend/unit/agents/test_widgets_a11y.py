@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from backend.src.agents.widgets_a11y.widgets_a11y import run_widgets_a11y
+from backend.src.agents.widgets_a11y.widgets_a11y import SYSTEM_PROMPT, run_widgets_a11y
 
 from .conftest_agents import (
     HTML_CLEAN,
@@ -47,6 +47,16 @@ WIDGET_ISSUE = make_issue(
 
 @pytest.mark.asyncio
 class TestWidgetsA11yAgent:
+    async def test_component_contract_patterns_are_in_prompt(self):
+        """Regressão: os padrões do starter não podem ficar só no RAG do chat."""
+        for term in (
+            "TOAST / NOTIFICATION / STATUS",
+            "DISCLOSURE / SHOW-MORE",
+            "SKIP LINK / PREFERENCE CONTROLS",
+            "EVIDENCE DISCIPLINE",
+        ):
+            assert term in SYSTEM_PROMPT
+
     async def test_contract_on_success(self):
         with patch(
             "backend.src.services.llm_client.call_llm",

@@ -193,8 +193,8 @@ class TestOrchestratorRefactored:
             result = await orchestrate(sample_html, TaskType.ANALYZE, screenshot_base64="fake_screenshot")
         assert result.success is True
         assert "agent_metrics" in result.data
-        # 23 métricas (21 subagentes selecionados + 1 visual + 1 classificador)
-        assert len(result.data["agent_metrics"]) == 23
+        # 24 métricas (22 subagentes selecionados + 1 visual + 1 classificador)
+        assert len(result.data["agent_metrics"]) == 24
         patches["run_visual_a11y"].assert_called_once()
 
     async def test_analyze_result_includes_agent_metrics(self, sample_html):
@@ -205,7 +205,7 @@ class TestOrchestratorRefactored:
         assert "agent_metrics" in result.data
         assert result.data["audit"]["run_id"].startswith("qa-")
         assert "counters" in result.data["audit"]
-        assert len(result.data["agent_metrics"]) == 22
+        assert len(result.data["agent_metrics"]) == 23
         for m in result.data["agent_metrics"]:
             assert "agent" in m
             assert "duration_ms" in m
@@ -358,7 +358,7 @@ class TestOrchestratorRefactored:
         assert result.error is not None
         assert "agentes" in result.error.lower()
         assert "agent_metrics" in result.data
-        assert len(result.data["agent_metrics"]) == 17
+        assert len(result.data["agent_metrics"]) == 18
 
     async def test_partial_failure_returns_success_true_with_warning(self, sample_html):
         """Quando alguns (não todos) agentes falham, success=True mas com campo 'warning'."""
@@ -682,10 +682,8 @@ class TestDynamicDelegation:
         assert result.success is True
         assert coordinator_mock.call_count == 2
 
-    async def test_delegation_loop_respects_max_rounds_backstop(self, sample_html):
-        """Backstop real (sem loop aberto): mesmo que o coordenador SEMPRE
-        delegue algo, o loop para no limite de MAX_DELEGATION_ROUNDS."""
-        from backend.src.agents.orchestrator.orchestrator import MAX_DELEGATION_ROUNDS
+    async def test_delegation_loop_stops_on_repeated_signature(self, sample_html):
+        """O loop para por convergência repetida, sem um contador paralelo de rodadas."""
 
         delegated_issue = make_issue("widgets-1", "4.1.2 Name, Role, Value", "div[role=tab]")
         reviewer_mock = AsyncMock(return_value=AgentResult(
@@ -693,9 +691,8 @@ class TestDynamicDelegation:
             success=True,
             data={"issues": [make_issue("p-1"), delegated_issue], "removed_false_positives": 0},
         ))
-        # Coordenador "teimoso": delega widgets_a11y toda vez (simula um LLM
-        # que ignora a lista de candidatos ja delegados) -- o loop tem que
-        # parar sozinho pelo backstop, nunca rodar infinitamente.
+        # Coordenador "teimoso": delega widgets_a11y toda vez. A assinatura
+        # repetida deve acionar autosubmit, nunca um loop infinito.
         coordinator_mock = AsyncMock(return_value=AgentResult(
             agent="delegation_coordinator",
             success=True,
@@ -711,7 +708,7 @@ class TestDynamicDelegation:
             result = await orchestrate(sample_html, TaskType.ANALYZE)
 
         assert result.success is True
-        assert coordinator_mock.call_count == MAX_DELEGATION_ROUNDS
+        assert coordinator_mock.call_count == 2
 
     async def test_pipeline_graph_is_explicit_and_observable(self, sample_html):
         """Graph engineering: o resultado da analise deve trazer um grafo
@@ -751,6 +748,22 @@ class TestDynamicDelegation:
 class TestGapResearchGate:
     """Verificacao automatica de lacuna (ver gap_research.py): achados de
     baixa confianca disparam uma pesquisa normativa real via Deep Research."""
+
+    async def test_reviewer_receives_original_source_and_omission_is_not_learned_as_false_positive(self, sample_html):
+        reviewer = AsyncMock(return_value=make_result("a11y_expert_reviewer", []))
+        original = '<html lang="en"><body><p>Original evidence</p></body></html>'
+        patches = _patch_all_analysis_agents({
+            "run_perceiver": AsyncMock(return_value=make_result("perceiver", [make_issue("out-of-scope")])),
+            "run_a11y_expert_reviewer": reviewer,
+        })
+        with (
+            patch.multiple("backend.src.agents.orchestrator.orchestrator", **patches),
+            patch("backend.src.services.lessons_store.record_false_positive_removal") as remember,
+        ):
+            result = await orchestrate(sample_html, TaskType.ANALYZE, source_document=original)
+        assert result.success
+        assert reviewer.call_args.kwargs["source_document"] == original
+        remember.assert_not_called()
 
     async def test_low_confidence_issue_triggers_gap_research_and_gets_enriched(self, sample_html):
         low_conf_issue = {**make_issue("p-1"), "confidence": "low"}

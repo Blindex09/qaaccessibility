@@ -66,6 +66,25 @@ def test_correcao_nasce_bloqueada_e_so_a_aprovacao_libera():
     assert remediacao.metadata["approved_by_user"] is True
 
 
+def test_correcao_nao_nasce_bloqueada_quando_aprovacao_esta_desligada():
+    squad = SquadCoordinator("corrigir o contraste", approval_enabled=False)
+    remediacao = squad.plan.task("a11y-remediation")
+    assert remediacao.status is TaskStatus.READY
+    assert not any("aprovação" in gate for gate in squad.plan.quality_gates)
+    assert squad._context()["approval_enabled"] is False
+
+
+def test_desligar_aprovacao_libera_portao_antigo_sem_apagar_outro_bloqueio():
+    squad = SquadCoordinator("corrigir o contraste")
+    assert SquadCoordinator.restore(
+        squad.plan.to_dict(), approval_enabled=False
+    ).plan.task("a11y-remediation").status is TaskStatus.READY
+
+    squad.record_blocked("a11y-remediation", "arquivo ausente")
+    restored = SquadCoordinator.restore(squad.plan.to_dict(), approval_enabled=False)
+    assert restored.plan.task("a11y-remediation").status is TaskStatus.BLOCKED
+
+
 # ── Transições reais de estado ───────────────────────────────────────────────
 
 
@@ -94,8 +113,8 @@ async def test_papel_transiciona_in_progress_e_done_e_emite_a_decisao():
     assert squad.plan.task("cycle-planning").status is TaskStatus.DONE
 
 
-async def test_papel_longo_emite_progresso_enquanto_ainda_executa(monkeypatch):
-    """Um papel lento não pode deixar a UI silenciosa durante a chamada de IA."""
+async def test_papel_longo_nao_repete_status_por_relogio(monkeypatch):
+    """Progress comes from the model's public updates, never timer templates."""
     import backend.src.agents.squad.coordinator as coordinator_module
 
     monkeypatch.setattr(coordinator_module, "_ROLE_PROGRESS_INTERVAL_SECONDS", 0.01)
@@ -118,9 +137,7 @@ async def test_papel_longo_emite_progresso_enquanto_ainda_executa(monkeypatch):
         eventos = [evento async for evento in squad.run_planning()]
 
     progresso = [e for e in eventos if e["type"] == "squad_progress"]
-    assert progresso
-    assert progresso[0]["role"] == SquadRole.PRODUCT_OWNER.value
-    assert progresso[0]["message"] == "Definindo o escopo e os critérios de aceite."
+    assert progresso == []
 
 
 async def test_papel_que_entrega_com_ressalva_conclui_e_nao_trava_a_cadeia():

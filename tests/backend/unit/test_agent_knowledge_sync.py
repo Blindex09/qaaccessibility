@@ -41,6 +41,15 @@ class TestAgentKnowledgeInSync:
     def test_registered_in_chat_rag_corpus(self):
         from backend.src.services.a11y_knowledge import _CORPUS_FILES
         assert "agent_knowledge.md" in _CORPUS_FILES
+        assert "accessible_component_patterns.md" in _CORPUS_FILES
+
+    def test_accessible_component_catalog_is_present_and_retrievable(self):
+        from backend.src.services.a11y_knowledge import load_corpus
+
+        chunks = load_corpus()
+        titles = {chunk.title for chunk in chunks if chunk.source == "accessible_component_patterns.md"}
+        assert "Como avaliar uma biblioteca de componentes" in titles
+        assert any("Regra de" in chunk.title for chunk in chunks if chunk.source == "accessible_component_patterns.md")
 
     def test_pipeline_coordination_agents_never_leak_into_the_domain_corpus(self):
         """Achado real (2026-08-27): `delegation_coordinator` (decide, via LLM,

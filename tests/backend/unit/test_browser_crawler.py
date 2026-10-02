@@ -589,10 +589,22 @@ class TestFormatAccessibilityNode:
 
 class TestFetchAccessibilityTreeSnapshot:
     @pytest.mark.asyncio
+    @patch("backend.src.services.browser.async_playwright")
     @patch("backend.src.services.browser.get_settings")
-    async def test_returns_empty_string_without_browserless_configured(self, mock_settings):
-        """Sem BROWSERLESS_WS_URL, best-effort -- não derruba a análise."""
+    async def test_returns_empty_string_without_browserless_configured(self, mock_settings, mock_pw):
+        """Sem BROWSERLESS_WS_URL E sem Chromium local disponivel, best-effort:
+        devolve vazio, nunca derruba a análise.
+
+        O fallback local da função é intencional (a verificação pós-correção
+        aponta para páginas servidas no localhost do backend, inalcançáveis
+        por um Browserless remoto). Sem mockar o launch local, este teste
+        lançava um Chromium REAL na máquina de teste e navegava para a URL "--
+        violando a regra deste arquivo de não abrir browser real e tornando o
+        resultado dependente da máquina ter o navegador instalado e rede.
+        Mockar os dois caminhos isola o contrato: nada disponível -> vazio.
+        """
         mock_settings.return_value.browserless_ws_url = None
+        mock_pw.return_value.__aenter__ = AsyncMock(side_effect=RuntimeError("chromium local indisponivel"))
 
         from backend.src.services.browser import fetch_accessibility_tree_snapshot
 
@@ -642,9 +654,15 @@ class TestFetchAccessibilityTreeNodes:
     `fetch_accessibility_tree_snapshot` via `_capture_raw_accessibility_snapshot`."""
 
     @pytest.mark.asyncio
+    @patch("backend.src.services.browser.async_playwright")
     @patch("backend.src.services.browser.get_settings")
-    async def test_returns_empty_list_without_browserless_configured(self, mock_settings):
+    async def test_returns_empty_list_without_browserless_configured(self, mock_settings, mock_pw):
+        """Mesmo contrato da função irmã sem Browserless E sem Chromium local
+        (fallback mockado para falhar -- ver a justificativa em
+        TestFetchAccessibilityTreeSnapshot): devolve lista vazia, best-effort.
+        """
         mock_settings.return_value.browserless_ws_url = None
+        mock_pw.return_value.__aenter__ = AsyncMock(side_effect=RuntimeError("chromium local indisponivel"))
 
         from backend.src.services.browser import fetch_accessibility_tree_nodes
 

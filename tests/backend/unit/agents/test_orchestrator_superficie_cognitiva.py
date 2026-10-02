@@ -6,7 +6,11 @@ documenta como proibido pela regra do projeto. Consequencias reais dos dois
 lados, e este arquivo fixa as duas.
 """
 
-from backend.src.agents.orchestrator.orchestrator import _conditional_agent_reasons, _has_cognitive_surface
+from backend.src.agents.orchestrator.orchestrator import (
+    _conditional_agent_reasons,
+    _has_cognitive_surface,
+    _has_component_contract_surface,
+)
 
 
 class TestSuperficieCognitiva:
@@ -47,3 +51,10 @@ class TestSuperficieCognitiva:
     def test_selecao_continua_deterministica(self):
         html = '<form><input type="password"></form>'
         assert _conditional_agent_reasons(html) == _conditional_agent_reasons(html)
+
+    def test_component_contracts_are_selected_by_component_evidence(self):
+        assert _has_component_contract_surface('<button aria-expanded="false" aria-controls="panel">Abrir</button>')
+        assert "component_contracts" in _conditional_agent_reasons(
+            '<div role="dialog" aria-labelledby="title"><h2 id="title">Configuração</h2></div>'
+        )
+        assert not _has_component_contract_surface("<button>Enviar</button>")

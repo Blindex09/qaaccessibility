@@ -41,3 +41,22 @@ async def test_cancelled_turn_skips_queued_specialist(monkeypatch):
     assert calls == 0
     assert result.success is False
     assert result.error == "Cancelado pelo usuário"
+
+
+@pytest.mark.asyncio
+async def test_findings_are_delivered_before_whole_analysis_finishes(monkeypatch):
+    events = []
+    monkeypatch.setattr(orchestrator.chat_progress, "emit", events.append)
+
+    async def agent():
+        return AgentResult(agent="specialist", success=True, data={"issues": [{
+            "id": "probe-1", "guideline": "WCAG 2.2", "criterion": "4.1.2", "severity": "high",
+            "element": "button", "description": "O botão está sem nome acessível.",
+            "suggestion": "Fornecer um nome acessível.",
+        }]})
+
+    result, _ = await orchestrator._timed("specialist", agent)
+    assert result.success
+    progress = [event for event in events if event["type"] == "phase"]
+    assert "botão está sem nome" in progress[0]["text"]
+    assert "preliminar" in progress[0]["text"]

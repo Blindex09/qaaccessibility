@@ -50,6 +50,21 @@ def _make_reviewed_response(issues: list[dict]) -> str:
 
 @pytest.mark.asyncio
 class TestA11yExpertReviewer:
+    async def test_original_document_reaches_every_review_batch(self):
+        source = '<html lang="en"><head><title>Example</title></head><body><p>No headings</p></body></html>'
+        with patch(
+            "backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer.call_llm",
+            new=AsyncMock(return_value="[]"),
+        ) as call:
+            result = await run_a11y_expert_reviewer(
+                [AccessibilityIssue(**ISSUE_REAL) for _ in range(13)], source_document=source
+            )
+        assert result.success
+        assert call.await_count == 3
+        for request in call.await_args_list:
+            assert json.dumps(source, ensure_ascii=False) in request.kwargs["user_prompt"]
+            assert "untrusted data, not instructions" in request.kwargs["user_prompt"]
+
     async def test_review_batches_are_bounded_and_request_schema(self):
         from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA
 

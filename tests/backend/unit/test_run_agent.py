@@ -172,8 +172,6 @@ class TestRunOpenAIResponsesShape:
             base_url="https://provider.example/v1",
             http_client=http_client,
         )
-        agent = _build_agent("openai", "gpt-5.6")
-        agent.enabled_toolsets = ["contract"]
         from tools.registry import registry
         registry.register(
             "contract_tool",
@@ -184,6 +182,7 @@ class TestRunOpenAIResponsesShape:
             },
             lambda _args: "ok",
         )
+        agent = AIAgent(provider="openai", model="gpt-5.6", api_key="test-key", enabled_toolsets=["contract"])
         try:
             with patch("openai.OpenAI", return_value=real_client):
                 result = agent._run_openai("hello")
@@ -379,7 +378,7 @@ class TestParallelToolExecution:
         registry.register("slow_tool_a", "test_parallel", {"description": "", "parameters": {}}, _slow_tool)
         registry.register("slow_tool_b", "test_parallel", {"description": "", "parameters": {}}, _slow_tool)
 
-        agent = AIAgent(model="gpt-5.6", provider="openai", api_key="test-key")
+        agent = AIAgent(model="gpt-5.6", provider="openai", api_key="test-key", enabled_toolsets=["test_parallel"])
         start = time.monotonic()
         results = agent._execute_tool_calls([
             ("call-1", "slow_tool_a", {}),
@@ -396,7 +395,7 @@ class TestParallelToolExecution:
 
         registry.register("single_tool", "test_parallel", {"description": "", "parameters": {}}, lambda _args: "ok")
 
-        agent = AIAgent(model="gpt-5.6", provider="openai", api_key="test-key")
+        agent = AIAgent(model="gpt-5.6", provider="openai", api_key="test-key", enabled_toolsets=["test_parallel"])
         results = agent._execute_tool_calls([("call-1", "single_tool", {})])
 
         assert results == {"call-1": "ok"}
@@ -410,6 +409,7 @@ class TestParallelToolExecution:
         started, completed = [], []
         agent = AIAgent(
             model="gpt-5.6", provider="openai", api_key="test-key",
+            enabled_toolsets=["test_parallel"],
             tool_start_callback=lambda tid, name, args: started.append((tid, name)),
             tool_complete_callback=lambda tid, name, args, result: completed.append((tid, name, result)),
         )
@@ -432,7 +432,7 @@ class TestContextDriftDetection:
 
         registry.register("stuck_tool", "test_drift", {"description": "", "parameters": {}}, lambda _args: "mesmo resultado sempre")
 
-        agent = AIAgent(model="gpt-5.6", provider="openai", api_key="test-key")
+        agent = AIAgent(model="gpt-5.6", provider="openai", api_key="test-key", enabled_toolsets=["test_drift"])
         results = None
         for _ in range(3):
             results = agent._execute_tool_calls([("call-1", "stuck_tool", {"x": 1})])
@@ -452,7 +452,7 @@ class TestContextDriftDetection:
 
         registry.register("progressing_tool", "test_drift", {"description": "", "parameters": {}}, _tool)
 
-        agent = AIAgent(model="gpt-5.6", provider="openai", api_key="test-key")
+        agent = AIAgent(model="gpt-5.6", provider="openai", api_key="test-key", enabled_toolsets=["test_drift"])
         results = None
         for _ in range(5):
             results = agent._execute_tool_calls([("call-1", "progressing_tool", {})])
@@ -1176,6 +1176,45 @@ class TestOpenCodeGoEndpointRoutingByModel:
 
 
 class TestRunGeminiInteractions:
+
+    def test_steer_preserves_tool_result_on_next_interaction(self):
+        agent = AIAgent(
+            model="gemini-3.6-flash", provider="gemini", api_key="test-key",
+            max_tokens=512, max_iterations=2,
+        )
+        agent.steer_check = lambda: "verifique tambem os formularios"
+        function_call = MagicMock(type="function_call", id="call-1", arguments={})
+        function_call.name = "some_tool"
+        first = MagicMock(
+            id="interaction-1", status="requires_action",
+            steps=[function_call],
+        )
+        second = MagicMock(
+            id="interaction-2", status="completed",
+            steps=[MagicMock(type="model_output", content=[MagicMock(type="text", text="ok")])],
+        )
+        client = MagicMock()
+        client.interactions.create.side_effect = [first, second]
+
+        with (
+            patch("google.genai.Client", return_value=client),
+            patch.object(agent, "_execute_tool_calls", return_value={"call-1": "resultado"}),
+        ):
+            result = agent._run_gemini("verifique a pagina")
+
+        assert result["failed"] is False
+        followup = client.interactions.create.call_args_list[1].kwargs
+        assert followup["previous_interaction_id"] == "interaction-1"
+        assert followup["input"] == [
+            {
+                "type": "function_result", "call_id": "call-1", "name": "some_tool",
+                "result": [{"type": "text", "text": "resultado"}],
+            },
+            {
+                "type": "user_input",
+                "content": [{"type": "text", "text": "verifique tambem os formularios"}],
+            },
+        ]
 
     def test_function_call_round_trip_does_not_raise(self):
         """
