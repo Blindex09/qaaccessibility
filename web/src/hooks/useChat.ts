@@ -33,7 +33,7 @@ const SQUAD_ROLE_LABELS: Record<string, string> = {
 };
 
 function squadRoleLabel(role: string): string {
-  return SQUAD_ROLE_LABELS[role] ?? role;
+  return SQUAD_ROLE_LABELS[role] ?? "Equipe de acessibilidade";
 }
 
 /** Uma fonte real citada por uma ferramenta de pesquisa (deep_research,
@@ -58,6 +58,8 @@ export interface ChatMessage {
   toolCall?: ToolCallData;
   /** Tokens gastos no turno que produziu esta resposta (só no balão do assistente). */
   usage?: TokenUsage;
+  /** Duração observada deste turno; nunca é reaproveitada de outra resposta. */
+  durationMs?: number;
 }
 
 /** Pergunta do agente aguardando resposta do usuário (fluxo clarify). */
@@ -90,7 +92,7 @@ function _agentLine(ev: Extract<ChatEvent, { type: "agent" }>): string {
     tailwind_css: "Estilos Tailwind CSS",
     visual_a11y: "Análise Visual de Layout",
   };
-  const agentFriendlyName = friendlyNames[ev.agent] || ev.agent;
+  const agentFriendlyName = friendlyNames[ev.agent] || "acessibilidade especializada";
   if (ev.phase === "start") return `Verificando ${agentFriendlyName}…`;
   if (!ev.ok) return `Falha ao analisar ${agentFriendlyName}`;
   return `Verificação de ${agentFriendlyName} concluída. ${ev.issues ?? 0} problema(s) encontrado(s)`;
@@ -332,6 +334,19 @@ export function useChat() {
     [],
   );
 
+  const clearCancelledPresentation = useCallback((clearAnnouncement = true) => {
+    if (clearAnnouncement) {
+      if (announceTimerRef.current) clearTimeout(announceTimerRef.current);
+      if (announcementClearTimerRef.current) clearTimeout(announcementClearTimerRef.current);
+      setAnnouncement("");
+    }
+    setMessages((current) => current.map((message) => {
+      if (message.toolCall?.status !== "running") return message;
+      const toolCall: ToolCallData = { ...message.toolCall, status: "cancelled" };
+      return { ...message, toolCall, content: toolStatusText(toolCall) };
+    }));
+  }, []);
+
   const send = useCallback(
     async (text: string, displayText?: string, attachments?: { name: string; content: string }[]) => {
       const trimmed = text.trim();
@@ -349,6 +364,20 @@ export function useChat() {
       setElapsedMs(0);
       setTurnSources([]);
       const startedAt = globalThis.performance?.now?.() ?? Date.now();
+      const recordDuration = () => {
+        const elapsed = (globalThis.performance?.now?.() ?? Date.now()) - startedAt;
+        setDurationMs(elapsed);
+        setMessages((messages) => {
+          const copy = messages.slice();
+          for (let i = copy.length - 1; i >= 0; i--) {
+            if (copy[i].role === "assistant") {
+              copy[i] = { ...copy[i], durationMs: elapsed };
+              break;
+            }
+          }
+          return copy;
+        });
+      };
       const elapsedTimer = setInterval(() => {
         setElapsedMs((globalThis.performance?.now?.() ?? Date.now()) - startedAt);
       }, 1000);
@@ -366,7 +395,7 @@ export function useChat() {
           // acha o último assistant (pode haver status depois dele)
           for (let i = copy.length - 1; i >= 0; i--) {
             if (copy[i].role === "assistant") {
-              copy[i] = { role: "assistant", content: copy[i].content + delta };
+              copy[i] = { ...copy[i], content: copy[i].content + delta };
               return copy;
             }
           }
@@ -378,7 +407,7 @@ export function useChat() {
           const copy = m.slice();
           for (let i = copy.length - 1; i >= 0; i--) {
             if (copy[i].role === "assistant") {
-              copy[i] = { role: "assistant", content };
+              copy[i] = { ...copy[i], content };
               return copy;
             }
           }
@@ -393,6 +422,15 @@ export function useChat() {
           // Evita adicionar mensagens de status idênticas consecutivamente no histórico
           if (last && last.role === "status" && last.content === content) {
             return m;
+          }
+          // Exact phase replay is a presentation duplicate, not an intent judgment.
+          // Restrict to this turn; do not suppress identical updates in another request
+          // or actual tool/agent transitions during retries.
+          if (kind === "phase") {
+            for (let index = m.length - 1; index >= 0; index -= 1) {
+              if (m[index].role === "user") break;
+              if (m[index].kind === "phase" && m[index].content === content) return m;
+            }
           }
           if (coalesce) {
             if (last && last.role === "status" && last.kind === kind) {
@@ -546,7 +584,7 @@ export function useChat() {
               case "analysis_partial":
                 pushStatus(
                   event.agent
-                    ? `Especialista ${event.completed}/${event.total} concluído: ${event.agent}`
+                    ? `${event.completed} de ${event.total} análises recebidas; os achados ainda precisam de revisão.`
                     : `Página ${event.completed}/${event.total} concluída: ${event.issues ?? 0} achado(s) acumulado(s)`,
                   "phase",
                   false,
@@ -554,11 +592,6 @@ export function useChat() {
                 break;
               case "squad_plan":
                 setSquadPlan(event.plan);
-                pushStatus(
-                  `Squad de acessibilidade: ${event.plan.tasks.length} etapas no quadro`,
-                  "phase",
-                  false,
-                );
                 break;
               case "squad_task":
                 // Transicao real de estado: o quadro reflete a execucao em vez
@@ -573,9 +606,6 @@ export function useChat() {
                       }
                     : current,
                 );
-                if (event.status === "in_progress") {
-                  pushStatus(`${squadRoleLabel(event.role)}: ${event.title}`, "squad", false);
-                }
                 break;
               case "squad_progress":
                 // O pulso fica visível no feed navegável. Não é live region:
@@ -661,7 +691,7 @@ export function useChat() {
                   setSessionUsage((total) => addUsage(total, turnUsage));
                 }
                 announce(plainTextForAnnouncement(event.final), true);
-                setDurationMs((globalThis.performance?.now?.() ?? Date.now()) - startedAt);
+                recordDuration();
                 break;
               case "cancelled":
                 // Normalmente o abort() do fetch (stop() abaixo) já fechou a
@@ -672,6 +702,7 @@ export function useChat() {
                 if (elapsedTimerRef.current === elapsedTimer) elapsedTimerRef.current = null;
                 setStreaming(false);
                 setPendingClarify(null);
+                clearCancelledPresentation();
                 controller.abort();
                 break;
               case "error":
@@ -684,7 +715,7 @@ export function useChat() {
                   setAssistant(fullError);
                 }
                 announce(ANSWER_ERROR_ANNOUNCEMENT);
-                setDurationMs((globalThis.performance?.now?.() ?? Date.now()) - startedAt);
+                recordDuration();
                 break;
             }
           },
@@ -697,14 +728,15 @@ export function useChat() {
       } catch (err) {
         const isAbort = err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted"));
         if (!isAbort) {
-          setAssistant(`Falha na conexão: ${err instanceof Error ? err.message : String(err)}`);
+          setAssistant("Não consegui manter a conexão com o assistente. Tente novamente; não é possível determinar a causa apenas com esta falha.");
         }
       } finally {
         clearInterval(elapsedTimer);
         if (elapsedTimerRef.current === elapsedTimer) elapsedTimerRef.current = null;
         // An older aborted request must not reset a newer turn (or an unmounted hook).
         if (abortRef.current === controller) {
-          setDurationMs((globalThis.performance?.now?.() ?? Date.now()) - startedAt);
+          clearCancelledPresentation(false);
+          recordDuration();
           setStreaming(false);
           setActivity("");
           setPendingClarify(null);
@@ -712,7 +744,7 @@ export function useChat() {
         }
       }
     },
-    [announce, messages, streaming],
+    [announce, messages, streaming, clearCancelledPresentation],
   );
 
   // Responde a pergunta do agente: envia ao backend e some com o prompt.
@@ -783,7 +815,8 @@ export function useChat() {
     setStreaming(false);
     setActivity("");
     setPendingClarify(null);
-  }, []);
+    clearCancelledPresentation();
+  }, [clearCancelledPresentation]);
 
   return {
     messages,

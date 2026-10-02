@@ -21,13 +21,16 @@ export const api = axios.create({
 export interface SettingsData {
   llm_provider: string;
   llm_model?: string;
+  llm_models_by_provider?: Record<string, string>;
   llm_base_url?: string;
   has_llm_api_key: boolean;
+  approval_enabled?: boolean;
   llm_api_key?: string;
   // Overrides opcionais do LLM usado pelo chat agêntico (ChatScreen) -- quando
   // ausentes, o chat usa os llm_* acima (ver backend chat_llm_config).
   chat_llm_provider?: string;
   chat_llm_model?: string;
+  chat_llm_models_by_provider?: Record<string, string>;
   chat_llm_base_url?: string;
   has_chat_llm_api_key?: boolean;
   chat_llm_api_key?: string;

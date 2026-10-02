@@ -110,6 +110,49 @@ const APPROVAL_QUESTION =
   `Argumentos: {"path": "site.zip"}. Identificador da ação: ${"a".repeat(64)}. ` +
   "Aprovar exatamente esta ação?";
 
+test("a duração permanece vinculada à resposta ao começar e concluir outro turno", async () => {
+  const { chat } = mountChat();
+  startTurn(chat);
+  act(() => jest.advanceTimersByTime(54000));
+  send({ type: "done", final: "Primeira resposta." });
+  await act(async () => { resolveStream(); await Promise.resolve(); });
+  expect(chat().messages.find((m) => m.content === "Primeira resposta.")?.durationMs).toBe(54000);
+  startTurn(chat);
+  expect(chat().messages.find((m) => m.content === "Primeira resposta.")?.durationMs).toBe(54000);
+  act(() => jest.advanceTimersByTime(32000));
+  send({ type: "done", final: "Segunda resposta." });
+  await act(async () => { resolveStream(); await Promise.resolve(); });
+  expect(chat().messages.find((m) => m.content === "Primeira resposta.")?.durationMs).toBe(54000);
+  expect(chat().messages.find((m) => m.content === "Segunda resposta.")?.durationMs).toBe(32000);
+});
+
+test("transições internas da squad atualizam o quadro sem gerar narração genérica", () => {
+  const { chat } = mountChat();
+  startTurn(chat);
+  send({ type: "squad_task", task_id: "qa-validation", role: "qa_lead", title: "Verificar conformidade", status: "in_progress" });
+  expect(chat().messages.some((m) => m.content.includes("Verificar conformidade"))).toBe(false);
+  send({ type: "squad_progress", task_id: "qa-validation", role: "qa_lead", message: "O idioma foi identificado; falta comparar com o conteúdo." });
+  expect(chat().messages.some((m) => m.content.includes("O idioma foi identificado"))).toBe(true);
+});
+
+test("fases idênticas não se repetem no mesmo turno, mas continuam válidas no próximo", async () => {
+  const { chat } = mountChat();
+  const update = "Vou inspecionar a página inicial.";
+  startTurn(chat);
+  send({ type: "phase", text: update });
+  send({ type: "phase", text: "Recebi o conteúdo da página." });
+  send({ type: "phase", text: update });
+  expect(chat().messages.filter((message) => message.kind === "phase" && message.content === update)).toHaveLength(1);
+  send({ type: "done", final: "Resultado do primeiro turno." });
+  await act(async () => {
+    resolveStream();
+    await Promise.resolve();
+  });
+  startTurn(chat);
+  send({ type: "phase", text: update });
+  expect(chat().messages.filter((message) => message.kind === "phase" && message.content === update)).toHaveLength(2);
+});
+
 describe("useChat — anúncio da resposta na live region", () => {
   test("anuncia somente Digitando enquanto os tokens vão chegando", () => {
     const { chat } = mountChat();

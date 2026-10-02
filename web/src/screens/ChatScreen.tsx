@@ -14,6 +14,7 @@ import { useChat } from "../hooks/useChat";
 import { useDialogFocus } from "../hooks/useDialogFocus";
 import { BASE_URL } from "../services/chat";
 import { toolStatusText, type ToolCallData } from "../services/toolPresentation";
+import { getToolLabel } from "../services/toolMeta";
 import { type TokenUsage } from "../services/usage";
 import { a11y, colors, font } from "../design/tokens";
 import { ClarifyPanel } from "./ClarifyPanel";
@@ -55,7 +56,7 @@ function ToolCallCard({ toolCall, messageIndex }: { toolCall: ToolCallData; mess
         <View
           style={styles.toolLogContainer}
           {...(Platform.OS === "web"
-            ? { dataSet: { toolLog: "active" }, tabIndex: 0, "aria-label": `Andamento da ferramenta ${toolCall.name}` }
+            ? { dataSet: { toolLog: "active" }, tabIndex: 0, "aria-label": `Atualizações: ${getToolLabel(toolCall.name)}` }
             : {})}
         >
           {toolCall.logs?.length ? toolCall.logs.map((line, idx) => (
@@ -113,9 +114,11 @@ function SourcesSection({ sources }: { sources: { title: string; url: string }[]
 function ActivityFeed({
   label,
   messages,
+  showTitle = true,
 }: {
   label: string;
   messages: { content: string; groupKey?: string }[];
+  showTitle?: boolean;
 }) {
   if (!messages.length) return null;
 
@@ -145,7 +148,7 @@ function ActivityFeed({
           ? { "aria-label": `${label}. Use as setas para navegar entre as atualizações.` }
         : {})}
     >
-      <Text style={styles.squadFeedTitle}>{label}</Text>
+      {showTitle && <Text style={styles.squadFeedTitle}>{label}</Text>}
       {messages.map((message, index) =>
         Platform.OS === "web" ? (
           React.createElement(
@@ -191,6 +194,32 @@ function UsageNote({ usage, scope }: { usage: TokenUsage; scope: "turn" | "sessi
   return null;
 }
 
+/** Conversa corrente, definida pelo ChatScreen antes de renderizar o conteúdo.
+ * Links de download de entrega (PDF/XLSX/ZIP) usam o id para o backend
+ * resolver o cache por sessão — links diretos <a href> não mandam headers,
+ * então o id viaja por query param (ver export_session.py no backend).
+ * Nunca inferido do texto: somente o id estruturado do hook useChat. */
+let linkConversationId = "";
+
+export function setLinkConversationId(id: string) {
+  linkConversationId = id;
+}
+
+function withConversationId(url: string): string {
+  if (!linkConversationId || !url.includes(RESERVED_EXPORT_HOST_PATTERN)) {
+    return url;
+  }
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("conversation_id", linkConversationId);
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+const RESERVED_EXPORT_HOST_PATTERN = ":8001";
+
 function processInlineLinks(lineText: string, itemKey: string | number) {
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -218,9 +247,6 @@ function processInlineLinks(lineText: string, itemKey: string | number) {
     if (match.index > lastIndex) {
       parts.push(lineText.substring(lastIndex, match.index));
     }
-    if (match.index > lastIndex) {
-      parts.push(lineText.substring(lastIndex, match.index));
-    }
 
     if (match[1]) {
       const label = match[2];
@@ -228,6 +254,7 @@ function processInlineLinks(lineText: string, itemKey: string | number) {
       if (url.includes("localhost:8001")) {
         url = url.replace("http://localhost:8001", BASE_URL);
       }
+      url = withConversationId(url);
       if (Platform.OS === "web") {
         parts.push(
           React.createElement(
@@ -268,6 +295,7 @@ function processInlineLinks(lineText: string, itemKey: string | number) {
       if (url.includes("localhost:8001")) {
         url = url.replace("http://localhost:8001", BASE_URL);
       }
+      url = withConversationId(url);
       if (Platform.OS === "web") {
         parts.push(
           React.createElement(
@@ -315,14 +343,29 @@ function processInlineLinks(lineText: string, itemKey: string | number) {
   return parts.length > 0 ? parts : lineText;
 }
 
-function cleanAssistantMarkup(text: string): string {
-  return text
+export function cleanAssistantMarkup(text: string): string {
+  // Links de markdown ([label](url)) sao protegidos antes da limpeza de
+  // enfase: a limpeza de [*_~`] corrompia URLs com underscore
+  // (ex.: /export/download_zip/... virava /export/downloadzip/... e o
+  // download dava 404). O placeholder usa um nome improvavel e e restaurado
+  // no fim, byte a byte; URL malformada cai no conteudo sem link.
+  const escapedUrls: string[] = [];
+  let cleaned = text.replace(
+    /\[([^\]]*)\]\((https?:\/\/[^)\s]*)\)/g,
+    (_matched: string, label: string, url: string) => {
+      escapedUrls.push(url);
+      return `[${label}](\u0000QAURL${escapedUrls.length - 1}\u0000)`;
+    }
+  );
+  cleaned = cleaned
     .replace(/```[\w-]*\s*\n?/g, "")
     .replace(/^\s{0,3}#{1,6}\s+/gm, "")
     .replace(/^\s*(?:[-*_]\s*){3,}$/gm, "")
     .replace(/[*_~`]/g, "")
     .replace(/(^|\s)>(?=\s)/gm, "$1")
+    .replace(/\u0000QAURL(\d+)\u0000/g, (_matched: string, index: string) => escapedUrls[Number(index)] ?? "")
     .trim();
+  return cleaned;
 }
 
 function renderTextWithLinks(text: string) {
@@ -463,10 +506,10 @@ function renderTextWithLinks(text: string) {
   return <React.Fragment>{blocks}</React.Fragment>;
 }
 
-// Texto VISÍVEL do campo de mensagem. O nome acessível é derivado dele para
+// O campo mostra o texto visível e o nome acessível é derivado dele para
 // satisfazer o WCAG 2.5.3 (Label in Name): o nome precisa CONTER o visível.
-const PLACEHOLDER_MENSAGEM = "Pergunte, cole uma URL, ou anexe arquivos…";
-const ROTULO_ACESSIVEL_MENSAGEM = `${PLACEHOLDER_MENSAGEM} — mensagem para o assistente`;
+const PLACEHOLDER_MENSAGEM = "Mensagem para o assistente";
+const ROTULO_ACESSIVEL_MENSAGEM = `${PLACEHOLDER_MENSAGEM} — pergunte, cole uma URL, ou anexe arquivos`;
 
 
 export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) {
@@ -477,7 +520,6 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
     auditRunCount,
     announcement,
     elapsedMs,
-    durationMs,
     turnSources,
     pendingClarify,
     sessionUsage,
@@ -489,6 +531,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
     startNewConversation,
     switchConversation,
   } = useChat();
+  setLinkConversationId(conversationId);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -589,12 +632,19 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
   // Registra a sessão criada pela IA e abre automaticamente o painel após uma
   // correção concluída. O painel permanece aberto enquanto a sessão avança.
   useEffect(() => {
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg && lastMsg.role === "assistant") {
-      if (lastMsg.content.includes("[CLOSE_PREVIEW]")) {
+    // O marcador vive na ÚLTIMA mensagem do ASSISTENTE, não no último item do
+    // array: eventos de status (tool_result) chegam depois dos tokens e
+    // encerram o turno na frente do balão final. Inspecionar só messages[-1]
+    // fazia o painel do Live Preview nunca abrir durante o streaming quando o
+    // turno terminava com um tool_result ("Visualização pronta") — só abria
+    // após um reload, porque o histórico lido do backend não tem os status
+    // intercalados. Mesma causa para [CLOSE_PREVIEW] e [PRECISE_KEY:].
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    if (lastAssistant) {
+      if (lastAssistant.content.includes("[CLOSE_PREVIEW]")) {
         setPreviewModalVisible(false);
-      } else if (lastMsg.content.includes("[LIVE_PREVIEW:")) {
-        const match = lastMsg.content.match(/\[LIVE_PREVIEW:([a-zA-Z0-9_-]+):?(\d+)?\]/);
+      } else if (lastAssistant.content.includes("[LIVE_PREVIEW:")) {
+        const match = lastAssistant.content.match(/\[LIVE_PREVIEW:([a-zA-Z0-9_-]+):?(\d+)?\]/);
         if (match && match[1]) {
           setPreviewSessionId(match[1]);
           setPreviewTotalPages(match[2] ? parseInt(match[2], 10) : 1);
@@ -618,9 +668,12 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
 
   // Monitora se a IA ou o sistema solicitaram alguma chave de servico (ex.: [PRECISE_KEY:postman])
   useEffect(() => {
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg && lastMsg.role === "assistant" && lastMsg.content.includes("[PRECISE_KEY:")) {
-      const match = lastMsg.content.match(/\[PRECISE_KEY:([a-zA-Z0-9_-]+)\]/);
+    // Mesma causa do [LIVE_PREVIEW:]: o status do tool_result fecha o turno na
+    // frente do balão do assistente, então procurar só messages[-1] perdia o
+    // marcador durante o streaming.
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    if (lastAssistant && lastAssistant.content.includes("[PRECISE_KEY:")) {
+      const match = lastAssistant.content.match(/\[PRECISE_KEY:([a-zA-Z0-9_-]+)\]/);
       if (match && match[1]) {
         setKeyModalService(match[1]);
         setKeyModalValue("");
@@ -799,9 +852,6 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
         {messages.length === 0 && (
           <View style={styles.emptyState}>
             <Text accessibilityRole="header" aria-level={2} style={styles.emptyTitle}>Nenhuma conversa iniciada</Text>
-            <Text style={styles.empty}>
-              Oi! Eu sou seu assistente de acessibilidade digital. Digite uma mensagem, cole uma URL ou anexe arquivos para iniciar uma auditoria.
-            </Text>
           </View>
         )}
 
@@ -885,7 +935,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                   aria-busy={isTurnBusy}
                 >
                   {/* Timer de processamento: "Processando resposta em Xs" -> "Processou resposta em Xs" */}
-                  {(isTurnBusy || (!isTurnBusy && (turn.assistant?.content || turn.statuses.length > 0))) && (
+                  {(isTurnBusy || (turn.assistant?.durationMs !== undefined && (turn.assistant.content || turn.statuses.length > 0))) && (
                     Platform.OS === "web" ? (
                       React.createElement(
                         "p",
@@ -894,19 +944,21 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                           : { style: { color: colors.text.tertiary, fontSize: "12px", margin: "4px 0" } },
                         isTurnBusy
                           ? `Processando há ${Math.round(elapsedMs / 1000)}s`
-                          : `Processou em ${Math.round(((isLastTurn ? durationMs : null) ?? 1000) / 1000)}s`
+                          : `Processou em ${Math.round((turn.assistant?.durationMs ?? 0) / 1000)}s`
                       )
                     ) : (
                       <Text style={styles.usageNote}>
                         {isTurnBusy
                           ? `Processando há ${Math.round(elapsedMs / 1000)}s`
-                          : `Processou em ${Math.round(((isLastTurn ? durationMs : null) ?? 1000) / 1000)}s`}
+                          : `Processou em ${Math.round((turn.assistant?.durationMs ?? 0) / 1000)}s`}
                       </Text>
                     )
                   )}
 
                   {/* Status de atividade em tempo real (como no agent-chat-app: turn.statusText) */}
-                  {isLastTurn && isTurnBusy && !!activity && (
+                  {isLastTurn && isTurnBusy && !!activity &&
+                    !turn.statuses.some((message) => message.content === activity) &&
+                    activity !== "Estou considerando o contexto para escolher como atender este pedido." && (
                     <View style={styles.activity}>
                       <Text style={styles.activityText}>{activity}</Text>
                     </View>
@@ -918,8 +970,12 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                   />
 
                   <ActivityFeed
-                    label="Andamento dos especialistas"
-                    messages={turn.statuses.filter((message) => message.kind === "agent" || message.kind === "phase")}
+                    label="Atualizações da execução"
+                    showTitle={false}
+                    messages={turn.statuses.filter((message) =>
+                      (message.kind === "agent" || message.kind === "phase") &&
+                      message.content !== "Estou considerando o contexto para escolher como atender este pedido."
+                    )}
                   />
 
                   {/* Uma região por grupo de ferramenta, igual ao agent-chat-app. */}
@@ -934,12 +990,12 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                     ))}
                 </View>
 
-                {/* 3. Balão do Assistente (IA ASSISTENTE) - apenas o texto da resposta */}
+                {/* 3. Balão do qaaccessibility - apenas o texto da resposta */}
                 {(!!turn.assistant?.content || (!isTurnBusy && !turn.statuses.length)) && (
                   <View
                     style={[styles.bubble, styles.assistantBubble]}
                     {...(Platform.OS === "web"
-                      ? { dataSet: { messageIndex: String(messageIndex++) }, tabIndex: 0, "aria-label": `Resposta do Assistente: ${turn.assistant?.content || ""}` }
+                      ? { dataSet: { messageIndex: String(messageIndex++) }, tabIndex: 0, "aria-label": `Resposta do Assistente: ${cleanAssistantMarkup(turn.assistant?.content || "")}` }
                       : {})}
                   >
                     {Platform.OS === "web" ? (
@@ -953,12 +1009,11 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                             marginBottom: 4,
                             marginTop: 0,
                             fontWeight: "600",
-                            textTransform: "uppercase",
                             letterSpacing: 0.6,
                           },
                           "aria-level": 2,
                         },
-                        "IA ASSISTENTE"
+                        "qaaccessibility"
                       )
                     ) : (
                       <Text
@@ -966,7 +1021,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                         aria-level={2}
                         style={styles.roleLabel}
                       >
-                        IA ASSISTENTE
+                        qaaccessibility
                       </Text>
                     )}
 
@@ -1063,7 +1118,6 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
             style: { display: "none" },
             "aria-hidden": true,
           })}
-        <Text style={styles.srOnly}>{PLACEHOLDER_MENSAGEM}</Text>
         <TextInput
           ref={chatInputRef}
           value={input}
@@ -1071,19 +1125,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
           placeholder={PLACEHOLDER_MENSAGEM}
           placeholderTextColor={colors.text.tertiary}
           style={styles.input}
-          // WCAG 2.5.3 Label in Name: o nome acessível PRECISA conter o texto
-          // visível. Antes eram três strings diferentes para o mesmo campo --
-          // visível "Pergunte, cole uma URL, ou anexe arquivos…", nome acessível
-          // "Mensagem para o assistente", e um texto só-para-leitor "Digite sua
-          // mensagem para a IA". Quem usa controle por voz falava o que via e
-          // não ativava nada. Derivar do mesmo `PLACEHOLDER_MENSAGEM` impede que
-          // voltem a divergir. Achado pelo próprio pipeline do produto
-          // auditando a própria interface, confirmado em duas execuções.
-          accessibilityLabel={
-            streaming
-              ? `${ROTULO_ACESSIVEL_MENSAGEM} — digite uma correção para redirecionar o assistente sem perder o que já foi feito`
-              : ROTULO_ACESSIVEL_MENSAGEM
-          }
+          accessibilityLabel={ROTULO_ACESSIVEL_MENSAGEM}
           multiline
           autoComplete="off"
           onKeyPress={(e: any) => {
@@ -1115,7 +1157,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
               tornar o controle disponível. `handleSend` também mantém o guarda
               para chamadas programáticas. */}
           <TouchableOpacity
-            onPress={handlePrimaryAction}
+            onPress={streaming ? handlePrimaryAction : handleSend}
             accessibilityRole="button"
             accessibilityState={{ disabled: naoPodeEnviar }}
             disabled={naoPodeEnviar}
@@ -1302,7 +1344,6 @@ const styles = StyleSheet.create({
   messagesContent: { padding: 24, gap: 24, flexGrow: 1 },
   emptyState: { alignItems: "center", justifyContent: "center", flex: 1, paddingVertical: 48 },
   emptyTitle: { color: colors.text.secondary, fontFamily: font.display, fontSize: 18, fontWeight: "700", marginBottom: 8 },
-  empty: { color: colors.text.secondary, fontFamily: font.body, fontSize: 15, lineHeight: 22 },
   bubble: {
     alignSelf: "stretch",
     padding: 20,

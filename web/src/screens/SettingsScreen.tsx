@@ -59,6 +59,50 @@ const THIRD_PARTY_SERVICES = [
   { id: "browserless", label: "Browserless WS URL", placeholder: "wss://chrome.browserless.io?token=..." },
 ];
 
+function SettingsSwitch({
+  checked,
+  label,
+  hint,
+  onToggle,
+}: {
+  checked: boolean;
+  label: string;
+  hint: string;
+  onToggle: () => void;
+}) {
+  const caption = `${checked ? "☑" : "☐"} ${label}`;
+  if (Platform.OS === "web") {
+    return (
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        title={hint}
+        onClick={onToggle}
+        style={StyleSheet.flatten([
+          styles.sectionToggle,
+          { border: 0, padding: 0, backgroundColor: "transparent", textAlign: "left", cursor: "pointer" },
+        ]) as any}
+      >
+        <Text style={styles.sectionToggleText}>{caption}</Text>
+      </button>
+    );
+  }
+  return (
+    <TouchableOpacity
+      onPress={onToggle}
+      accessibilityRole="switch"
+      accessibilityState={{ checked }}
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      style={styles.sectionToggle}
+    >
+      <Text style={styles.sectionToggleText}>{caption}</Text>
+    </TouchableOpacity>
+  );
+}
+
 // Catálogo de modelos por provider vem AO VIVO do backend (/models →
 // models.dev via Hermes); nada hardcoded que envelhece. Ver state
 // `providerModels` carregado no componente.
@@ -94,6 +138,7 @@ export function SettingsScreen({ onBack }: Props) {
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
   const [selectedModelOption, setSelectedModelOption] = useState("");
+  const [modelChoices, setModelChoices] = useState<Record<string, string>>({});
   const [baseUrl, setBaseUrl] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
 
@@ -112,6 +157,8 @@ export function SettingsScreen({ onBack }: Props) {
   const [chatLlmProvider, setChatLlmProvider] = useState("");
   const [chatLlmApiKey, setChatLlmApiKey] = useState("");
   const [chatLlmModel, setChatLlmModel] = useState("");
+  const [chatModelChoices, setChatModelChoices] = useState<Record<string, string>>({});
+  const [selectedChatModelOption, setSelectedChatModelOption] = useState("");
   const [chatLlmBaseUrl, setChatLlmBaseUrl] = useState("");
   const [hasChatLlmApiKey, setHasChatLlmApiKey] = useState(false);
 
@@ -148,14 +195,16 @@ export function SettingsScreen({ onBack }: Props) {
         setProvider(currentProvider);
         setInitialProvider(currentProvider);
 
-        // Se o provider salvo não é mais suportado (provider legado fora dos 5
-        // nativos), o modelo salvo pertence a ele — descartamos e voltamos ao "Alto".
-        const loadedModel = providerSupported ? (data.llm_model || "") : "";
+        const choices = { ...(data.llm_models_by_provider || {}) };
+        if (providerSupported && data.llm_model) {
+          choices[currentProvider] = data.llm_model;
+        }
+        setModelChoices(choices);
+        const loadedModel = providerSupported ? (choices[currentProvider] || "") : "";
         const modelsList = liveModels[currentProvider] || [];
         if (!loadedModel || loadedModel.toLowerCase() === "alto") {
-          // Padrão "Alto": o backend escolhe o melhor modelo do provider.
-          setModel("alto");
-          setSelectedModelOption("alto");
+          setModel(loadedModel);
+          setSelectedModelOption(loadedModel);
         } else if (modelsList.includes(loadedModel)) {
           setModel(loadedModel);
           setSelectedModelOption(loadedModel);
@@ -177,7 +226,18 @@ export function SettingsScreen({ onBack }: Props) {
         const hasChatOverride = !!(data.chat_llm_provider || data.has_chat_llm_api_key);
         setChatLlmEnabled(hasChatOverride);
         setChatLlmProvider(data.chat_llm_provider || "");
-        setChatLlmModel(data.chat_llm_model || "");
+        const chatChoices = { ...(data.chat_llm_models_by_provider || {}) };
+        if (data.chat_llm_provider && data.chat_llm_model) {
+          chatChoices[data.chat_llm_provider] = data.chat_llm_model;
+        }
+        setChatModelChoices(chatChoices);
+        const loadedChatModel = data.chat_llm_model || "";
+        setChatLlmModel(loadedChatModel);
+        setSelectedChatModelOption(
+          loadedChatModel === "" || loadedChatModel === "alto"
+            || (liveModels[data.chat_llm_provider || currentProvider] || []).includes(loadedChatModel)
+            ? loadedChatModel : "custom",
+        );
         setChatLlmBaseUrl(data.chat_llm_base_url || "");
         setHasChatLlmApiKey(!!data.has_chat_llm_api_key);
         if (data.has_chat_llm_api_key) {
@@ -201,6 +261,7 @@ export function SettingsScreen({ onBack }: Props) {
       llm_provider: provider,
       llm_model: model,
       llm_base_url: baseUrl,
+      approval_enabled: true,
     };
 
     // Só envia a chave de API se o usuário alterou o valor da máscara padrão
@@ -235,18 +296,21 @@ export function SettingsScreen({ onBack }: Props) {
     }
   }
 
-  // Preenche valores recomendados ao selecionar um provider.
-  // O modelo padrão e sempre "Alto": o backend roteia para o melhor modelo
-  // recente e com ferramentas do provider, entao o usuário so escolhe o
-  // provider e a chave de API.
   function handleSelectProvider(provId: string) {
+    const choices = { ...modelChoices, [provider]: model };
+    setModelChoices(choices);
     setProvider(provId);
     // NÃO força base_url: o Hermes já conhece o endpoint correto de cada provider
     // (ex.: Ollama Cloud = https://ollama.com/v1). Deixamos vazio para o Hermes
     // resolver; o campo Base URL fica como override avançado opcional.
     setBaseUrl("");
-    setModel("alto");
-    setSelectedModelOption("alto");
+    const remembered = choices[provId] || "";
+    setModel(remembered);
+    setSelectedModelOption(
+      remembered === "" || remembered === "alto" || (providerModels[provId] || []).includes(remembered)
+        ? remembered
+        : "custom",
+    );
 
     if (provId === initialProvider) {
       setHasApiKey(initialHasApiKey);
@@ -255,6 +319,20 @@ export function SettingsScreen({ onBack }: Props) {
       setHasApiKey(false);
       setApiKey("");
     }
+  }
+
+  function handleSelectChatProvider(provId: string) {
+    const choices = chatLlmProvider
+      ? { ...chatModelChoices, [chatLlmProvider]: chatLlmModel }
+      : { ...chatModelChoices };
+    setChatModelChoices(choices);
+    setChatLlmProvider(provId);
+    const remembered = choices[provId] || "";
+    setChatLlmModel(remembered);
+    setSelectedChatModelOption(
+      remembered === "" || remembered === "alto" || (providerModels[provId] || []).includes(remembered)
+        ? remembered : "custom",
+    );
   }
 
   async function handleSaveServiceKey(serviceId: string) {
@@ -346,7 +424,7 @@ export function SettingsScreen({ onBack }: Props) {
         </View>
         <View style={styles.statusRow}>
           <Text style={styles.statusLabel}>Modelo Principal:</Text>
-          <Text style={styles.statusValue}>{model === "alto" ? "Alto (automático)" : (model || "Não especificado")}</Text>
+          <Text style={styles.statusValue}>{model === "alto" ? "Alto (dinâmico)" : (model || "Seleção automática")}</Text>
         </View>
         <View style={styles.statusRow}>
           <Text style={styles.statusLabel}>Chave LLM:</Text>
@@ -449,6 +527,10 @@ export function SettingsScreen({ onBack }: Props) {
         </View>
 
         {/* Model ID Selection */}
+        <Text style={styles.statusHint}>
+          Ações com efeito externo exigem sua aprovação antes da execução. Essa proteção não pode ser desligada.
+        </Text>
+
         <Text nativeID="modelLabel" style={styles.label}>Modelo de IA (Model ID)</Text>
         
         {Platform.OS === "web" ? (
@@ -459,6 +541,7 @@ export function SettingsScreen({ onBack }: Props) {
               setSelectedModelOption(val);
               if (val !== "custom") {
                 setModel(val);
+                setModelChoices((choices) => ({ ...choices, [provider]: val }));
               }
             }}
             style={StyleSheet.flatten([
@@ -485,8 +568,11 @@ export function SettingsScreen({ onBack }: Props) {
             ]) as any}
             aria-labelledby="modelLabel"
           >
+            <option value="" style={{ backgroundColor: colors.bg.surface, color: colors.text.primary }}>
+              Seleção automática (sem modelo escolhido)
+            </option>
             <option value="alto" style={{ backgroundColor: colors.bg.surface, color: colors.text.primary }}>
-              Alto — melhor modelo para cada tarefa (recomendado)
+              Alto — seleção dinâmica para cada tarefa
             </option>
             {(providerModels[provider] || []).map((m) => (
               <option key={m} value={m} style={{ backgroundColor: colors.bg.surface, color: colors.text.primary }}>
@@ -505,35 +591,31 @@ export function SettingsScreen({ onBack }: Props) {
           </select>
         ) : (
           <View style={{ marginBottom: space[2] }}>
-            {(selectedModelOption === "alto" || (providerModels[provider] || []).includes(selectedModelOption)) ? (
+            {(selectedModelOption === "" || selectedModelOption === "alto" || (providerModels[provider] || []).includes(selectedModelOption)) ? (
               <TouchableOpacity
                 style={[styles.input, { justifyContent: "center" }]}
                 onPress={() => setSelectedModelOption("custom")}
                 accessibilityRole="button"
                 accessibilityLabel={
-                  selectedModelOption === "alto"
-                    ? "Modelo atual: Alto, melhor modelo para cada tarefa. Toque para digitar um modelo customizado."
-                    : `Modelo atual: ${selectedModelOption}. Toque para digitar um modelo customizado.`
+                  `Modelo atual: ${selectedModelOption || "seleção automática"}. Toque para digitar um modelo customizado.`
                 }
               >
                 <Text style={{ color: colors.text.primary }}>
-                  {selectedModelOption === "alto"
-                    ? "Alto — melhor modelo para cada tarefa (Toque para customizar)"
-                    : `${selectedModelOption} (Toque para customizar)`}
+                  {selectedModelOption || "Seleção automática"} (Toque para customizar)
                 </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 style={[styles.input, { justifyContent: "center" }]}
                 onPress={() => {
-                  // Restaura o padrão "Alto".
-                  setSelectedModelOption("alto");
-                  setModel("alto");
+                  setSelectedModelOption("");
+                  setModel("");
+                  setModelChoices((choices) => ({ ...choices, [provider]: "" }));
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Modelo customizado selecionado. Toque para voltar ao Alto (padrão)."
+                accessibilityLabel="Modelo customizado selecionado. Toque para voltar à seleção automática."
               >
-                <Text style={{ color: colors.text.primary }}>Modelo Customizado (Toque para voltar ao Alto)</Text>
+                <Text style={{ color: colors.text.primary }}>Modelo Customizado (Toque para voltar à seleção automática)</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -543,7 +625,10 @@ export function SettingsScreen({ onBack }: Props) {
           <TextInput
             style={[styles.input, { marginTop: space[1] }]}
             value={model}
-            onChangeText={setModel}
+            onChangeText={(value) => {
+              setModel(value);
+              setModelChoices((choices) => ({ ...choices, [provider]: value }));
+            }}
             placeholder="Digite o identificador do modelo (Ex: gpt-4o-mini)"
             accessibilityLabelledBy="modelLabel"
             aria-labelledby="modelLabel"
@@ -560,9 +645,8 @@ export function SettingsScreen({ onBack }: Props) {
 
         {selectedModelOption === "alto" && (
           <Text style={[styles.statusHint, { marginBottom: space[3] }]} accessibilityRole="text">
-            Com o Alto, você só escolhe o provedor e a chave de API: o sistema usa o
-            melhor modelo recente e com suporte a ferramentas desse provedor para cada
-            tarefa. Prefere fixar um modelo? Escolha-o na lista acima.
+            Alto usa seleção dinâmica entre os modelos recentes do provedor.
+            Sua escolha fica salva para este provedor e será recuperada ao voltar a ele.
           </Text>
         )}
         {provider === "ollama-cloud" && selectedModelOption !== "alto" && selectedModelOption !== "custom" && modelCapabilities[provider]?.[selectedModelOption] && (
@@ -595,18 +679,17 @@ export function SettingsScreen({ onBack }: Props) {
 
         {/* Override de LLM do Chat Agêntico */}
         <View style={styles.sectionDivider} />
-        <TouchableOpacity
-          onPress={() => setChatLlmEnabled(!chatLlmEnabled)}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: chatLlmEnabled }}
-          accessibilityLabel="Usar um LLM diferente para o chat agêntico"
-          accessibilityHint="Quando ativado, permite configurar provedor, chave, modelo e URL base próprios para o chat, diferentes dos usados na auditoria"
-          style={styles.sectionToggle}
-        >
-          <Text style={styles.sectionToggleText}>
-            {chatLlmEnabled ? "☑" : "☐"} Usar um LLM diferente para o Chat
-          </Text>
-        </TouchableOpacity>
+        <SettingsSwitch
+          checked={chatLlmEnabled}
+          onToggle={() => {
+            if (!chatLlmEnabled && !chatLlmProvider) {
+              handleSelectChatProvider(provider);
+            }
+            setChatLlmEnabled((enabled) => !enabled);
+          }}
+          label="Usar um LLM diferente para o chat agêntico"
+          hint="Quando ativado, permite configurar provedor, chave, modelo e URL base próprios para o chat, diferentes dos usados na auditoria"
+        />
 
         {chatLlmEnabled && (
           <View style={styles.subForm}>
@@ -614,7 +697,7 @@ export function SettingsScreen({ onBack }: Props) {
             {Platform.OS === "web" ? (
               <select
                 value={chatLlmProvider || provider}
-                onChange={(e) => setChatLlmProvider(e.target.value)}
+                onChange={(e) => handleSelectChatProvider(e.target.value)}
                 style={StyleSheet.flatten([styles.input, { cursor: "pointer" }]) as any}
                 aria-labelledby="chatProviderLabel"
               >
@@ -626,7 +709,7 @@ export function SettingsScreen({ onBack }: Props) {
               <TextInput
                 style={styles.input}
                 value={chatLlmProvider}
-                onChangeText={setChatLlmProvider}
+                onChangeText={handleSelectChatProvider}
                 placeholder={provider}
                 accessibilityLabelledBy="chatProviderLabel"
                 autoCapitalize="none"
@@ -656,18 +739,49 @@ export function SettingsScreen({ onBack }: Props) {
             </Text>
 
             <Text nativeID="chatModelLabel" style={styles.label}>Modelo do Chat</Text>
-            <TextInput
-              style={styles.input}
-              value={chatLlmModel}
-              onChangeText={setChatLlmModel}
-              placeholder="Ex: gpt-5, claude-opus-5 (vazio = Alto)"
-              accessibilityLabelledBy="chatModelLabel"
-              autoCapitalize="none"
-              autoCorrect={false}
-              spellCheck={false}
-              autoComplete="off"
-              placeholderTextColor={colors.text.tertiary}
-            />
+            {Platform.OS === "web" && (
+              <select
+                value={selectedChatModelOption}
+                onChange={(e) => {
+                  const selected = e.target.value;
+                  setSelectedChatModelOption(selected);
+                  if (selected !== "custom") {
+                    setChatLlmModel(selected);
+                    setChatModelChoices((choices) => ({
+                      ...choices, [chatLlmProvider || provider]: selected,
+                    }));
+                  }
+                }}
+                style={StyleSheet.flatten([styles.input, { cursor: "pointer" }]) as any}
+                aria-labelledby="chatModelLabel"
+              >
+                <option value="">Usar escolha principal ou seleção automática</option>
+                <option value="alto">Alto — seleção dinâmica para cada tarefa</option>
+                {(providerModels[chatLlmProvider || provider] || []).map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+                <option value="custom">Outro modelo</option>
+              </select>
+            )}
+            {(Platform.OS !== "web" || selectedChatModelOption === "custom") && (
+              <TextInput
+                style={styles.input}
+                value={chatLlmModel}
+                onChangeText={(value) => {
+                  setChatLlmModel(value);
+                  setChatModelChoices((choices) => ({
+                    ...choices, [chatLlmProvider || provider]: value,
+                  }));
+                }}
+                placeholder="Digite o identificador do modelo"
+                accessibilityLabelledBy="chatModelLabel"
+                autoCapitalize="none"
+                autoCorrect={false}
+                spellCheck={false}
+                autoComplete="off"
+                placeholderTextColor={colors.text.tertiary}
+              />
+            )}
 
             <Text nativeID="chatUrlLabel" style={styles.label}>URL Base do Chat (Opcional)</Text>
             <TextInput

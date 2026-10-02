@@ -4,11 +4,13 @@
  * Portado fielmente da arquitetura de referência do agent-chat-app.
  */
 
+import { getToolLabel, getToolProgressText } from "./toolMeta";
+
 export interface ToolCallData {
   id?: string;
   name: string;
   displayName?: string;
-  status: "running" | "complete" | "failed";
+  status: "running" | "complete" | "failed" | "cancelled";
   executionCount?: number;
   affectedCount?: number;
   logs?: string[];
@@ -88,6 +90,7 @@ export function toolGroupKey(tool: ToolCallData): string {
 }
 
 export function toolStatusText(tool: ToolCallData): string {
+  if (tool.status === "cancelled") return "Execução interrompida. Os resultados já recebidos foram preservados.";
   const running = tool.status === "running";
   const kind = operationKind(tool);
 
@@ -140,7 +143,7 @@ export function toolStatusText(tool: ToolCallData): string {
     return count > 1 ? "Executou comandos." : `Executou comando${targets[0] ? ` ${targets[0]}` : ""}.`;
   }
 
-  if (running) return `Executando ferramenta ${tool.name}...`;
-  if (tool.status === "failed") return `A ferramenta ${tool.name} falhou.`;
-  return tool.summary || `Executou ${tool.name}.`;
+  if (running) return getToolProgressText(tool.name, "start");
+  if (tool.status === "failed") return `Não consegui concluir a ${getToolLabel(tool.name).toLowerCase()}.`;
+  return tool.summary || getToolProgressText(tool.name, "end");
 }

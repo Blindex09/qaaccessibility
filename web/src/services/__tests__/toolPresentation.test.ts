@@ -5,9 +5,16 @@ import { toolStatusText, type ToolCallData } from "../toolPresentation";
 describe("toolStatusText — alinhado com agent-chat-app", () => {
   const base: ToolCallData = { name: "analyze_page", status: "running" };
 
-  test("genérico: Executando ferramenta X... → Executou X.", () => {
-    expect(toolStatusText({ ...base, status: "running" })).toBe("Executando ferramenta analyze_page...");
-    expect(toolStatusText({ ...base, status: "complete" })).toBe("Executou analyze_page.");
+  test("consulta à squad tem apresentação natural, sem nome de protocolo", () => {
+    expect(toolStatusText({ name: "consult_squad", status: "running" })).toBe("Consultando os papéis selecionados da squad...");
+    expect(toolStatusText({ name: "consult_squad", status: "complete" })).toBe("Contribuições da squad recebidas");
+  });
+
+  test("nomes internos não vazam na apresentação da auditoria", () => {
+    expect(toolStatusText({ ...base, status: "running" })).toBe("Iniciando a auditoria da página...");
+    expect(toolStatusText({ ...base, status: "complete" })).toBe("Auditoria concluída");
+    expect(toolStatusText({ name: "unknown_internal_tool", status: "running" })).toBe("Processando ação...");
+    expect(toolStatusText({ name: "unknown_internal_tool", status: "failed" })).not.toContain("unknown_internal_tool");
   });
 
   test("web: Pesquisando na web... → Executou pesquisa web; navegou em X páginas.", () => {
@@ -47,7 +54,7 @@ describe("toolStatusText — alinhado com agent-chat-app", () => {
   });
 
   test("falha genérica", () => {
-    expect(toolStatusText({ ...base, status: "failed" })).toBe("A ferramenta analyze_page falhou.");
+    expect(toolStatusText({ ...base, status: "failed" })).toBe("Não consegui concluir a auditoria de página.");
   });
 
   test("falha web", () => {

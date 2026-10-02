@@ -8,6 +8,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
 
 import type { ChatEvent } from "../../services/chat";
+import { fetchChatHistory } from "../../services/chat";
 import { ChatScreen } from "../ChatScreen";
 
 /**
@@ -26,6 +27,7 @@ declare global {
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
 let emit: (event: ChatEvent) => void;
+let finishStream: () => void;
 
 jest.mock("../../services/chat", () => ({
   __esModule: true,
@@ -39,7 +41,7 @@ jest.mock("../../services/chat", () => ({
     (_text: string, _history: unknown, onEvent: (event: ChatEvent) => void) =>
       new Promise<void>((resolve) => {
         emit = onEvent;
-        void resolve;
+        finishStream = resolve;
       }),
   ),
 }));
@@ -85,6 +87,90 @@ function sendMessage(text: string): void {
 }
 
 describe("ChatScreen — live regions persistentes", () => {
+  test("histórico sem duração não mostra mensagem fixa nem tempo inventado", async () => {
+    act(() => root.unmount());
+    jest.mocked(fetchChatHistory).mockResolvedValueOnce([
+      { role: "user", content: "Olá", timestamp: 1 },
+      { role: "assistant", content: "Resposta restaurada.", timestamp: 2 },
+    ]);
+    root = createRoot(host);
+    await act(async () => { root.render(<ChatScreen />); });
+    expect(host.textContent).toContain("Resposta restaurada.");
+    expect(host.textContent).not.toContain("Processamento concluído");
+    expect(host.textContent).not.toContain("Processou em");
+    expect(host.querySelector('[role="timer"]')).toBeNull();
+  });
+
+  test("mantém o timer em andamento e a duração real após concluir o turno", async () => {
+    sendMessage("Olá");
+    expect(host.querySelector('[role="timer"]')?.textContent).toContain("Processando há");
+    await act(async () => {
+      emit({ type: "done", final: "Resposta nova." });
+      finishStream();
+    });
+    expect(host.textContent).toContain("Resposta nova.");
+    expect(host.textContent).toContain("Processou em");
+    expect(host.textContent).not.toContain("Processamento concluído");
+    expect(host.querySelector('[role="timer"]')).toBeNull();
+  });
+
+  test("identifica a resposta com o cabeçalho qaaccessibility", () => {
+    sendMessage("olá");
+    act(() => emit({ type: "token", text: "Olá!" }));
+    const heading = Array.from(host.querySelectorAll("h2")).find(
+      (node) => node.textContent === "qaaccessibility",
+    );
+    expect(heading).toBeDefined();
+    expect(heading?.style.textTransform).not.toBe("uppercase");
+    expect(host.textContent).not.toContain("IA ASSISTENTE");
+  });
+
+  test.each([
+    "Avalie a acessibilidade de https://example.com/ — somente a página inicial.",
+    "Avalie a acessibilidade de [exemplo](https://example.com/) — somente a página inicial.",
+    "Avalie a acessibilidade de https://example.com/ e compare com https://example.org/.",
+  ])("texto antes de links é exibido uma vez: %s", (text) => {
+    sendMessage(text);
+    const userBubble = host.querySelector('[aria-label^="Mensagem de Você:"]');
+    expect(userBubble?.textContent?.split("Avalie a acessibilidade de")).toHaveLength(2);
+    expect(userBubble?.querySelectorAll("a").length).toBe(text.includes("compare") ? 2 : 1);
+  });
+
+  test("atividade já no feed é exibida uma vez, inclusive quando a fase é retransmitida", () => {
+    sendMessage("audite este site");
+    const update = "Vou iniciar a inspeção da página inicial, sem alterar nada.";
+    act(() => emit({ type: "phase", text: update }));
+    expect(host.textContent?.split(update)).toHaveLength(2);
+    act(() => emit({ type: "phase", text: "Já recebi o documento da página." }));
+    act(() => emit({ type: "phase", text: update }));
+    expect(host.textContent?.split(update)).toHaveLength(2);
+    expect(host.textContent).toContain("Já recebi o documento da página.");
+    const item = host.querySelector('[role="listitem"][aria-label="' + update + '"]');
+    expect(item?.getAttribute("tabindex")).toBe("0");
+    expect(item?.closest("[aria-live]")).toBeNull();
+  });
+
+  test("atividade sem entrada no feed continua disponível", () => {
+    sendMessage("audite este site");
+    act(() => emit({ type: "reasoning", text: "private" }));
+    expect(host.textContent).toContain("Pensando...");
+    expect(host.textContent).not.toContain("private");
+  });
+
+  test("oculta a mensagem de roteamento antiga e o título sem perder progresso útil", () => {
+    sendMessage("audite este site");
+    act(() => emit({ type: "phase", text: "Estou considerando o contexto para escolher como atender este pedido." }));
+    expect(host.textContent).not.toContain("Estou considerando o contexto para escolher como atender este pedido.");
+    expect(host.textContent).not.toContain("Andamento dos especialistas");
+
+    act(() => emit({ type: "phase", text: "Verificando os nomes acessíveis dos botões." }));
+    expect(host.textContent).toContain("Verificando os nomes acessíveis dos botões.");
+    expect(host.textContent).not.toContain("Atualizações da execução");
+    const item = host.querySelector('[role="listitem"][aria-label="Verificando os nomes acessíveis dos botões."]');
+    expect(item?.getAttribute("tabindex")).toBe("0");
+    expect(item?.closest("[aria-live]")).toBeNull();
+  });
+
   test("as regiões já existem num tela vazio, antes de haver o que anunciar", () => {
     const regions = liveRegions();
     expect(regions).toHaveLength(1);
@@ -175,6 +261,10 @@ describe("ChatScreen — live regions persistentes", () => {
     expect(host.textContent).not.toContain("###");
     expect(host.textContent).not.toContain("***");
     expect(host.textContent).not.toContain("`");
+    const reply = host.querySelector('[aria-label^="Resposta do Assistente:"]');
+    expect(reply?.getAttribute("aria-label")).toContain("Importante: texto");
+    expect(reply?.getAttribute("aria-label")).not.toContain("###");
+    expect(reply?.getAttribute("aria-label")).not.toContain("***");
   });
 
   test("o andamento da squad fica navegável pelas setas, sem anúncio automático", () => {
@@ -192,11 +282,15 @@ describe("ChatScreen — live regions persistentes", () => {
       role: "qa_lead",
       message: "Reunindo as evidências necessárias.",
     }));
+    act(() => emit({
+      type: "squad_progress", task_id: "task-1", role: "qa_lead",
+      message: "O documento recebido declara o idioma inglês.",
+    }));
 
     const items = Array.from(host.querySelectorAll<HTMLElement>("[data-squad-status='true']"));
     expect(items).toHaveLength(2);
-    expect(items[0].textContent).toContain("Preparar verificações");
-    expect(items[1].textContent).toContain("Reunindo as evidências");
+    expect(items[0].textContent).toContain("Reunindo as evidências");
+    expect(host.textContent).not.toContain("Preparar verificações");
     expect(liveRegions()[0].textContent).not.toContain("Reunindo as evidências");
 
     items[0].focus();

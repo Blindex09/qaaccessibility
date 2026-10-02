@@ -22,7 +22,7 @@ export default defineConfig({
   timeout: 30000,
   retries: 1,
   use: {
-    baseURL: process.env.BASE_URL ?? "http://localhost:19006",
+    baseURL: process.env.BASE_URL ?? "http://127.0.0.1:19006",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     connectOptions: wsEndpoint ? { wsEndpoint } : undefined,
@@ -35,7 +35,7 @@ export default defineConfig({
     : {
         command: "npm run web",
         cwd: "../../../web",
-        url: "http://localhost:19006",
+        url: "http://127.0.0.1:19006",
         reuseExistingServer: true,
         timeout: 120000,
       },

@@ -44,6 +44,12 @@ const EXTRACT: ToolMeta = {
 };
 
 const TOOL_META: Readonly<Record<string, ToolMeta>> = {
+  consult_squad: {
+    label: "Squad de acessibilidade",
+    risk: "read",
+    start: "Consultando os papéis selecionados da squad...",
+    end: "Contribuições da squad recebidas",
+  },
   tavily_search: SEARCH,
   exa_search: SEARCH,
   web_search_tool: SEARCH,
@@ -257,7 +263,7 @@ export function getToolGroupKey(name: string): string {
 
 /** Rótulo curto para o crachá da ferramenta. Desconhecida → o próprio nome. */
 export function getToolLabel(name: string): string {
-  return TOOL_META[name]?.label ?? name;
+  return TOOL_META[name]?.label ?? "ação solicitada";
 }
 
 /**

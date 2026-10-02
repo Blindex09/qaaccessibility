@@ -85,6 +85,36 @@ afterEach(async () => {
 });
 
 describe("useChat — interromper um turno em andamento", () => {
+  test("fim parcial por orçamento não deixa um cartão eternamente executando", async () => {
+    const { chat } = mountChat();
+    startTurn(chat);
+    send({ type: "tool_start", name: "analyze_page" });
+    send({ type: "done", final: "O orçamento terminou; análise parcial." });
+    await act(async () => {
+      resolveStream();
+      await Promise.resolve();
+    });
+    expect(chat().messages.find((message) => message.toolCall)?.toolCall?.status).toBe("cancelled");
+    expect(chat().streaming).toBe(false);
+  });
+
+  test("stop limpa anúncio pendente e encerra cartões sem perder os resultados", () => {
+    jest.useFakeTimers();
+    try {
+      const { chat } = mountChat();
+      startTurn(chat);
+      send({ type: "token", text: "Resultado parcial observado." });
+      send({ type: "tool_start", name: "analyze_page" });
+      act(() => chat().stop());
+      act(() => jest.advanceTimersByTime(5000));
+      expect(chat().announcement).toBe("");
+      expect(chat().messages.find((message) => message.toolCall)?.toolCall?.status).toBe("cancelled");
+      expect(chat().messages.some((message) => message.content === "Resultado parcial observado.")).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("stop() aborta a conexão mesmo sem stream_id ainda recebido", () => {
     const { chat } = mountChat();
     startTurn(chat);

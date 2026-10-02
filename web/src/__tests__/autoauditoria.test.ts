@@ -71,7 +71,10 @@ describe("WCAG 2.5.3 Label in Name -- campo de mensagem", () => {
 
 describe("WCAG 2.1.1 Keyboard -- botoes indisponiveis comunicam seu estado", () => {
   test("o botao de enviar usa o estado nativo disabled", () => {
-    const bloco = CHAT.slice(CHAT.indexOf("onPress={streaming ? stop : handleSend}"));
+    // Atualizado para o steer real (4f1c12a): o botão principal tem uma única
+    // ação que muda de significado pelo estado do turno (enviar / parar /
+    // redirecionar). O perímetro do trecho testado permanece o mesmo.
+    const bloco = CHAT.slice(CHAT.indexOf("onPress={streaming ? handlePrimaryAction : handleSend}"));
     const fim = bloco.indexOf("</TouchableOpacity>");
     expect(bloco.slice(0, fim)).toMatch(/\sdisabled=\{naoPodeEnviar\}/);
   });

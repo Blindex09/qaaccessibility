@@ -22,12 +22,19 @@ module.exports = async function (env, argv) {
   // Use nullish coalescing (??) so empty string "" stays as relative URLs (proxied)
   const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8001';
   const apiToken = process.env.EXPO_PUBLIC_QA_API_TOKEN ?? '';
-  config.plugins.push(
-    new webpack.DefinePlugin({
-      'process.env.EXPO_PUBLIC_API_URL': JSON.stringify(apiUrl),
-      'process.env.EXPO_PUBLIC_QA_API_TOKEN': JSON.stringify(apiToken),
-    })
+  // Expo and the app can resolve different Webpack copies under pnpm. Its
+  // DefinePlugin must use the same parser version as the app's compiler.
+  const defineIndex = config.plugins.findIndex(
+    (plugin) => plugin.constructor.name === 'DefinePlugin' && plugin.definitions
   );
+  if (defineIndex < 0) {
+    throw new Error('Expo Webpack configuration has no DefinePlugin');
+  }
+  config.plugins[defineIndex] = new webpack.DefinePlugin({
+    ...config.plugins[defineIndex].definitions,
+    'process.env.EXPO_PUBLIC_API_URL': JSON.stringify(apiUrl),
+    'process.env.EXPO_PUBLIC_QA_API_TOKEN': JSON.stringify(apiToken),
+  });
 
   // Dev server proxy: forward backend API prefixes to FastAPI.
   if (config.devServer) {

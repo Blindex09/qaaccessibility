@@ -18,11 +18,15 @@ resultados. A segunda tela configura provider, chave de API, modelo e URL base.
 | Tela | Arquivo | Responsabilidade |
 |------|---------|------------------|
 | ChatScreen | `web/src/screens/ChatScreen.tsx` | Chat com streaming token-a-token, anexos, eventos de progresso dos agentes e respostas de esclarecimento |
-| SettingsScreen | `web/src/screens/SettingsScreen.tsx` | Provider, chave de API, modelo `alto` ou modelo concreto, Base URL opcional e chaves de serviço próprias (BYOK) via `POST /settings/service-key` |
+| SettingsScreen | `web/src/screens/SettingsScreen.tsx` | Provider, chave de API, última escolha de modelo por provedor para análise e chat, controle de aprovação, Base URL opcional e chaves de serviço próprias (BYOK) via `POST /settings/service-key` |
 | ConversationHistoryModal | `web/src/screens/ConversationHistoryModal.tsx` | Lista/abre/apaga conversas salvas via `GET /chat/conversations`, `GET /chat/history/{id}` e `DELETE /chat/history/{id}`; aberto a partir do `ChatScreen` |
 
 `web/App.tsx` faz a navegação simples entre `chat` e `settings`, define `lang="pt-BR"`,
 mantém um skip link e anuncia mudanças de tela para tecnologias assistivas.
+`web/index.js` registra o componente raiz a partir de um caminho dentro do projeto;
+isso evita que o `AppEntry.js` do Expo resolva `App` a partir do diretório real
+de um pacote ligado pelo pnpm. `webpack.config.js` usa uma única instância de
+`DefinePlugin`, compatível com o parser do Webpack instalado no módulo web.
 
 ## Serviços e hooks
 
@@ -84,6 +88,7 @@ mantém um skip link e anuncia mudanças de tela para tecnologias assistivas.
 
 - Nenhum segredo ou API key fica hardcoded no frontend.
 - O catálogo de modelos vem ao vivo de `/models`; listas locais não devem congelar modelos.
-- O modelo padrão é `alto`, resolvido pelo backend via `agent/models_dev.py` (catálogo local).
+- A última escolha de modelo é recuperada por provedor; sem escolha anterior, a primeira utilização usa a seleção automática do backend. `alto` é uma opção explícita.
+- A tela mostra o estado de aprovação e explica que, desligado, ações com efeito externo podem executar sem confirmação adicional.
 - Toda mensagem de erro visível deve ser anunciável por leitor de tela.
 - Imports ficam no topo do arquivo.
