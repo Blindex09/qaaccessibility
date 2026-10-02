@@ -589,6 +589,19 @@ async def _run_site_crawl_and_analyze(
 
     set_last_analysis(all_issues, f"Crawl/Lista de URLs: {url or ', '.join(urls or [])}")
 
+    # Costura com correções futuras nesta conversa: guardo o HTML de UMA página
+    # consolidada (o caso comum do crawl — e o caso "Analise X e corrija" na
+    # mesma conversa). Sem isso, um `fix_and_zip_files` seguinte não tinha HTML
+    # no cache e o modelo re-auditava a página do zero (~15 min) para descobrir
+    # os mesmos issues que aqui já consolidou. Com múltiplas páginas não há UMA
+    # página "a página" — o fallback do fix (nenhum arquivo) segue devolvendo o
+    # erro orientado, como já faz.
+    if len(target_pages) == 1:
+        single_url, single_html = target_pages[0]
+        from backend.src.services.last_analyzed_content_store import set_last_analyzed_content
+
+        set_last_analyzed_content(single_html, single_url)
+
     summary = _summarize_issues(all_issues)
     summary["total_pages"] = len(target_pages)
     summary["pages_ok"] = pages_ok
