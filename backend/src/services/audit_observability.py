@@ -16,17 +16,20 @@ import threading
 import time
 import uuid
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from typing import Any
 
+from backend.src.config.settings import get_settings
 from backend.src.services import agent_hooks
+from tools.registry import registry
 
 _CURRENT: contextvars.ContextVar[AuditRun | None] = contextvars.ContextVar(
     "qaaccessibility_audit_run", default=None
 )
-_REGISTER_LOCK = threading.Lock()
-_HOOKS_REGISTERED = False
-_SENSITIVE_PARTS = ("key", "token", "secret", "password", "cookie", "authorization", "content")
+_SENSITIVE_PARTS = (
+    "key", "token", "secret", "password", "cookie", "authorization",
+    "content", "html", "prompt", "base64", "instruction",
+)
 
 
 def _safe_value(value: Any) -> Any:
@@ -52,6 +55,15 @@ class AuditRun:
         self.started_at = time.time()
         self._lock = threading.Lock()
         self.events: list[dict[str, Any]] = []
+        self._approval_decisions: dict[str, str] = {}
+
+    def record_approval(self, tool_id: Any, status: str) -> None:
+        with self._lock:
+            self._approval_decisions[str(tool_id)] = status
+
+    def approval_for(self, tool_id: Any) -> str:
+        with self._lock:
+            return self._approval_decisions.pop(str(tool_id), "unknown")
 
     def add(self, event_type: str, **data: Any) -> None:
         with self._lock:
@@ -60,7 +72,7 @@ class AuditRun:
                     "event_id": hashlib.sha256(f"{self.run_id}:{len(self.events)}".encode()).hexdigest()[:16],
                     "type": event_type,
                     "timestamp": time.time(),
-                    **{key: _safe_value(value) for key, value in data.items()},
+                    **_safe_value(data),
                 }
             )
 
@@ -96,18 +108,24 @@ def _current() -> AuditRun | None:
     return _CURRENT.get()
 
 
+def _approval_enabled() -> bool:
+    try:
+        return get_settings().approval_enabled
+    except Exception:
+        return True
+
+
 def _on_pre_tool(tool_id: Any, name: str, args: dict[str, Any]) -> None:
     audit = _current()
     if audit is None:
         return
     requires_approval = False
-    try:
-        from tools.registry import registry
-
-        requires_approval = bool(registry.tools.get(name, {}).get("requires_approval"))
-    except Exception:
-        pass
-    audit.add("tool_call", phase="requested", tool_id=tool_id, tool=name, arguments=args, requires_approval=requires_approval)
+    with suppress(Exception):
+        requires_approval = bool(registry.tools.get(name, {}).get("requires_approval")) and _approval_enabled()
+    audit.add(
+        "tool_call", phase="requested", tool_id=tool_id, tool=name,
+        arguments={key: "[redacted]" for key in args}, requires_approval=requires_approval,
+    )
 
 
 def _on_post_tool(tool_id: Any, name: str, args: dict[str, Any], result: str) -> None:
@@ -118,14 +136,13 @@ def _on_post_tool(tool_id: Any, name: str, args: dict[str, Any], result: str) ->
         parsed = json.loads(result) if isinstance(result, str) else result
     except (TypeError, json.JSONDecodeError):
         parsed = {}
-    text = result.casefold() if isinstance(result, str) else ""
-    approval = "cancelled" if "cancelada" in text or "cancelled" in text else "approved"
+    approval = audit.approval_for(tool_id)
     audit.add(
         "tool_call",
         phase="completed",
         tool_id=tool_id,
         tool=name,
-        arguments=args,
+        arguments={key: "[redacted]" for key in args},
         success=not isinstance(parsed, dict) or not parsed.get("error"),
         approval=approval,
         result_summary={"has_error": bool(isinstance(parsed, dict) and parsed.get("error"))},
@@ -138,22 +155,29 @@ def _on_post_llm(provider: str, model: str, task_id: str, label: str, success: b
         audit.add("llm_call", provider=provider, model=model, task_id=task_id, agent=label, success=success, duration_ms=duration_ms)
 
 
+def _on_tool_approval(tool_id: Any, status: str) -> None:
+    audit = _current()
+    if audit is not None:
+        audit.record_approval(tool_id, status)
+
+
 def _on_error(provider: str, model: str, task_id: str, label: str, error: str) -> None:
     audit = _current()
     if audit is not None:
-        audit.add("error", provider=provider, model=model, task_id=task_id, agent=label, error=error)
+        # Exceções podem incorporar prompts, conteúdo de páginas ou segredos.
+        # O trace registra a ocorrência; o diagnóstico detalhado fica no log.
+        audit.add("error", provider=provider, model=model, task_id=task_id, agent=label, error_present=bool(error))
 
 
 def _register_hooks() -> None:
-    global _HOOKS_REGISTERED
-    with _REGISTER_LOCK:
-        if _HOOKS_REGISTERED:
-            return
-        agent_hooks.register_hook(agent_hooks.PRE_TOOL_CALL, _on_pre_tool)
-        agent_hooks.register_hook(agent_hooks.POST_TOOL_CALL, _on_post_tool)
-        agent_hooks.register_hook(agent_hooks.POST_LLM_CALL, _on_post_llm)
-        agent_hooks.register_hook(agent_hooks.ON_ERROR, _on_error)
-        _HOOKS_REGISTERED = True
+    # O registro pode ter sido limpo entre execuções. O próprio registry é a
+    # fonte de verdade; uma flag local ficaria desatualizada e silenciaria a
+    # observabilidade nos turnos seguintes.
+    agent_hooks.ensure_hook(agent_hooks.PRE_TOOL_CALL, _on_pre_tool)
+    agent_hooks.ensure_hook(agent_hooks.POST_TOOL_CALL, _on_post_tool)
+    agent_hooks.ensure_hook(agent_hooks.TOOL_APPROVAL, _on_tool_approval)
+    agent_hooks.ensure_hook(agent_hooks.POST_LLM_CALL, _on_post_llm)
+    agent_hooks.ensure_hook(agent_hooks.ON_ERROR, _on_error)
 
 
 @contextmanager

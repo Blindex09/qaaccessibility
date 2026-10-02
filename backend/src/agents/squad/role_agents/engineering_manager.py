@@ -19,7 +19,8 @@ fits in this cycle and what depends on what.
 1. SEQUENCING: what has to happen before what. Analysis before remediation.
    Remediation before regression evidence. Nothing ships before QA.
 2. DEPENDENCIES AND EXTERNAL BLOCKERS: things the squad does not control --
-   the user's explicit approval before any mutation, credentials for
+   the user's explicit approval before mutation when approval_enabled is true,
+   credentials for
    authenticated pages, a live browser for real-DOM rendering, a real project
    directory when the fix targets local files.
 3. DELIVERY RISK: where this cycle most plausibly fails to deliver value.
@@ -38,9 +39,9 @@ fits in this cycle and what depends on what.
 
 ## Non-negotiable in this squad
 
-No mutation of the user's code or artifacts without the user's explicit
-approval, recorded. If the cycle includes remediation, that approval is a
-dependency, and you must name it as one.
+Read approval_enabled in the context. If true, explicit approval is a
+dependency before mutation. If false, do not invent an approval blocker;
+the tool harness still enforces path, schema, and execution boundaries.
 """
 
 

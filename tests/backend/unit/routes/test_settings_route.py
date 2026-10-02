@@ -178,6 +178,81 @@ class TestChatLlmOverrides:
         assert resp.status_code == 400
 
 
+class TestModelChoicePerProvider:
+    def test_switching_provider_recovers_last_explicit_choice(self, client):
+        assert client.post(
+            "/settings/", json={
+                "llm_provider": "openai", "llm_model": "gpt-choice",
+                "chat_llm_provider": "", "chat_llm_model": "",
+            }
+        ).status_code == 200
+        assert client.post(
+            "/settings/", json={"llm_provider": "anthropic", "llm_model": "claude-choice"}
+        ).status_code == 200
+
+        assert client.post("/settings/", json={"llm_provider": "openai"}).status_code == 200
+        body = client.get("/settings/").json()
+        assert body["llm_model"] == "gpt-choice"
+        assert body["llm_models_by_provider"]["anthropic"] == "claude-choice"
+        assert get_settings().chat_model_config()["model"] == "gpt-choice"
+
+    def test_first_use_is_automatic_and_explicit_reset_clears_choice(self, client):
+        assert client.post(
+            "/settings/", json={
+                "llm_provider": "openai", "llm_model": "gpt-choice",
+                "chat_llm_provider": "", "chat_llm_model": "",
+            }
+        ).status_code == 200
+        assert client.post("/settings/", json={"llm_provider": "gemini"}).status_code == 200
+        first_use = client.get("/settings/").json()
+        assert first_use["llm_model"] == ""
+        assert "gemini" not in first_use["llm_models_by_provider"]
+        assert get_settings().chat_model_config()["model"] == "alto"
+
+        assert client.post(
+            "/settings/", json={"llm_provider": "openai", "llm_model": ""}
+        ).status_code == 200
+        reset = client.get("/settings/").json()
+        assert reset["llm_model"] == ""
+        assert "openai" not in reset["llm_models_by_provider"]
+
+    def test_chat_override_recovers_its_own_choice_without_changing_main(self, client):
+        client.post(
+            "/settings/", json={
+                "llm_provider": "openai", "llm_model": "main-gpt",
+                "chat_llm_provider": "openai", "chat_llm_model": "chat-gpt",
+            },
+        )
+        client.post(
+            "/settings/", json={
+                "llm_provider": "openai", "llm_model": "main-gpt",
+                "chat_llm_provider": "anthropic", "chat_llm_model": "chat-claude",
+            },
+        )
+        client.post(
+            "/settings/", json={"llm_provider": "openai", "chat_llm_provider": "openai"}
+        )
+        body = client.get("/settings/").json()
+        assert body["llm_model"] == "main-gpt"
+        assert body["chat_llm_model"] == "chat-gpt"
+        assert body["llm_models_by_provider"]["openai"] == "main-gpt"
+        assert body["chat_llm_models_by_provider"]["anthropic"] == "chat-claude"
+        assert get_settings().chat_model_config()["model"] == "chat-gpt"
+
+
+def test_approval_setting_cannot_disable_mandatory_gate(client):
+    assert client.post(
+        "/settings/", json={"llm_provider": "openai", "approval_enabled": False}
+    ).status_code == 200
+    assert client.get("/settings/").json()["approval_enabled"] is True
+    assert get_settings().approval_enabled is True
+
+    assert client.post(
+        "/settings/", json={"llm_provider": "openai", "approval_enabled": True}
+    ).status_code == 200
+    assert client.get("/settings/").json()["approval_enabled"] is True
+
+
 class TestServiceKeyRouteInjection:
     def test_newline_in_service_name_is_rejected(self, client):
         resp = client.post(

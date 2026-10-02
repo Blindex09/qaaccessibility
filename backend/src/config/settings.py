@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.src.security.secret_store import (
@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     llm_api_key: str | None = Field(default=None, description="Chave de API para o provedor")
     llm_base_url: str | None = Field(default=None, description="URL base para o provedor")
     llm_model: str | None = Field(default=None, description="ID do modelo para o provedor")
+    llm_models_by_provider: dict[str, str] = Field(
+        default_factory=dict,
+        description="Ultimo modelo escolhido explicitamente para cada provedor",
+    )
 
     # Firecrawl
     firecrawl_api_key: str | None = Field(
@@ -109,6 +113,15 @@ class Settings(BaseSettings):
         default=None,
         description="Token opcional exigido nas rotas privadas da API local",
     )
+    approval_enabled: bool = Field(
+        default=True,
+        description="Aprovação obrigatória para ferramentas com efeito externo; não pode ser desligada",
+    )
+
+    @field_validator("approval_enabled")
+    @classmethod
+    def enforce_approval(cls, _value: bool) -> bool:
+        return True
 
     # Upload
     max_upload_size_mb: int = Field(default=10)
@@ -154,12 +167,30 @@ class Settings(BaseSettings):
         gt=0,
         description="TTL do cache de respostas dos agentes de análise, em segundos",
     )
+    a11y_model_arbitration_enabled: bool = Field(
+        default=True,
+        description="Permite julgamento contextual entre modelos quando o modo Alto prioriza qualidade",
+    )
+    a11y_route_advisor_enabled: bool = Field(
+        default=True,
+        description="IA decide a rota Alto a partir da tarefa e dos candidatos elegíveis",
+    )
+    a11y_model_arbitration_max_candidates: int = Field(
+        default=3,
+        ge=2,
+        le=3,
+        description="Quantidade máxima de modelos candidatos no julgamento do modo Alto",
+    )
 
     # Chat agentico (com tools/tool-loop) — provider que suporta o round-trip
     # multi-turn: OpenAI, Anthropic, Gemini, xAI, Ollama Cloud. Se não
     # configurado, cai no llm_* principal.
     chat_llm_provider: str | None = Field(default=None, description="Provider do chat agentico")
     chat_llm_model: str | None = Field(default=None, description="Modelo do chat agentico")
+    chat_llm_models_by_provider: dict[str, str] = Field(
+        default_factory=dict,
+        description="Ultimo modelo do chat escolhido explicitamente para cada provedor",
+    )
     chat_llm_api_key: str | None = Field(default=None, description="API key do chat agentico")
     chat_llm_base_url: str | None = Field(default=None, description="Base URL do chat agentico")
 
@@ -174,9 +205,14 @@ class Settings(BaseSettings):
 
     def chat_model_config(self) -> dict[str, str | None]:
         """Resolve a config do chat, com fallback para o llm_* principal."""
+        provider = self.chat_llm_provider or self.llm_provider
+        remembered = (
+            self.chat_llm_models_by_provider.get(provider) if self.chat_llm_provider else None
+        ) or self.llm_models_by_provider.get(provider)
+        main_model = self.llm_model if provider == self.llm_provider else None
         return {
-            "provider": self.chat_llm_provider or self.llm_provider,
-            "model": self.chat_llm_model or self.llm_model or "alto",
+            "provider": provider,
+            "model": self.chat_llm_model or remembered or main_model or "alto",
             "api_key": self.chat_llm_api_key or self.llm_api_key,
             "base_url": self.chat_llm_base_url or self.llm_base_url,
         }

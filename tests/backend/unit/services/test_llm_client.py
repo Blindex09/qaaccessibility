@@ -8,6 +8,14 @@ from backend.src.services.llm_client import call_llm, call_llm_structured, extra
 from backend.src.services.response_cache import clear_cache as clear_response_cache
 
 
+@pytest.fixture(autouse=True)
+def isolate_transport_from_route_advisor(monkeypatch):
+    """Testes do transporte não chamam o consultor remoto; integração tem suite própria."""
+    from backend.src.config.settings import get_settings
+
+    monkeypatch.setattr(get_settings(), "a11y_route_advisor_enabled", False)
+
+
 def setup_function():
     clear_response_cache()
     agent_hooks.clear_all_hooks()
@@ -227,10 +235,11 @@ async def test_call_llm_fires_on_error_hook_on_failure():
         mock_agent_instance = MagicMock()
         mock_agent_instance.run_conversation.return_value = mock_res
         MockAgentClass.return_value = mock_agent_instance
-        with pytest.raises(Exception, match="provider unreachable"):
+        with pytest.raises(Exception, match="Não foi possível concluir"):
             await call_llm(system_prompt="s", user_prompt="u")
 
     assert len(error_calls) == 1
+    assert "provider unreachable" in str(error_calls[0])
 
 
 @pytest.mark.asyncio
@@ -651,7 +660,7 @@ class TestStructuredOutputFallbackChain:
                 {"gpt-5.6-luna": fail_luna, "kimi-k2.6": fail_kimi}, calls
             )
 
-            with pytest.raises(Exception, match="indisponivel"):
+            with pytest.raises(Exception, match="Não foi possível concluir"):
                 await call_llm(system_prompt="s", user_prompt="u", response_schema={"type": "object"})
 
         assert calls == [("opencode-go", "gpt-5.6-luna"), ("opencode-go", "kimi-k2.6")]

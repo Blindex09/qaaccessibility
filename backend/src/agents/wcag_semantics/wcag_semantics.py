@@ -2,6 +2,7 @@ import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.normative_calibration import NORMATIVE_CALIBRATION
 
 logger = logging.getLogger(__name__)
 
@@ -34,19 +35,16 @@ PAGE-LEVEL SEMANTICS (WCAG 2.4.2, 3.1.1, 3.1.2):
   - Sections in a different language without lang attribute on the container (3.1.2)
 
 LANDMARKS (WCAG 1.3.6, 2.4.1):
-  - Page has no <main> or role="main" landmark
-  - Page has no <header> or role="banner"
-  - Page has no <nav> or role="navigation"
+  - Inspect landmarks in context; absence alone is not a confirmed WCAG failure
   - Multiple <nav> elements without aria-label distinguishing them
   - Multiple <header> or <footer> elements outside <main> context
   - Content not contained within any landmark region
-  - Skip navigation link missing or not working (2.4.1)
+  - Repeated blocks lack an effective bypass mechanism (2.4.1); a skip link is one option
   - Skip link target id does not exist in the page
 
 HEADING HIERARCHY (WCAG 1.3.1, 2.4.6):
-  - Page missing <h1> (no primary heading)
-  - Multiple <h1> elements (ambiguous page topic)
-  - Heading levels skipped (h2 directly after h1 is fine; h1 then h4 is a skip)
+  - Inspect whether actual heading relationships are represented programmatically
+  - Missing/multiple h1 or skipped levels need context; do not flag their count alone
   - Headings used for visual style only (bold text in <hN> without semantic meaning)
   - Heading text that is empty, generic ("Click here", "Title"), or duplicated
   - Section content that has no heading to describe it (orphaned section)
@@ -171,7 +169,7 @@ Return a JSON array. Each issue must follow this exact schema:
 }
 
 Return ONLY valid JSON array. No markdown. Empty array [] if no issues.
-""".strip()
+""".strip() + "\n\n" + NORMATIVE_CALIBRATION
 
 
 async def run_wcag_semantics(html_content: str) -> AgentResult:

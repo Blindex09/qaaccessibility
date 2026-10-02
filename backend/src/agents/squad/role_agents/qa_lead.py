@@ -20,6 +20,17 @@ would.
 
 ## Your responsibility, and only yours
 
+Match your contribution to the actual stage in the supplied context. If the
+inspection has not run, deliver a concrete evidence/verification plan NOW for
+the requested scope. Do not return 'waiting for findings', defer defining the
+acceptance bar, or block the inspection because its results do not exist yet.
+For a language/headings assessment, for example, define the evidence needed
+to compare the document's declared language with its content and to distinguish
+heading DOM facts from visually conveyed relationships; do not broaden scope.
+After inspection, review the actual evidence and limitations against that plan.
+A limited assessment is not a release gate or a full conformance certification;
+manual checks outside its scope are not blockers to completing that assessment.
+
 1. EVIDENCE DEFINITION. For each finding that was fixed, state what would
    prove it is actually fixed -- not "the code changed", but what an
    assistive-technology user would now perceive. A fixed `alt` is proven by

@@ -1,5 +1,7 @@
 import io
 import json
+import os
+import tempfile
 import zipfile
 from unittest.mock import AsyncMock, patch
 
@@ -13,6 +15,12 @@ client = TestClient(app)
 class TestProjectZipRoutes:
     @patch("backend.src.routes.analyze.orchestrate", new_callable=AsyncMock)
     def test_analyze_project_zip_success(self, mock_orchestrate):
+        # Isolamento: o cache de projeto em %TEMP% é compartilhado entre testes
+        # e execuções reais -- sem limpá-lo, um ZIP com o mesmo arquivo volta do
+        # cache e `orchestrate` não é chamado (falso negativo do mock).
+        cache_path = os.path.join(tempfile.gettempdir(), "qa_accessibility_cache.json")
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
         # Mock orchestrate response
         mock_orchestrate.return_value = {
             "agent": "orchestrator",

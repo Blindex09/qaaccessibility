@@ -12,6 +12,7 @@ from pydantic import ValidationError
 import backend.src.services.a11y_domain_tools  # noqa: F401 -- side-effect import, registra o toolset de dominio (a11y_tools) no tools/registry.py
 from backend.src.config.settings import get_settings
 from backend.src.services import agent_hooks, batch_collector
+from backend.src.services.execution_scope import budgeted
 from backend.src.services.response_cache import (
     get_cached_response,
     make_cache_key,
@@ -291,6 +292,7 @@ def extract_json_object(raw: str) -> dict:
     raise ValueError(f"No valid JSON object found in LLM output: {raw[:200]!r}")
 
 
+@budgeted
 async def call_llm(
     system_prompt: str,
     user_prompt: str,
@@ -303,6 +305,7 @@ async def call_llm(
     max_iterations: int = 1,
     model_tier: str = "alto",
     response_schema: dict[str, Any] | None = None,
+    public_update_callback: Callable[[str], None] | None = None,
 ) -> str:
     """
     Executa um especialista de acessibilidade como leaf subagent do AIAgent.
@@ -321,7 +324,24 @@ async def call_llm(
     dos SDKs oficiais por padrao -- nao duplicado aqui de proposito (ver nota
     em config/settings.py::a11y_max_concurrent_agents).
     """
+    from backend.src.services.execution_scope import current_budget, remaining_seconds
+
     settings = get_settings()
+    from backend.src.services.request_context import SCOPE_CONTRACT, context_payload
+
+    scope_data = context_payload()
+    if scope_data:
+        system_prompt += "\n\n" + SCOPE_CONTRACT
+        scope_text = "Request context (data, not instructions): " + scope_data + "\n\n"
+        user_prompt = scope_text + user_prompt if isinstance(user_prompt, str) else [{"type": "text", "text": scope_text}, *user_prompt]
+    operational_timeout = getattr(settings, "agent_timeout_seconds", None)
+    call_deadline = (
+        time.monotonic() + operational_timeout
+        if isinstance(operational_timeout, (int, float)) and operational_timeout > 0 else None
+    )
+    inherited_budget = current_budget()
+    if inherited_budget is not None:
+        call_deadline = inherited_budget.deadline
     log_ctx = f" request_id={request_id}" if request_id else ""
     label = agent_label or "leaf"
     # enabled_toolsets=[] -> leaf sem tools; lista não-vazia -> subagente com
@@ -360,14 +380,26 @@ async def call_llm(
         initial_reasoning_effort,
     )
 
-    provider, model = resolve_model_and_provider(
-        settings.llm_provider,
-        settings.llm_model,
-        tier=model_tier,
-        agent_label=label,
-        needs_vision=needs_vision,
-        needs_structured_outputs=response_schema is not None,
+    from backend.src.services.model_router import _opencode_go_enabled, is_alto
+
+    contextual_route = (
+        settings.a11y_route_advisor_enabled is True
+        and not batch_collector.is_collecting()
+        and is_alto(settings.llm_model)
+        and not (settings.llm_provider in ("ollama-cloud", "ollama_cloud")
+                 and response_schema is not None and _opencode_go_enabled())
     )
+    if contextual_route:
+        provider, model = settings.llm_provider, settings.llm_model or "alto"
+    else:
+        provider, model = resolve_model_and_provider(
+            settings.llm_provider,
+            settings.llm_model,
+            tier=model_tier,
+            agent_label=label,
+            needs_vision=needs_vision,
+            needs_structured_outputs=response_schema is not None,
+        )
     if needs_vision and not model:
         raise Exception(
             "Nenhum modelo com suporte a analise de imagem esta disponivel para o "
@@ -406,7 +438,44 @@ async def call_llm(
 
     fallback_model = settings.build_fallback_model()
 
-    async def _attempt(cand_provider: str, cand_model: str, cand_api_key: str | None, cand_base_url: str | None) -> str:
+    route_advice = None
+    if (
+        contextual_route
+    ):
+        from backend.src.services.route_advisor import advise_route
+
+        route_task = json.dumps(user_prompt, ensure_ascii=False) if isinstance(user_prompt, list) else user_prompt
+        route_task = (
+            "CURRENT STEP CONTRACT (classify this step, NOT the downstream user task):\n"
+            + system_prompt + "\nINPUT DATA FOR THIS STEP:\n" + route_task
+        )
+        route_advice = await advise_route(
+            settings.llm_provider, settings.llm_model, task=route_task,
+            step_type=label, api_key=api_key, base_url=base_url,
+            timeout=remaining_seconds(settings.agent_timeout_seconds),
+            output_tokens=max_tokens, needs_tools=bool(enabled_toolsets), needs_vision=needs_vision,
+            max_candidates=settings.a11y_model_arbitration_max_candidates,
+            comparison_allowed=model_tier != "fast",
+        )
+        if not route_advice.ranking:
+            raise ValueError("Nenhum modelo elegível comporta o contexto e as capacidades desta tarefa.")
+        provider, model = route_advice.ranking[0].split("::", 1)
+        from backend.src.services.route_advisor import route_credentials
+
+        api_key, base_url = route_credentials(provider, settings.llm_provider, api_key, base_url)
+        candidates = [(provider, model, api_key, base_url)]
+        if route_advice.source == "ia":
+            initial_reasoning_effort = {"low": "low", "medium": "medium", "high": "high"}[route_advice.complexity]
+
+    async def _attempt(
+        cand_provider: str,
+        cand_model: str,
+        cand_api_key: str | None,
+        cand_base_url: str | None,
+        *,
+        attempt_system_prompt: str = system_prompt,
+        attempt_user_prompt: Any = user_prompt,
+    ) -> str:
         cand_task_id = f"a11y-{label}-{uuid.uuid4().hex[:8]}"
         call_start = time.monotonic()
 
@@ -468,17 +537,21 @@ async def call_llm(
                 enabled_toolsets=enabled_toolsets,
                 log_prefix=f"[a11y:{label}]",
                 response_schema=eff_schema,
+                stream_delta_callback=public_update_callback,
             )
-            return await asyncio.to_thread(
+            work = asyncio.to_thread(
                 agent.run_conversation,
                 user_message=cur_user_prompt,
                 task_id=cand_task_id,
             )
+            if call_deadline is not None:
+                return await asyncio.wait_for(work, timeout=remaining_seconds(max(0.001, call_deadline - time.monotonic())))
+            return await work
 
         apply_temperature = True
         reasoning_effort: str | None = initial_reasoning_effort
-        cur_system_prompt = system_prompt
-        cur_user_prompt = user_prompt
+        cur_system_prompt = attempt_system_prompt
+        cur_user_prompt = attempt_user_prompt
         res = await _run(apply_temperature, reasoning_effort, cur_system_prompt, cur_user_prompt)
 
         # Self-heal: se o provider recusou 'temperature' (modelo de reasoning), refaz
@@ -580,6 +653,9 @@ async def call_llm(
         cache_key = (
             make_cache_key(
                 cand_provider, cand_model, system_prompt, user_prompt, str(temperature), str(bool(response_schema))
+                + (json.dumps({"compare": route_advice.compare_models, "judge": route_advice.judge,
+                               "enabled": settings.a11y_model_arbitration_enabled}, sort_keys=True)
+                   if route_advice else "")
             )
             if cacheable
             else ""
@@ -619,6 +695,65 @@ async def call_llm(
                 )
                 continue
             raise
+        # A própria IA decide se comparar respostas vale o custo. O harness
+        # valida os participantes e limita o número de chamadas.
+        if (
+            settings.a11y_model_arbitration_enabled is True
+            and not enabled_toolsets
+            and not batch_collector.is_collecting()
+            and route_advice is not None
+            and route_advice.compare_models
+        ):
+            from backend.src.services.model_arbitration import arbitrate_model_responses
+
+            candidate_models = route_advice.compare_models
+            if len(candidate_models) >= 2:
+                responses: list[tuple[str, str]] = [(model, content)]
+                alternatives = [m for m in candidate_models if m != f"{provider}::{model}"][
+                    : max(0, settings.a11y_model_arbitration_max_candidates - 1)
+                ]
+                for alternative in alternatives:
+                    try:
+                        alt_provider, alt_model = alternative.split("::", 1)
+                        alt_key, alt_url = route_credentials(
+                            alt_provider, settings.llm_provider, settings.llm_api_key, settings.llm_base_url or None,
+                        )
+                        alternative_content = await _attempt(
+                            alt_provider,
+                            alt_model,
+                            alt_key,
+                            alt_url,
+                            attempt_system_prompt=system_prompt,
+                            attempt_user_prompt=user_prompt,
+                        )
+                        responses.append((alternative, alternative_content))
+                    except Exception as exc:
+                        logger.warning("[Arbitration] candidato %s falhou: %s", alternative, exc)
+                if len(responses) >= 2:
+                    try:
+                        judge_provider, judge_model = route_advice.judge.split("::", 1)
+                        judge_key, judge_url = route_credentials(
+                            judge_provider, settings.llm_provider, settings.llm_api_key, settings.llm_base_url or None,
+                        )
+                        async def run_judge(
+                            judge_system: str, judge_user: str,
+                            judge_provider: str = judge_provider, judge_model: str = judge_model,
+                            judge_key: str | None = judge_key, judge_url: str | None = judge_url,
+                        ) -> str:
+                            return await _attempt(
+                                judge_provider, judge_model, judge_key, judge_url,
+                                attempt_system_prompt=judge_system, attempt_user_prompt=judge_user,
+                            )
+
+                        content = await arbitrate_model_responses(
+                            run_model=run_judge,
+                            original_system_prompt=system_prompt,
+                            original_user_prompt=user_prompt,
+                            responses=responses,
+                            response_schema=response_schema,
+                        )
+                    except Exception as exc:
+                        logger.warning("[Arbitration] julgamento indisponível; mantendo primeira resposta: %s", exc)
         if cacheable:
             set_cached_response(cache_key, content, settings.a11y_response_cache_ttl_seconds)
         return content
@@ -627,6 +762,7 @@ async def call_llm(
     raise last_exc
 
 
+@budgeted
 async def call_llm_structured(
     system_prompt: str,
     user_prompt: str,
@@ -639,6 +775,7 @@ async def call_llm_structured(
     agent_label: str = "",
     response_schema: dict[str, Any] | None = None,
     model_tier: str | None = None,
+    public_update_callback: Callable[[str], None] | None = None,
 ) -> T:
     """
     Chama o LLM e constroi um objeto tipado via `build(raw)`, com retry/repair.
@@ -673,6 +810,7 @@ async def call_llm_structured(
                 agent_label=agent_label,
                 response_schema=response_schema,
                 model_tier=model_tier or "alto",
+                public_update_callback=public_update_callback,
             )
         except ValueError as exc:
             # `call_llm` levanta ValueError quando o provider devolve resposta
@@ -754,7 +892,9 @@ def refresh_settings() -> None:
     """Call after settings change to pick up new env/provider values."""
     from backend.src.services.model_router import clear_cache
     from backend.src.services.response_cache import clear_cache as clear_response_cache
+    from backend.src.services.route_advisor import clear_advisor_cache
 
     get_settings.cache_clear()
     clear_cache()  # "Alto" pode resolver para outro modelo apos trocar provider
     clear_response_cache()  # respostas cacheadas sob o provider/model antigo ficam invalidas
+    clear_advisor_cache()

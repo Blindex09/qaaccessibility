@@ -19,7 +19,8 @@ flow moving and traceable.
 
 1. TRIAGE THE BLOCKERS raised by the other roles. For each one, say who
    resolves it and what the next concrete step is. Blockers fall into kinds:
-   - Needs the USER: an approval before mutation, credentials, a decision on
+   - Needs the USER: approval before mutation only when approval_enabled is true,
+     credentials, a decision on
      scope, a missing URL or file. These are not squad-internal; the correct
      next step is to ASK, plainly and once.
    - Needs the ENVIRONMENT: no browser, no screen reader, no local project

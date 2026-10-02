@@ -38,11 +38,12 @@ logger = logging.getLogger(__name__)
 # registrados recebem quando disparados.
 PRE_TOOL_CALL = "pre_tool_call"  # (tool_id, name, args) -> None
 POST_TOOL_CALL = "post_tool_call"  # (tool_id, name, args, result) -> None
+TOOL_APPROVAL = "tool_approval"  # (tool_id, status) -> None
 PRE_LLM_CALL = "pre_llm_call"  # (provider, model, task_id, agent_label) -> None
 POST_LLM_CALL = "post_llm_call"  # (provider, model, task_id, agent_label, success, duration_ms) -> None
 ON_ERROR = "on_error"  # (provider, model, task_id, agent_label, error) -> None
 
-_KNOWN_EVENTS = frozenset({PRE_TOOL_CALL, POST_TOOL_CALL, PRE_LLM_CALL, POST_LLM_CALL, ON_ERROR})
+_KNOWN_EVENTS = frozenset({PRE_TOOL_CALL, POST_TOOL_CALL, TOOL_APPROVAL, PRE_LLM_CALL, POST_LLM_CALL, ON_ERROR})
 
 _lock = threading.Lock()
 _hooks: dict[str, dict[str, Callable[..., Any]]] = {event: {} for event in _KNOWN_EVENTS}
@@ -58,6 +59,23 @@ def register_hook(event: str, fn: Callable[..., Any]) -> str:
     with _lock:
         _hooks[event][token] = fn
     return token
+
+
+def ensure_hook(event: str, fn: Callable[..., Any]) -> str:
+    """Registra o observador uma vez por identidade, inclusive após uma limpeza.
+
+    O teste de existência e a inserção usam o mesmo lock para evitar que dois
+    turnos concorrentes instalem o mesmo observador duas vezes.
+    """
+    if event not in _KNOWN_EVENTS:
+        raise ValueError(f"Evento de hook desconhecido: {event!r}. Válidos: {sorted(_KNOWN_EVENTS)}")
+    with _lock:
+        for token, callback in _hooks[event].items():
+            if callback is fn:
+                return token
+        token = uuid.uuid4().hex
+        _hooks[event][token] = fn
+        return token
 
 
 def unregister_hook(event: str, token: str) -> None:

@@ -11,6 +11,7 @@ from backend.src.agents.checklist.checklist import run_checklist
 from backend.src.agents.classifier.classifier import run_classifier
 from backend.src.agents.cognitive.cognitive import run_cognitive
 from backend.src.agents.compliance_audit.compliance_audit import run_compliance_audit
+from backend.src.agents.component_contracts.component_contracts import run_component_contracts
 from backend.src.agents.css_analyzer.css_analyzer import run_css_analyzer
 from backend.src.agents.delegation_coordinator.delegation_coordinator import run_delegation_coordinator
 from backend.src.agents.fixer.fixer import run_fixer
@@ -41,10 +42,11 @@ from backend.src.agents.web_components.web_components import run_web_components_
 from backend.src.agents.widgets_a11y.widgets_a11y import run_widgets_a11y
 from backend.src.config.settings import get_settings
 from backend.src.services import batch_collector, chat_progress
+from backend.src.services.adaptive_budget import AdaptiveExecutionBudget, create_analysis_budget
 from backend.src.services.audit_observability import audited_orchestrator
-from backend.src.services.complexity_router import classify_and_set_tradeoff
+from backend.src.services.complexity_router import classify_and_set_tradeoff, get_current_tradeoff
 from backend.src.services.contrast_verifier import verify_contrast_issues
-from backend.src.services.lessons_store import get_known_false_positive_patterns, record_false_positive_removal
+from backend.src.services.lessons_store import get_known_false_positive_patterns
 from backend.src.shared.i18n.criteria_pt import translate_issues
 from backend.src.shared.models import (
     SUPPORTED_FRAMEWORKS,
@@ -84,6 +86,7 @@ CORE_ANALYSIS_AGENTS = {
     "spatial_3d_xr": "WebXR XAUR 2026, Canvas Three.js/Babylon.js PAT DOM",
     "web_components": "Custom Elements FACE ElementInternals e shadowrootreferencetarget",
     "niche_domains": "Passkeys SC 3.3.8/3.3.9, Sonificação D3 e Kiosks ADA/EAA",
+    "component_contracts": "contratos completos de componentes: estado, relações ARIA, foco, teclado e anúncios",
 }
 
 
@@ -120,6 +123,22 @@ def _has_widget_surface(html_content: str) -> bool:
             re.I,
         )
         or re.search(r"\baria-(expanded|pressed|selected|controls|haspopup|activedescendant)\s*=", html_content, re.I)
+    )
+
+
+def _has_component_contract_surface(html_content: str) -> bool:
+    """Detecta evidência de componente composto sem acionar o agente por texto.
+
+    O especialista é complementar ao widgets_a11y: entra quando há estados,
+    relações ARIA, live regions, dialogs ou hooks de componentes no HTML.
+    Um botão nativo isolado não basta para justificar mais uma chamada de LLM.
+    """
+    return bool(
+        re.search(
+            r"\b(aria-(controls|expanded|haspopup|live|modal|selected|describedby|labelledby)|role\s*=\s*['\"]?(dialog|tab|tabpanel|status|alert|tooltip|menu|listbox)|data-(component|state|headlessui)|<dialog\b)",
+            html_content,
+            re.I,
+        )
     )
 
 
@@ -187,6 +206,8 @@ def _conditional_agent_reasons(html_content: str) -> dict[str, str]:
         reasons["forms_a11y"] = "HTML contem controles de formulário/interacao"
     if _has_widget_surface(html_content):
         reasons["widgets_a11y"] = "HTML contem roles/estados ARIA de widgets interativos"
+    if _has_component_contract_surface(html_content):
+        reasons["component_contracts"] = "HTML contem evidencias de componentes compostos e estados/relacoes de runtime"
     if _has_data_table(html_content):
         reasons["tables_data"] = "HTML contem elemento <table>"
     if _has_links(html_content):
@@ -268,6 +289,12 @@ async def _timed(name: str, coro_factory) -> tuple[AgentResult, float]:
             "issues": len(result.data.get("issues", [])) if result.success else 0,
         }
     )
+    if result.success:
+        for issue in _extract_issues(result)[:2]:
+            chat_progress.emit({
+                "type": "phase",
+                "text": "Achado preliminar, ainda sujeito à revisão: " + issue.description,
+            })
     return result, duration_ms
 
 
@@ -325,24 +352,19 @@ def _summarize_issues_for_delegation(issues: list[AccessibilityIssue], limit: in
     return "\n".join(lines) if lines else "(nenhum issue encontrado na rodada 1)"
 
 
-MAX_DELEGATION_ROUNDS = 2
-
-
 async def _run_delegation_round(
     unique: list[AccessibilityIssue],
     skipped_reasons: dict[str, str],
     all_available_agents: dict,
+    budget: AdaptiveExecutionBudget,
 ) -> tuple[list[AccessibilityIssue], list[AgentMetrics], list[dict[str, str]]]:
-    """Rodada 2+ (opcional, limitada): delegacao dinamica agente-a-agente,
-    como um LOOP real com condicao de parada -- nao uma rodada extra fixa.
+    """Delegacao dinamica com deadline unico e deteccao de repeticao.
 
     A cada volta: um coordenador (LLM) le os achados ATUALIZADOS + os agentes
     ainda nao acionados e decide se delega mais algum. O loop para quando (a)
-    o coordenador nao delega mais nada (convergencia natural), (b) todos os
-    agentes pulados ja foram delegados, ou (c) MAX_DELEGATION_ROUNDS e
-    atingido (backstop -- nunca um loop aberto). Cada delegacao ja acionada
-    sai da lista de candidatos da proxima volta, entao o loop sempre progride
-    ou para -- nunca repete a mesma decisao.
+    o coordenador nao delega mais nada, (b) todos os agentes pulados ja foram
+    delegados, (c) o deadline agregado expirou ou (d) a mesma delegacao se
+    repete. Assim nao existe um segundo contador competindo com o orçamento.
 
     Retorna tambem `delegation_edges` (grafo explicito: quem delegou pra quem,
     em qual rodada, e por que) -- ver Graph Engineering em AgentResult.data['pipeline_graph'].
@@ -351,26 +373,35 @@ async def _run_delegation_round(
     delegation_edges: list[dict[str, str]] = []
     remaining_skipped = dict(skipped_reasons)
 
-    for round_num in range(1, MAX_DELEGATION_ROUNDS + 1):
-        if not remaining_skipped:
-            break
+    round_num = 0
+    seen_signatures: set[tuple[str, ...]] = set()
+    while remaining_skipped and not budget.expired:
+        round_num += 1
         issues_summary = _summarize_issues_for_delegation(unique)
         coordinator_result = await run_delegation_coordinator(issues_summary, remaining_skipped)
         delegations = coordinator_result.data.get("delegations", []) if coordinator_result.success else []
         if not delegations:
-            logger.info("[Orchestrator] Loop de delegacao convergiu na rodada %d (nada mais a delegar).", round_num)
+            logger.info("[Orchestrator] Loop de delegacao convergiu na rodada %d.", round_num)
             break
 
+        signature = tuple(sorted(str(item.get("target_agent", "")) for item in delegations))
+        if not signature or signature in seen_signatures:
+            logger.info("[Orchestrator] Loop de delegacao repetido; autosubmit do resultado parcial.")
+            break
+        seen_signatures.add(signature)
+
         logger.info(
-            "[Orchestrator] Delegacao dinamica (rodada %d/%d): %d agente(s) pulado(s) acionado(s): %s",
+            "[Orchestrator] Delegacao dinamica (rodada %d/%s): %d agente(s) pulado(s) acionado(s): %s",
             round_num,
-            MAX_DELEGATION_ROUNDS,
+            "deadline agregado",
             len(delegations),
             ", ".join(d["target_agent"] for d in delegations),
         )
 
         delegated_issues: list[AccessibilityIssue] = []
         for delegation in delegations:
+            if budget.expired:
+                break
             target = delegation["target_agent"]
             coro_factory = all_available_agents.get(target)
             if coro_factory is None:
@@ -406,14 +437,11 @@ async def _run_delegation_round(
             )
 
         unique = _deduplicate_issues(unique + delegated_issues)
-    else:
-        if remaining_skipped:
-            logger.info(
-                "[Orchestrator] Loop de delegacao parou no limite de %d rodadas (backstop) -- %d agente(s) ainda pulado(s): %s",
-                MAX_DELEGATION_ROUNDS,
-                len(remaining_skipped),
-                list(remaining_skipped),
-            )
+    if remaining_skipped and budget.expired:
+        logger.info(
+            "[Orchestrator] Orçamento agregado esgotado; autosubmit com %d agente(s) não acionado(s).",
+            len(remaining_skipped),
+        )
 
     return unique, metrics, delegation_edges
 
@@ -486,6 +514,7 @@ async def _run_analysis_pipeline(
     focus_screenshots: list[str] | None = None,
     only_agents: list[str] | None = None,
     batch_collect: bool = False,
+    source_document: str | None = None,
 ) -> tuple[list[AccessibilityIssue], list[AgentMetrics], int, dict[str, list[dict[str, str]]]]:
     """
     Executa os sub-agentes especializados em paralelo com controle de concorrencia.
@@ -502,6 +531,7 @@ async def _run_analysis_pipeline(
     # Comprime o HTML para economizar tokens nos sub-agentes
     from backend.src.services.context_compressor import compress as compress_html
 
+    source_document = html_content if source_document is None else source_document
     html_content = compress_html(html_content)
 
     # Catalogo de agentes possiveis (lambdas adiam a criacao das coroutines)
@@ -519,6 +549,7 @@ async def _run_analysis_pipeline(
         "mobile_a11y": lambda: run_mobile_a11y(html_content),
         "forms_a11y": lambda: run_forms_a11y(html_content),
         "widgets_a11y": lambda: run_widgets_a11y(html_content),
+        "component_contracts": lambda: run_component_contracts(html_content),
         "tables_data": lambda: run_tables_data(html_content),
         "link_checker": lambda: run_link_checker(html_content),
         "wcag_semantics": lambda: run_wcag_semantics(html_content),
@@ -643,33 +674,71 @@ async def _run_analysis_pipeline(
         async with semaphore:
             return await _timed(name, coro_factory)
 
+    tradeoff = get_current_tradeoff()
+    budget = create_analysis_budget(
+        selected_agents=len(agents),
+        parallelism=get_settings().a11y_max_concurrent_agents,
+        per_agent_timeout=_get_agent_timeout(),
+        tradeoff=tradeoff,
+    )
+    logger.info(
+        "[Orchestrator] Orçamento adaptativo: %.0fs restantes, %d agente(s), concorrência=%d, tradeoff=%d",
+        budget.remaining_seconds,
+        len(agents),
+        budget.parallelism,
+        tradeoff,
+    )
+
     tuples: list[tuple[AgentResult, float]]
     if batch_collect:
         collect_token = batch_collector.enable()
         try:
-            tuples = await asyncio.gather(*[_run_with_semaphore(name, func) for name, func in agents])
+            tuples = await asyncio.wait_for(
+                asyncio.gather(*[_run_with_semaphore(name, func) for name, func in agents]),
+                timeout=budget.remaining_seconds,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("[Orchestrator] Coleta batch atingiu o deadline adaptativo; autosubmit das chamadas coletadas.")
+            tuples = []
         finally:
             batch_collector.disable(collect_token)
     else:
-        # Fluxo interativo inspirado no NVDA Studio: um controlador mantém uma
-        # única execução viva, entrega cada papel assim que termina e só então
-        # passa ao próximo. O modo batch acima é deliberadamente separado e
-        # não é usado pelo chat.
+        # Fluxo interativo em ondas limitadas pelo mesmo orçamento agregado.
+        # Cada papel continua emitindo progresso ao terminar, mas não paga a
+        # soma dos timeouts de todos os especialistas em série.
         tuples = []
-        for completed, (name, func) in enumerate(agents, start=1):
-            agent_tuple = await _run_with_semaphore(name, func)
-            tuples.append(agent_tuple)
-            chat_progress.emit(
-                {
-                    "type": "analysis_partial",
-                    "agent": name,
-                    "completed": completed,
-                    "total": len(agents),
-                }
+
+        async def _run_named(name: str, func):
+            result, duration = await _run_with_semaphore(name, func)
+            return name, result, duration
+
+        pending = {asyncio.create_task(_run_named(name, func)) for name, func in agents}
+        completed = 0
+        while pending and not budget.expired and not chat_progress.is_cancelled():
+            done, pending = await asyncio.wait(
+                pending,
+                timeout=budget.remaining_seconds,
+                return_when=asyncio.FIRST_COMPLETED,
             )
-            if chat_progress.is_cancelled():
-                logger.info("[Orchestrator] Ciclo agentic interrompido após o papel '%s'", name)
+            if not done:
                 break
+            for task in done:
+                _name, result, duration = await task
+                tuples.append((result, duration))
+                completed += 1
+                chat_progress.emit(
+                    {"type": "analysis_partial", "agent": result.agent, "completed": completed, "total": len(agents)}
+                )
+
+        if pending:
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+            logger.info(
+                "[Orchestrator] Autosubmit do resultado parcial: %d/%d especialista(s) concluíram dentro do orçamento.",
+                completed,
+                len(agents),
+            )
 
     all_issues: list[AccessibilityIssue] = []
     metrics: list[AgentMetrics] = []
@@ -715,15 +784,15 @@ async def _run_analysis_pipeline(
     unique = _deduplicate_issues(all_issues)
 
     # Delegacao dinamica agente-a-agente (loop limitado -- ver
-    # MAX_DELEGATION_ROUNDS): um coordenador le os achados atualizados e
-    # decide, via LLM, se algum agente pulado deveria ser chamado -- real
+    # deadline agregado): um coordenador lê os achados atualizados e decide,
+    # via LLM, se algum agente pulado deveria ser chamado -- real
     # orientado por evidencia de conteudo, nao regra fixa. Nao roda se nao
     # houver agentes pulados (ex.: only_agents) ou se nao houver issues pra
     # avaliar.
     delegation_edges: list[dict[str, str]] = []
     if not only_agents and skipped_reasons and unique:
         unique, delegation_metrics, delegation_edges = await _run_delegation_round(
-            unique, skipped_reasons, all_available_agents
+            unique, skipped_reasons, all_available_agents, budget
         )
         metrics.extend(delegation_metrics)
 
@@ -753,9 +822,10 @@ async def _run_analysis_pipeline(
             {"type": "phase", "text": "Revisão especializada: removendo falsos positivos e repontuando..."}
         )
         known_patterns = get_known_false_positive_patterns()
-        pre_review = unique
         review_started = asyncio.get_running_loop().time()
-        expert_result = await run_a11y_expert_reviewer(unique, known_false_positive_patterns=known_patterns)
+        expert_result = await run_a11y_expert_reviewer(
+            unique, known_false_positive_patterns=known_patterns, source_document=source_document
+        )
         review_duration_ms = (asyncio.get_running_loop().time() - review_started) * 1000
         if expert_result.success:
             reviewed = [AccessibilityIssue(**i) for i in expert_result.data.get("issues", [])]
@@ -767,19 +837,9 @@ async def _run_analysis_pipeline(
                     len(unique),
                     len(reviewed),
                 )
-                # Memória de lições (ver lessons_store.py): grava os padroes
-                # confirmados como falso positivo NESTA analise, pra
-                # analises futuras (de OUTRAS paginas) se beneficiarem do
-                # mesmo reforco que acabou de ser dado ao known_patterns
-                # acima.
-                reviewed_ids = {i.id for i in reviewed}
-                for removed_issue in pre_review:
-                    if removed_issue.id not in reviewed_ids:
-                        record_false_positive_removal(
-                            removed_issue.criterion,
-                            removed_issue.element,
-                            removed_issue.description,
-                        )
+                # Removal alone is not proof of a false positive: reviewers
+                # also remove valid findings outside the requested scope.
+                # Do not persist that omission as a learned normative rule.
             unique = reviewed
             metrics.append(
                 AgentMetrics(
@@ -844,6 +904,7 @@ async def orchestrate(
     focus_screenshots: list[str] | None = None,
     only_agents: list[str] | None = None,
     batch_collect: bool = False,
+    source_document: str | None = None,
 ) -> AgentResult:
     """
     Pipeline principal com sub-agentes especializados.
@@ -865,6 +926,7 @@ async def orchestrate(
         focus_screenshots=focus_screenshots,
         only_agents=only_agents,
         batch_collect=batch_collect,
+        source_document=source_document,
     )
     total_agents = len(metrics)
 
@@ -894,6 +956,7 @@ async def orchestrate(
         logger.info("[Orchestrator] Pipeline ANALYZE concluido")
         result_data: dict = {
             "complete": failed_count == 0,
+            "deliverable": bool(metrics),
             "issues": [i.model_dump() for i in issues],
             "agent_metrics": [m.model_dump() for m in metrics],
             "pipeline_graph": pipeline_graph,

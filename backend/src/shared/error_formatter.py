@@ -33,9 +33,9 @@ def format_human_friendly_error(raw_error: object) -> str:
         )
     ):
         return (
-            "Não foi possível acessar a página porque o mecanismo interno de navegação "
-            "está com um problema de configuração. A página não foi auditada. "
-            "Verifique as configurações de navegação e tente novamente."
+            "Não consegui concluir o acesso à página pelo mecanismo de navegação. "
+            "Isso não confirma um bloqueio do site nem permite afirmar sua causa. "
+            "A página não foi auditada; verifique a conexão e as configurações de navegação."
         )
 
     # 402 / Quota / Balance Empty / Payment Required

@@ -40,7 +40,11 @@ logger = logging.getLogger(__name__)
 
 # Reference corpus. Every markdown file listed here is chunked into the index.
 _RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "..", "resources")
-_CORPUS_FILES = ("a11y_reference.md", "agent_knowledge.md")
+_CORPUS_FILES = (
+    "a11y_reference.md",
+    "agent_knowledge.md",
+    "accessible_component_patterns.md",
+)
 
 # Embedding models per provider family. Both are the current small/cheap tier,
 # which is the right pick for a corpus this size.

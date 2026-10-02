@@ -25,6 +25,19 @@ from backend.src.services.chat_tools import (
 from backend.src.shared.models import AgentResult
 
 
+@pytest.fixture(autouse=True)
+def offline_control_plane():
+    """These module tests mock execution; routing/triage must not call APIs.
+
+    Individual classification tests replace this default with their own model
+    decision. No runtime PYTEST exception or intent heuristic is introduced.
+    """
+    from backend.src.services.route_advisor import RouteAdvice
+
+    with patch("backend.src.agents.clarifier.run_clarifier", new=AsyncMock(return_value=AgentResult(agent="clarifier", success=True, data={"intent": "chat_a11y", "squad_roles": []}))), patch("backend.src.services.route_advisor.advise_route", new=AsyncMock(return_value=RouteAdvice(ranking=["ollama-cloud::offline-model"], reason="Mocked control-plane decision"))), patch("backend.src.services.route_advisor.route_credentials", return_value=("offline-key", "https://example.invalid")):
+        yield
+
+
 def test_format_human_friendly_error_ollama_402():
     raw = "Error code: 402 - {'error': 'this model uses extra usage only (not included plan usage) and your extra usage balance is empty, add extra usage or turn on auto reload at https://ollama.com/settings'}"
     formatted = format_human_friendly_error(raw)
@@ -43,6 +56,21 @@ class _CapturingAgent:
     def run_conversation(self, user_message):
         type(self).last_user_message = user_message
         return {"final_response": "ok", "failed": False}
+
+
+async def test_stream_consumes_selected_roles_without_fixed_planning_chain():
+    from backend.src.agents.squad.contracts import RoleDecision
+    from backend.src.agents.squad.roles import SquadRole
+
+    classification = AgentResult(agent="clarifier", success=True, data={"intent": "analyze_url", "squad_roles": ["tech_lead"], "complexity": "low"})
+    tech = AsyncMock(return_value=RoleDecision(role=SquadRole.TECH_LEAD, decisions=["Inspeção focada"] ))
+    with patch("backend.src.agents.clarifier.run_clarifier", new=AsyncMock(return_value=classification)), patch("backend.src.services.squad_plan_store.load_squad_plan", return_value=None), patch("backend.src.services.squad_plan_store.save_squad_plan"), patch("backend.src.agents.squad.coordinator.run_tech_lead", tech), patch("backend.src.agents.squad.coordinator.run_product_owner", new=AsyncMock()) as po, patch("backend.src.services.chat_runtime.AIAgent", new=_CapturingAgent):
+        events = [event async for event in stream_chat("Inspecione este alvo sem modificar", conversation_id="contextual-squad-contract")]
+    assert events[-1]["type"] == "done"
+    assert [event["role"] for event in events if event["type"] == "squad_decision"] == ["tech_lead"]
+    assert tech.call_args.args[0]["current_request"]["message"] == "Inspecione este alvo sem modificar"
+    po.assert_not_called()
+    assert "consult_squad" in _CapturingAgent.last_kwargs["ephemeral_system_prompt"]
 
 
 # ── chat_tools.analyze_page ───────────────────────────────────────────────────
@@ -507,7 +535,7 @@ async def test_stream_chat_sanitizes_raw_tool_errors_before_emitting_them():
     tool_error = next(ev for ev in events if ev["type"] == "tool_result")
     assert "connect_over_cdp" not in tool_error["error"]
     assert "secret-token" not in tool_error["error"]
-    assert "mecanismo interno de navegação" in tool_error["error"]
+    assert "mecanismo de navegação" in tool_error["error"]
 
 
 @pytest.mark.asyncio

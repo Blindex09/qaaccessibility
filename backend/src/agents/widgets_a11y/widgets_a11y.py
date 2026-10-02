@@ -111,6 +111,43 @@ TOOLTIP (WCAG 1.4.13, 4.1.2):
   - Tooltip content disappears before user can read it (must persist on hover)
   - Tooltip used as sole accessible label for icon button (use aria-label on button instead)
 
+TOAST / NOTIFICATION / STATUS (WCAG 4.1.3, 3.2.1):
+  - Success and ordinary status messages rendered without a persistent
+    role="status" or aria-live="polite" container
+  - Live region created only when the message appears, so some screen readers
+    never announce the update; prefer a mounted, empty live container whose text
+    changes
+  - Every routine notification using role="alert" or aria-live="assertive",
+    creating an unnecessarily disruptive stream of announcements
+  - Notification steals focus from the control the user was using without a
+    recovery action that genuinely requires focus
+  - Automatically disappearing message has no pause, dismiss, or sufficient
+    time for the user to perceive it
+
+DISCLOSURE / SHOW-MORE (WCAG 2.1.1, 4.1.2):
+  - A button-like trigger that reveals or hides content without aria-expanded
+    and aria-controls connecting it to a stable panel id
+  - aria-expanded changes visually but not in the same runtime update as the
+    content visibility, leaving assistive technology with stale state
+  - Revealed interactive content is inserted before the current focus without
+    a predictable reading/focus order
+
+SKIP LINK / PREFERENCE CONTROLS (WCAG 2.4.1, 2.3.3, 1.4.3, 1.4.11):
+  - Skip link is not the first focusable element or points to a target that
+    cannot receive focus when focus movement is required
+  - High-contrast toggle exists but only changes a class without improving the
+    contrast of text, focus indicators, borders, and icons
+  - Reduced-motion toggle exists but animations/transitions have no effective
+    CSS or runtime reduction, or the system prefers-reduced-motion media query
+    is ignored
+
+EVIDENCE DISCIPLINE:
+  - Treat a component library README, accessibility statement, or component
+    name as a claim, not proof. Classify findings as confirmed static,
+    confirmed runtime, documentation-only, or pending manual verification.
+  - If documentation claims WCAG AA contrast but measured rendered colors fail,
+    report the contradiction explicitly and cite the measured elements.
+
 MENU / MENUBAR (WCAG 2.1.1, 4.1.2):
   - role="menu" or role="menubar" without role="menuitem" children
   - Menu opened without focus moved to first menuitem

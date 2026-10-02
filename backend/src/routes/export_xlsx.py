@@ -4,10 +4,11 @@ import logging
 import os
 import tempfile
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import ValidationError
 
+from backend.src.services.export_session import export_session, export_session_async
 from backend.src.services.pdf_engine import MotorPdfIndisponivelError, exigir_motor_pdf
 from backend.src.services.sarif_exporter import export_to_sarif
 from backend.src.services.xlsx_exporter import export_issues_xlsx
@@ -55,13 +56,14 @@ async def export_xlsx(payload: dict) -> StreamingResponse:
 
 @router.get("/last_xlsx")
 @router.get("/last_xlsx/")
-async def export_last_xlsx() -> StreamingResponse:
+async def export_last_xlsx(request: Request) -> StreamingResponse:
     """
     Exporta os últimos issues de acessibilidade salvos em cache para XLSX acessível.
     """
     from backend.src.services.last_analysis_store import get_last_analysis
 
-    issues, url = get_last_analysis()
+    with export_session(request.headers, dict(request.query_params)):
+        issues, url = get_last_analysis()
 
     if not issues:
         raise HTTPException(
@@ -93,7 +95,7 @@ async def export_last_xlsx() -> StreamingResponse:
 
 @router.get("/last_checklist_pdf")
 @router.get("/last_checklist_pdf/")
-async def export_last_checklist_pdf() -> StreamingResponse:
+async def export_last_checklist_pdf(request: Request) -> StreamingResponse:
     """
     Gera o checklist de acessibilidade da última análise em cache como PDF
     acessível (PDF/UA-1, com árvore de estrutura taggeada real) via o
@@ -114,17 +116,16 @@ async def export_last_checklist_pdf() -> StreamingResponse:
     except MotorPdfIndisponivelError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-    issues_raw, url = get_last_analysis()
-    if not issues_raw:
-        raise HTTPException(
-            status_code=400,
-            detail="Nenhuma auditoria recente encontrada no cache para gerar o checklist.",
-        )
-
-    html_content, _ = get_last_analyzed_content()
-    issues = [AccessibilityIssue(**i) for i in issues_raw]
-
-    result = await run_checklist(issues, html_content=html_content or None)
+    async with export_session_async(request.headers, dict(request.query_params)):
+        issues_raw, url = get_last_analysis()
+        if not issues_raw:
+            raise HTTPException(
+                status_code=400,
+                detail="Nenhuma auditoria recente encontrada no cache para gerar o checklist.",
+            )
+        html_content, _ = get_last_analyzed_content()
+        issues = [AccessibilityIssue(**i) for i in issues_raw]
+        result = await run_checklist(issues, html_content=html_content or None)
     if not result.success:
         logger.error("[Export] ChecklistAgent falhou ao gerar checklist para PDF: %s", result.error)
         raise HTTPException(status_code=500, detail="Falha ao gerar o checklist.")
@@ -158,7 +159,7 @@ async def export_last_checklist_pdf() -> StreamingResponse:
 
 @router.get("/last_accessibility_statement_pdf")
 @router.get("/last_accessibility_statement_pdf/")
-async def export_last_accessibility_statement_pdf() -> StreamingResponse:
+async def export_last_accessibility_statement_pdf(request: Request) -> StreamingResponse:
     """
     Gera a Declaração de Acessibilidade da última análise em cache como PDF
     acessível (PDF/UA-1) -- dados reais dos issues encontrados, nunca texto
@@ -173,7 +174,8 @@ async def export_last_accessibility_statement_pdf() -> StreamingResponse:
     from backend.src.services.accessibility_statement_store import get_accessibility_statement_options
     from backend.src.services.last_analysis_store import get_last_analysis
 
-    issues, url = get_last_analysis()
+    with export_session(request.headers, dict(request.query_params)):
+        issues, url = get_last_analysis()
     if not issues:
         raise HTTPException(
             status_code=400,
@@ -260,14 +262,15 @@ async def export_sarif(payload: dict) -> dict:
 
 
 @router.get("/last_sarif")
-async def export_last_sarif() -> dict:
+async def export_last_sarif(request: Request) -> dict:
     """
     Exporta os ultimos issues de acessibilidade salvos em cache no formato SARIF 2.1.0 JSON.
     """
     from backend.src.services.last_analysis_store import get_last_analysis
     from backend.src.shared.models import AccessibilityIssue
 
-    issues_raw, url = get_last_analysis()
+    with export_session(request.headers, dict(request.query_params)):
+        issues_raw, url = get_last_analysis()
 
     if not issues_raw:
         raise HTTPException(

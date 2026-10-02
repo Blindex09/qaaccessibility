@@ -177,6 +177,42 @@ def resolve_alto_model(
     return best
 
 
+def resolve_alto_candidate_models(
+    provider: str,
+    allow_extra_usage: bool = False,
+    needs_vision: bool = False,
+    tradeoff: int = 3,
+    limit: int = 3,
+) -> list[str]:
+    """Retorna candidatos atuais para julgamento entre modelos no modo Alto.
+
+    A lista vem do catálogo vivo e da mesma pontuação usada pelo roteador
+    principal. Não há IDs fixos: quando o catálogo, capacidades ou sinais de
+    confiabilidade mudam, os candidatos mudam junto.
+    """
+    if not provider or limit <= 0:
+        return []
+    provider_lower = provider.lower()
+    if provider_lower in ("ollama-cloud", "ollama_cloud"):
+        from backend.src.services.ollama_cloud_adapter import (
+            discover_ollama_cloud_descriptors,
+            rank_ollama_cloud_candidates,
+        )
+
+        ranked = rank_ollama_cloud_candidates(
+            discover_ollama_cloud_descriptors(),
+            tradeoff=tradeoff,
+            needs_tools=True,
+            needs_vision=needs_vision,
+        )
+        return [descriptor.id for descriptor in ranked[:limit]]
+
+    # Para catálogos que ainda não expõem ranking multi-candidato, mantém o
+    # contrato seguro: o Alto continua funcional, sem inventar modelos.
+    selected = resolve_alto_model(provider, allow_extra_usage, needs_vision, tradeoff)
+    return [selected] if selected else []
+
+
 @lru_cache(maxsize=64)
 def resolve_fast_model(provider: str, allow_extra_usage: bool = False) -> str:
     """Resolve o melhor modelo rapido e barato (Flash/Lite/Mini) do provedor.

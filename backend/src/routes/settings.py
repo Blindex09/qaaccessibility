@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -32,13 +33,16 @@ def _reject_newlines(value: str, field_name: str) -> str:
 class SettingsResponse(BaseModel):
     llm_provider: str
     llm_model: str | None
+    llm_models_by_provider: dict[str, str]
     llm_base_url: str | None
     has_llm_api_key: bool
+    approval_enabled: bool
     # Overrides opcionais do LLM usado especificamente pelo chat agêntico
     # (ChatScreen) -- quando ausentes, o chat cai de volta nos llm_* acima
     # (ver Settings.chat_llm_config em backend/src/config/settings.py).
     chat_llm_provider: str | None
     chat_llm_model: str | None
+    chat_llm_models_by_provider: dict[str, str]
     chat_llm_base_url: str | None
     has_chat_llm_api_key: bool
 
@@ -48,6 +52,7 @@ class SettingsUpdateBody(BaseModel):
     llm_api_key: str | None = None
     llm_model: str | None = None
     llm_base_url: str | None = None
+    approval_enabled: bool | None = None
     chat_llm_provider: str | None = None
     chat_llm_api_key: str | None = None
     chat_llm_model: str | None = None
@@ -58,13 +63,22 @@ class SettingsUpdateBody(BaseModel):
 @router.get("/", response_model=SettingsResponse)
 async def get_settings_route() -> SettingsResponse:
     settings = get_settings()
+    model_choices = dict(settings.llm_models_by_provider)
+    if settings.llm_provider and settings.llm_model:
+        model_choices.setdefault(settings.llm_provider, settings.llm_model)
+    chat_model_choices = dict(settings.chat_llm_models_by_provider)
+    if settings.chat_llm_provider and settings.chat_llm_model:
+        chat_model_choices.setdefault(settings.chat_llm_provider, settings.chat_llm_model)
     return SettingsResponse(
         llm_provider=settings.llm_provider,
         llm_model=settings.llm_model,
+        llm_models_by_provider=model_choices,
         llm_base_url=settings.llm_base_url,
         has_llm_api_key=bool(settings.llm_api_key),
+        approval_enabled=settings.approval_enabled,
         chat_llm_provider=settings.chat_llm_provider,
         chat_llm_model=settings.chat_llm_model,
+        chat_llm_models_by_provider=chat_model_choices,
         chat_llm_base_url=settings.chat_llm_base_url,
         has_chat_llm_api_key=bool(settings.chat_llm_api_key),
     )
@@ -73,6 +87,7 @@ async def get_settings_route() -> SettingsResponse:
 @router.post("")
 @router.post("/")
 async def update_settings_route(body: SettingsUpdateBody) -> dict:
+    previous = get_settings()
     env_path = "backend/.env"
     if not os.path.exists(env_path):
         env_path = ".env"
@@ -116,8 +131,27 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
             if key not in {"LLM_API_KEY", "CHAT_LLM_API_KEY"}:
                 env_vars[key] = v.strip()
 
-    # Atualiza chaves com base no body
-    env_vars["LLM_PROVIDER"] = body.llm_provider
+    # Guarda a escolha de cada provedor. Um POST que troca apenas o provedor
+    # recupera a ultima escolha dele; na primeira utilizacao, deixa o modelo
+    # vazio para a selecao automatica do roteador.
+    model_choices = dict(previous.llm_models_by_provider)
+    if previous.llm_provider and previous.llm_model:
+        model_choices.setdefault(previous.llm_provider, previous.llm_model)
+    selected_provider = body.llm_provider.strip()
+    selected_model = (
+        body.llm_model.strip()
+        if body.llm_model is not None
+        else model_choices.get(selected_provider, "")
+    )
+    if selected_provider and selected_model:
+        model_choices[selected_provider] = selected_model
+    elif selected_provider and body.llm_model is not None:
+        model_choices.pop(selected_provider, None)
+    env_vars["LLM_PROVIDER"] = selected_provider
+    env_vars["LLM_MODEL"] = selected_model
+    env_vars["LLM_MODELS_BY_PROVIDER"] = json.dumps(model_choices, ensure_ascii=False, separators=(",", ":"))
+    if body.approval_enabled is not None:
+        env_vars["APPROVAL_ENABLED"] = "true"
 
     if body.llm_api_key is not None:
         val = body.llm_api_key.strip()
@@ -126,16 +160,32 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
         elif not val:
             delete_secret("LLM_API_KEY")
 
-    if body.llm_model is not None:
-        env_vars["LLM_MODEL"] = body.llm_model.strip()
-
     if body.llm_base_url is not None:
         env_vars["LLM_BASE_URL"] = body.llm_base_url.strip()
 
+    selected_chat_provider = (
+        body.chat_llm_provider.strip()
+        if body.chat_llm_provider is not None
+        else (previous.chat_llm_provider or "")
+    )
+    chat_model_choices = dict(previous.chat_llm_models_by_provider)
+    if previous.chat_llm_provider and previous.chat_llm_model:
+        chat_model_choices.setdefault(previous.chat_llm_provider, previous.chat_llm_model)
+    selected_chat_model = (
+        body.chat_llm_model.strip()
+        if body.chat_llm_model is not None
+        else chat_model_choices.get(selected_chat_provider, "")
+    )
+    if selected_chat_provider and selected_chat_model:
+        chat_model_choices[selected_chat_provider] = selected_chat_model
+    elif selected_chat_provider and body.chat_llm_model is not None:
+        chat_model_choices.pop(selected_chat_provider, None)
+    env_vars["CHAT_LLM_MODELS_BY_PROVIDER"] = json.dumps(
+        chat_model_choices, ensure_ascii=False, separators=(",", ":")
+    )
     if body.chat_llm_provider is not None:
-        val = body.chat_llm_provider.strip()
-        if val:
-            env_vars["CHAT_LLM_PROVIDER"] = val
+        if selected_chat_provider:
+            env_vars["CHAT_LLM_PROVIDER"] = selected_chat_provider
         elif "CHAT_LLM_PROVIDER" in env_vars:
             del env_vars["CHAT_LLM_PROVIDER"]
 
@@ -146,10 +196,9 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
         elif not val:
             delete_secret("CHAT_LLM_API_KEY")
 
-    if body.chat_llm_model is not None:
-        val = body.chat_llm_model.strip()
-        if val:
-            env_vars["CHAT_LLM_MODEL"] = val
+    if body.chat_llm_model is not None or body.chat_llm_provider is not None:
+        if selected_chat_provider and selected_chat_model:
+            env_vars["CHAT_LLM_MODEL"] = selected_chat_model
         elif "CHAT_LLM_MODEL" in env_vars:
             del env_vars["CHAT_LLM_MODEL"]
 
@@ -198,15 +247,18 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
 
     # Aplica no ambiente do processo para que BaseSettings (prioriza os.environ)
     # leia o valor novo sem precisar reiniciar o servidor.
-    os.environ["LLM_PROVIDER"] = body.llm_provider
+    os.environ["LLM_PROVIDER"] = selected_provider
+    os.environ["LLM_MODEL"] = selected_model
+    os.environ["LLM_MODELS_BY_PROVIDER"] = env_vars["LLM_MODELS_BY_PROVIDER"]
+    os.environ["CHAT_LLM_MODELS_BY_PROVIDER"] = env_vars["CHAT_LLM_MODELS_BY_PROVIDER"]
+    if body.approval_enabled is not None:
+        os.environ["APPROVAL_ENABLED"] = "true"
     if body.llm_api_key is not None:
         val = body.llm_api_key.strip()
         if val and "•" not in val:
             os.environ["LLM_API_KEY"] = val
         elif not val and "LLM_API_KEY" in os.environ:
             del os.environ["LLM_API_KEY"]
-    if body.llm_model is not None:
-        os.environ["LLM_MODEL"] = body.llm_model.strip()
     if body.llm_base_url is not None:
         os.environ["LLM_BASE_URL"] = body.llm_base_url.strip()
     if body.chat_llm_provider is not None:
@@ -221,10 +273,9 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
             os.environ["CHAT_LLM_API_KEY"] = val
         elif not val and "CHAT_LLM_API_KEY" in os.environ:
             del os.environ["CHAT_LLM_API_KEY"]
-    if body.chat_llm_model is not None:
-        val = body.chat_llm_model.strip()
-        if val:
-            os.environ["CHAT_LLM_MODEL"] = val
+    if body.chat_llm_model is not None or body.chat_llm_provider is not None:
+        if selected_chat_provider and selected_chat_model:
+            os.environ["CHAT_LLM_MODEL"] = selected_chat_model
         elif "CHAT_LLM_MODEL" in os.environ:
             del os.environ["CHAT_LLM_MODEL"]
     if body.chat_llm_base_url is not None:

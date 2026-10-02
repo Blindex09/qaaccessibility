@@ -74,7 +74,8 @@ def test_format_browserless_error_does_not_expose_raw_details():
         "Call log: retrieving websocket url from secret-token-value"
     )
     out = format_human_friendly_error(raw)
-    assert "mecanismo interno de navegação" in out
+    assert "mecanismo de navegação" in out
+    assert "não confirma um bloqueio" in out
     assert "connect_over_cdp" not in out
     assert "secret-token-value" not in out
     assert "Call log" not in out

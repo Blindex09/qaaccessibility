@@ -54,6 +54,8 @@ class RoleDecision:
     error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        from backend.src.shared.error_formatter import format_human_friendly_error
+
         return {
             "role": self.role.value,
             "summary": self.summary,
@@ -61,7 +63,7 @@ class RoleDecision:
             "blockers": list(self.blockers),
             "handoff": dict(self.handoff),
             "succeeded": self.succeeded,
-            "error": self.error,
+            "error": format_human_friendly_error(self.error) if self.error else None,
         }
 
 

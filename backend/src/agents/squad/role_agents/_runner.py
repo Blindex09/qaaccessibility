@@ -16,7 +16,11 @@ import json
 import logging
 from typing import Any
 
+from backend.src.services import chat_progress
 from backend.src.services.llm_client import call_llm_structured
+from backend.src.services.public_updates import PublicUpdates
+from backend.src.shared.error_formatter import format_human_friendly_error
+from backend.src.shared.normative_calibration import NORMATIVE_CALIBRATION
 
 from ..contracts import RoleDecision
 from ..roles import SquadRole
@@ -31,17 +35,27 @@ OUTPUT_CONTRACT = """
 Return ONLY a single JSON object, no prose, no markdown fences:
 
 {
-  "summary": "one sentence: what you decided, in the user's language",
+  "updates": ["brief public next action in the user's language"],
+  "summary": "one sentence with the concrete decision/evidence useful to the user, in their language",
   "decisions": ["short, verifiable statements of what is now decided"],
   "blockers": ["what genuinely prevents moving forward; empty list if none"],
   "handoff": { "key": "value pairs the NEXT role consumes as input" }
 }
 
 Rules:
+- Write updates FIRST. They are public progress, not private reasoning. Describe
+  NEW evidence, limitations or a changed next step, without claiming inspections
+  that have not happened. Consult already_communicated and previous role handoffs:
+  do not restate or paraphrase the announced scope/action. Use updates=[] if there
+  is nothing useful to add; your decision summary will still be shown when ready.
+  Never repeat a generic status, expose protocol or invent evidence.
 - `blockers` is not a wishlist. Only list something that actually stops the
   next role from doing its job. An empty list is the normal case.
 - `handoff` is the deliverable, not a summary for a human. Put in it exactly
   what the next role needs to act.
+- The summary must tell the user WHAT the decision/evidence is, not merely
+  'I defined the approach/acceptance bar/plan'. Include the important consequence
+  or limitation. Do not paraphrase your own streamed update in the summary.
 - Never invent findings about the page. You coordinate; the 29 accessibility
   specialists detect. Stay inside your role.
 - Answer in the same language as the user's request.
@@ -110,24 +124,28 @@ async def run_role(
     logger.info("[Squad:%s] Decidindo (contexto=%d chars)", role.value, len(payload))
 
     try:
+        updates = PublicUpdates(lambda text: chat_progress.emit({
+            "type": "squad_progress", "role": role.value, "message": text,
+        }))
         # `call_llm_structured` em vez de `call_llm` cru: um unico JSON
         # malformado derrubava o papel inteiro, e a cadeia degradava com um
         # blocker que nao existia de verdade. O projeto ja tinha o mecanismo
         # de retry/repair -- os papeis so nao o usavam.
         data = await call_llm_structured(
-            system_prompt=system_prompt + OUTPUT_CONTRACT,
+            system_prompt=system_prompt + OUTPUT_CONTRACT + "\n\n" + NORMATIVE_CALIBRATION,
             user_prompt="Squad context so far:" + chr(10) + payload,
             build=_extract_json_object,
             temperature=0.2,
             agent_label=f"squad_{role.value}",
             model_tier=model_tier,
+            public_update_callback=updates.feed,
         )
     except Exception as exc:
         logger.warning("[Squad:%s] Falhou: %s", role.value, exc)
         return RoleDecision(
             role=role,
             summary=f"O papel {role.value} nao conseguiu concluir sua decisao.",
-            blockers=[f"{role.value} indisponivel nesta rodada: {exc}"],
+            blockers=[format_human_friendly_error(str(exc))],
             succeeded=False,
             error=str(exc),
         )

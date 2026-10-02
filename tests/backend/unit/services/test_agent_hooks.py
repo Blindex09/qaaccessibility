@@ -16,6 +16,20 @@ def _clear_hooks():
 
 
 class TestRegisterAndFire:
+    def test_ensure_hook_is_unique_and_recovers_after_clear(self):
+        received = []
+
+        def observer(*args):
+            received.append(args)
+
+        first = agent_hooks.ensure_hook(agent_hooks.PRE_TOOL_CALL, observer)
+        assert agent_hooks.ensure_hook(agent_hooks.PRE_TOOL_CALL, observer) == first
+        assert agent_hooks.registered_count(agent_hooks.PRE_TOOL_CALL) == 1
+        agent_hooks.clear_all_hooks()
+        assert agent_hooks.ensure_hook(agent_hooks.PRE_TOOL_CALL, observer) != first
+        agent_hooks.fire(agent_hooks.PRE_TOOL_CALL, "call-1", "probe", {})
+        assert received == [("call-1", "probe", {})]
+
     def test_registered_hook_receives_fired_args(self):
         received = []
         agent_hooks.register_hook(agent_hooks.PRE_TOOL_CALL, lambda *a: received.append(a))

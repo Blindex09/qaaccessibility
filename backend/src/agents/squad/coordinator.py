@@ -26,12 +26,9 @@ Agora:
   `checklist`/`reporter`/`vpat_reporter`. O coordenador registra o que eles
   realmente fizeram em vez de duplicá-los.
 
-Roteamento determinístico, conteúdo por IA
--------------------------------------------
-Quem decide QUE papel roda e em que ordem é este arquivo, deterministicamente,
-a partir do grafo de dependências. O que cada papel DECIDE é da IA. A regra do
-CLAUDE.md nunca é invertida, e nenhuma palavra-chave do texto do usuário
-condiciona o fluxo.
+No chat, o modelo escolhe os papéis e sua ordem por contexto, via run_selected_roles.
+O harness valida IDs, orçamento, cancelamento e contratos. As rotinas batch
+run_planning/run_closing não são a política de mobilização do chat.
 """
 
 import asyncio
@@ -59,21 +56,11 @@ _PLANNING_TASK_IDS = ("product-scope", "tech-approach", "cycle-planning")
 _CLOSING_TASK_IDS = ("qa-validation", "release-readiness")
 _ROLE_PROGRESS_INTERVAL_SECONDS = 12.0
 
-_ROLE_PROGRESS_MESSAGES = {
-    SquadRole.PRODUCT_OWNER: "Definindo o escopo e os critérios de aceite.",
-    SquadRole.TECH_LEAD: "Avaliando a abordagem técnica e os riscos.",
-    SquadRole.ENGINEERING_MANAGER: "Organizando a sequência do trabalho e as dependências.",
-    SquadRole.QA_LEAD: "Preparando a evidência e as verificações necessárias.",
-    SquadRole.RELEASE: "Avaliando a prontidão da entrega e o risco residual.",
-}
-
-
-def build_squad_plan(objective: str) -> SquadPlan:
+def build_squad_plan(objective: str, approval_enabled: bool = True) -> SquadPlan:
     """Monta o quadro da squad: tarefas, papéis, dependências e portões.
 
-    A etapa de correção está SEMPRE no plano e SEMPRE nasce BLOCKED -- nada
-    adivinha a intenção do usuário a partir do texto dele, e a autorização
-    real continua no `requires_approval` das ferramentas de mutação.
+    A etapa de correção segue a configuração de aprovação. A autorização
+    efetiva continua no portão das ferramentas de mutação.
     """
     tasks = [
         SquadTask(
@@ -108,14 +95,15 @@ def build_squad_plan(objective: str) -> SquadPlan:
         ),
         SquadTask(
             id="a11y-remediation",
-            title="Implementar correções de acessibilidade aprovadas",
+            title="Implementar correções de acessibilidade",
             role=SquadRole.DEVELOPER,
-            status=TaskStatus.BLOCKED,
+            status=TaskStatus.BLOCKED if approval_enabled else TaskStatus.READY,
             depends_on=["a11y-analysis"],
             specialist_agents=["fixer"],
-            acceptance_criteria=[
+            acceptance_criteria=([
                 "aprovação explícita do usuário registrada antes de qualquer mutação",
                 "somente mudanças aprovadas",
+            ] if approval_enabled else []) + [
                 "checkpoint reversível criado",
                 "HTML/artefato corrigido renderiza",
             ],
@@ -155,8 +143,7 @@ def build_squad_plan(objective: str) -> SquadPlan:
     return SquadPlan(
         objective=objective,
         tasks=tasks,
-        quality_gates=[
-            "não implementar sem aprovação explícita",
+        quality_gates=(["não implementar sem aprovação explícita"] if approval_enabled else []) + [
             "não aceitar correção que não renderize",
             "não concluir sem teste e evidência",
             "manter rastreabilidade entre achado, mudança e teste",
@@ -168,12 +155,14 @@ def build_squad_plan(objective: str) -> SquadPlan:
 class SquadCoordinator:
     """Executa o quadro da squad: transiciona estados e encadeia handoffs."""
 
-    def __init__(self, objective: str) -> None:
-        self.plan = build_squad_plan(objective)
+    def __init__(self, objective: str, approval_enabled: bool = True) -> None:
+        self.approval_enabled = approval_enabled
+        self.plan = build_squad_plan(objective, approval_enabled)
         self.objective = objective
+        self.turn_context: dict[str, Any] = {}
 
     @classmethod
-    def restore(cls, snapshot: dict[str, Any]) -> "SquadCoordinator":
+    def restore(cls, snapshot: dict[str, Any], approval_enabled: bool = True) -> "SquadCoordinator":
         """Recria o coordenador a partir do quadro persistido.
 
         Tolerante de propósito: um snapshot de uma versão anterior do plano
@@ -182,12 +171,14 @@ class SquadCoordinator:
         segue -- degradar para "quadro parcialmente restaurado" é aceitável;
         estourar no meio de um turno do usuário não é.
         """
-        coordinator = cls(str(snapshot.get("objective") or ""))
+        coordinator = cls(str(snapshot.get("objective") or ""), approval_enabled)
         estados = {
             str(task.get("id")): task
             for task in snapshot.get("tasks", [])
             if isinstance(task, dict)
         }
+        if "flow-health" in estados:
+            coordinator.plan.tasks.append(SquadTask(id="flow-health", title="Resolver impedimentos do trabalho", role=SquadRole.SCRUM_MASTER))
         for task in coordinator.plan.tasks:
             salvo = estados.get(task.id)
             if not salvo:
@@ -198,6 +189,15 @@ class SquadCoordinator:
                 logger.warning("[Squad] status desconhecido no quadro salvo: %s", salvo.get("status"))
             if isinstance(salvo.get("metadata"), dict):
                 task.metadata.update(salvo["metadata"])
+            if task.metadata.get("selection_source") == "model":
+                task.depends_on = []
+            if (
+                task.id == "a11y-remediation"
+                and not approval_enabled
+                and task.status is TaskStatus.BLOCKED
+                and "blocked_reason" not in task.metadata
+            ):
+                task.status = TaskStatus.READY
         for registro in snapshot.get("decisions", []):
             if not isinstance(registro, dict):
                 continue
@@ -237,6 +237,7 @@ class SquadCoordinator:
         entregaram. É a entrada real, não um resumo."""
         return {
             "objective": self.objective,
+            "approval_enabled": self.approval_enabled,
             "quality_gates": self.plan.quality_gates,
             "handoffs": {
                 decision.role.value: decision.handoff
@@ -244,6 +245,8 @@ class SquadCoordinator:
                 if decision.handoff
             },
             "open_blockers": self.open_blockers(),
+            "current_request": self.turn_context,
+            "tasks": [task.__dict__ for task in self.plan.tasks],
         }
 
     def open_blockers(self) -> list[str]:
@@ -280,16 +283,16 @@ class SquadCoordinator:
         return self._transition(task, TaskStatus.BLOCKED)
 
     def unblock_remediation(self) -> dict[str, Any]:
-        """Só a aprovação explícita do usuário tira a correção de BLOCKED."""
+        """Registra a aprovação quando o portão de aprovação está ligado."""
         task = self.plan.task("a11y-remediation")
         task.metadata["approved_by_user"] = True
         return self._transition(task, TaskStatus.READY)
 
     # ── execução dos papéis ──────────────────────────────────────────────────
 
-    async def _run_role_task(self, task_id: str, runner: Any) -> AsyncIterator[dict[str, Any]]:
+    async def _run_role_task(self, task_id: str, runner: Any, *, enforce_dependencies: bool = True) -> AsyncIterator[dict[str, Any]]:
         task = self.plan.task(task_id)
-        if not self.plan.dependencies_met(task):
+        if enforce_dependencies and not self.plan.dependencies_met(task):
             pendentes = [dep for dep in task.depends_on if self.plan.task(dep).status is not TaskStatus.DONE]
             yield self._transition(task, TaskStatus.BLOCKED)
             yield {
@@ -310,15 +313,9 @@ class SquadCoordinator:
                     )
                     break
                 except asyncio.TimeoutError:
-                    yield {
-                        "type": "squad_progress",
-                        "task_id": task.id,
-                        "role": task.role.value,
-                        "message": _ROLE_PROGRESS_MESSAGES.get(
-                            task.role,
-                            f"{task.role.value}: o trabalho continua em andamento.",
-                        ),
-                    }
+                    from backend.src.services.execution_scope import check_execution
+
+                    check_execution()
         finally:
             if not role_task.done():
                 role_task.cancel()
@@ -343,6 +340,54 @@ class SquadCoordinator:
         # continuam visíveis no quadro e vão para a triagem do Scrum Master.
         entregou = decision.succeeded and bool(decision.decisions)
         yield self._transition(task, TaskStatus.DONE if entregou else TaskStatus.BLOCKED)
+
+    async def run_selected_roles(self, roles: list[str], context: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        """Execute exactly the model-selected order, never infer roles from text.
+
+        A QA consultation defines evidence or reviews existing evidence; it is
+        not a claim that tests ran. Only the external tool approval gate can
+        authorize mutations; a role handoff never grants permissions.
+        """
+        runners = {
+            "product_owner": ("product-scope", run_product_owner),
+            "tech_lead": ("tech-approach", run_tech_lead),
+            "engineering_manager": ("cycle-planning", run_engineering_manager),
+            "qa_lead": ("qa-validation", run_qa_lead),
+            "release": ("release-readiness", run_release),
+            "scrum_master": ("flow-health", run_scrum_master),
+        }
+        # Validate the complete request BEFORE any role runs.
+        if any(role not in runners for role in roles) or len(roles) != len(set(roles)):
+            raise ValueError("Seleção de papéis da squad inválida.")
+        self.enable_contextual_mobilization()
+        self.turn_context = context
+        for role in roles:
+            from backend.src.services.execution_scope import check_execution
+
+            check_execution()
+            task_id, runner = runners[role]
+            if task_id == "flow-health" and not any(task.id == task_id for task in self.plan.tasks):
+                self.plan.tasks.append(SquadTask(id=task_id, title="Resolver impedimentos do trabalho", role=SquadRole.SCRUM_MASTER))
+            # Static management dependencies are not a conversational policy.
+            # Record the actual selected consultation, without pretending skipped
+            # roles ran or converting a QA consultation into verified conformance.
+            task = self.plan.task(task_id)
+            task.depends_on = []
+            task.metadata["selection_source"] = "model"
+            task.metadata["work_kind"] = "role_consultation_not_executed_verification"
+            async for event in self._run_role_task(task_id, runner, enforce_dependencies=False):
+                yield event
+
+    def enable_contextual_mobilization(self) -> None:
+        """Do not expose the batch management chain as a chat prerequisite.
+
+        Mutation approval and evidence requirements remain outside these
+        consultation dependencies and cannot be granted by role selection.
+        """
+        for task_id in (*_PLANNING_TASK_IDS, "a11y-analysis"):
+            task = self.plan.task(task_id)
+            task.depends_on = []
+            task.metadata["mobilization"] = "contextual"
 
     async def run_planning(self) -> AsyncIterator[dict[str, Any]]:
         """Product Owner -> Tech Lead -> Engineering Manager, antes da análise.

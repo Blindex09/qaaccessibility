@@ -1,14 +1,23 @@
 import contextlib
+import contextvars
+import copy
 import hashlib
 import json
 import logging
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
 from backend.src.services import agent_hooks
+from backend.src.services.execution_scope import check_execution, current_budget, remaining_seconds
 from backend.src.services.telemetry import agent_span
 
 logger = logging.getLogger(__name__)
+
+
+def _sdk_retry_options() -> dict[str, Any]:
+    # SDK retries cannot silently multiply an already shared turn deadline.
+    return {"max_retries": 0} if current_budget() else {}
 
 _SENSITIVE_ARGUMENT_PARTS = ("token", "secret", "password", "api_key", "authorization", "cookie")
 
@@ -203,10 +212,18 @@ def _accumulate_usage(accumulator: dict[str, int], raw: Any) -> None:
 
 
 def _approval_summary(name: str, args: dict[str, Any]) -> str:
-    redacted = {
-        key: "[redigido]" if any(part in key.casefold() for part in _SENSITIVE_ARGUMENT_PARTS) else value
-        for key, value in args.items()
-    }
+    def redact(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: "[redigido]" if any(part in str(key).casefold() for part in _SENSITIVE_ARGUMENT_PARTS)
+                else redact(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [redact(item) for item in value]
+        return value
+
+    redacted = redact(args)
     canonical = json.dumps({"tool": name, "arguments": args}, sort_keys=True, separators=(",", ":"), default=str)
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     shown = json.dumps(redacted, ensure_ascii=False, sort_keys=True, default=str)
@@ -219,27 +236,61 @@ def run_local_tool(
     name: str,
     args: dict[str, Any],
     approval_callback: Callable[[str, list[str]], str] | None = None,
+    approval_decision_callback: Callable[[str], None] | None = None,
+    *,
+    allowed_tools: frozenset[str] | None = None,
 ) -> str:
     from tools.registry import registry
+    if allowed_tools is not None and name not in allowed_tools:
+        logger.warning("[ToolAuthorization] denied tool=%s", name)
+        if approval_decision_callback:
+            approval_decision_callback("denied")
+        return json.dumps({"error": "Esta ferramenta não foi concedida a este agente."}, ensure_ascii=False)
     if name not in registry.tools:
+        if approval_decision_callback:
+            approval_decision_callback("unknown_tool")
         return json.dumps({"error": f"Tool {name} not found"})
 
     tool = registry.tools[name]
+    clean_args = {key: value for key, value in args.items() if value is not None}
+    try:
+        from jsonschema import Draft202012Validator
+
+        check_execution()
+        schema = tool.get("schema", {})
+        schema = schema.get("function", schema).get("parameters", {})
+        if schema:
+            Draft202012Validator(schema).validate(clean_args)
+    except Exception as exc:
+        logger.warning("[ToolValidation] blocked tool=%s reason=%s", name, type(exc).__name__)
+        if approval_decision_callback:
+            approval_decision_callback("invalid_arguments")
+        return json.dumps({"error": "A chamada foi bloqueada: argumentos inválidos ou execução encerrada."}, ensure_ascii=False)
     if tool.get("requires_approval"):
+        # O mesmo snapshot alimenta o cartão e o handler. Uma alteração
+        # enquanto se espera a resposta não troca o alvo aprovado.
+        clean_args = copy.deepcopy(clean_args)
         if approval_callback is None:
+            if approval_decision_callback:
+                approval_decision_callback("blocked")
             return json.dumps(
                 {"error": "A ação foi bloqueada porque exige aprovação explícita do usuário."},
                 ensure_ascii=False,
             )
         answer = approval_callback(
-            _approval_summary(name, args),
+            _approval_summary(name, clean_args),
             ["Aprovar", "Cancelar"],
         )
         if str(answer).strip().casefold() not in {"aprovar", "aprovado", "sim", "yes"}:
+            if approval_decision_callback:
+                approval_decision_callback("cancelled")
             return json.dumps({"error": "Ação cancelada pelo usuário."}, ensure_ascii=False)
+        if approval_decision_callback:
+            approval_decision_callback("approved")
+    elif approval_decision_callback:
+        approval_decision_callback("not_required")
 
     handler = tool["handler"]
-    clean_args = {key: value for key, value in args.items() if value is not None}
     # Tools that talk back to the user (clarify) receive the same callback the
     # agent was built with; without it they cannot ask anything, so fail loudly.
     needs_callback = bool(tool.get("needs_clarify_callback"))
@@ -249,6 +300,7 @@ def run_local_tool(
             ensure_ascii=False,
         )
     try:
+        check_execution()
         with agent_span("agent.tool", {"gen_ai.tool.name": name}):
             res = handler(clean_args, approval_callback) if needs_callback else handler(clean_args)
         if not isinstance(res, str):
@@ -290,7 +342,9 @@ class AIAgent:
         steer_check: Callable[[], str | None] | None = None,
     ):
         self.model = model
-        self.cancel_check = cancel_check
+        from backend.src.services import chat_progress
+
+        self.cancel_check = cancel_check or chat_progress.is_cancelled
         # Redirecionar um turno em andamento sem perder o progresso já feito
         # (CLAUDE.md, "agente = modelo + harness" -> comportamento
         # conversacional obrigatório). Consultado ENTRE iterações do loop de
@@ -310,6 +364,11 @@ class AIAgent:
         self.fallback_model = fallback_model
         self.ephemeral_system_prompt = ephemeral_system_prompt
         self.enabled_toolsets = enabled_toolsets or []
+        from tools.registry import registry
+
+        self._allowed_tools = frozenset(
+            name for toolset in self.enabled_toolsets for name in registry.get_tool_names_for_toolset(toolset)
+        )
         self.log_prefix = log_prefix
         # Busca web NATIVA do provider (2026-08-11, pedido do usuário): roda EM
         # PARALELO com tavily_search/exa_search (tools/funcao proprias do
@@ -468,6 +527,18 @@ class AIAgent:
                 truncated.append(msg)
         return truncated
 
+    def _iterations(self):
+        """Leaves remain single-shot; tool agents use the shared deadline."""
+        iteration = 0
+        while True:
+            check_execution()
+            if self.cancel_check and self.cancel_check():
+                raise InterruptedError("Execução interrompida pelo usuário.")
+            if (not self.enabled_toolsets or current_budget() is None) and iteration >= self.max_iterations:
+                return
+            yield iteration
+            iteration += 1
+
     def _get_api_tools(self) -> list[dict[str, Any]]:
         """
         Constrói a lista de ferramentas no formato esperado pelo OpenAI, xAI e Ollama.
@@ -486,7 +557,7 @@ class AIAgent:
         for tset in self.enabled_toolsets:
             tnames = registry.get_tool_names_for_toolset(tset)
             for name in tnames:
-                if name in registry.tools:
+                if name in registry.tools and name in self._allowed_tools:
                     schema = registry.tools[name]["schema"]
                     # Copia profunda para não mutar o schema original do registry
                     params = copy.deepcopy(
@@ -579,6 +650,7 @@ class AIAgent:
         from backend.src.shared.error_formatter import format_human_friendly_error
 
         def _run_current() -> dict[str, Any]:
+            check_execution()
             if self.provider == "factory":
                 from backend.src.services.factory_adapter import run_factory
 
@@ -589,7 +661,7 @@ class AIAgent:
                     stream_callback=self.stream_delta_callback,
                     thinking_callback=self.thinking_callback or self.reasoning_callback,
                     cancel_check=self.cancel_check, max_tool_calls=self.max_iterations,
-                    timeout=900 if self.enabled_toolsets else 180, images=self.images,
+                    timeout=remaining_seconds(900 if self.enabled_toolsets else 180), images=self.images,
                 )
             if self.provider == "anthropic":
                 return self._run_anthropic(user_message)
@@ -619,6 +691,8 @@ class AIAgent:
         # unico teste real e a resposta da API. Se a chamada com imagem falhou,
         # refaz UMA vez sem a imagem (nota explicando o porque) antes de cair
         # pra outro provider inteiro -- degradacao mais leve primeiro.
+        if current_budget() is not None:
+            check_execution()
         if self.images:
             logger.warning(
                 "%s Turno com imagem falhou (%s); refazendo sem a imagem.",
@@ -744,10 +818,20 @@ class AIAgent:
             # de streaming). Isolado internamente -- nunca derruba o loop do agente.
             agent_hooks.fire(agent_hooks.PRE_TOOL_CALL, tool_id, name, args)
 
+        def _decision_callback(tool_id: str) -> Callable[[str], None]:
+            def record(status: str) -> None:
+                agent_hooks.fire(agent_hooks.TOOL_APPROVAL, tool_id, status)
+
+            return record
+
         if len(calls) <= 1:
             results: dict[str, str] = {}
             for tool_id, name, args in calls:
-                result = run_local_tool(name, args, self.clarify_callback)
+                result = run_local_tool(
+                    name, args, self.clarify_callback,
+                    _decision_callback(tool_id),
+                    allowed_tools=self._allowed_tools,
+                )
                 if self.tool_complete_callback:
                     self.tool_complete_callback(tool_id, name, args, result)
                 agent_hooks.fire(agent_hooks.POST_TOOL_CALL, tool_id, name, args, result)
@@ -757,17 +841,25 @@ class AIAgent:
 
         def _run_one(call: tuple[str, str, dict[str, Any]]) -> tuple[str, str]:
             tool_id, name, args = call
-            result = run_local_tool(name, args, self.clarify_callback)
+            result = run_local_tool(
+                name, args, self.clarify_callback,
+                _decision_callback(tool_id),
+                allowed_tools=self._allowed_tools,
+            )
             if self.tool_complete_callback:
                 self.tool_complete_callback(tool_id, name, args, result)
             agent_hooks.fire(agent_hooks.POST_TOOL_CALL, tool_id, name, args, result)
             return tool_id, result
 
-        from concurrent.futures import ThreadPoolExecutor
-
         results = {}
+        contexts_and_calls = [(contextvars.copy_context(), call) for call in calls]
+
+        def _run_with_context(item: tuple[contextvars.Context, tuple[str, str, dict[str, Any]]]) -> tuple[str, str]:
+            context, call = item
+            return context.run(_run_one, call)
+
         with ThreadPoolExecutor(max_workers=len(calls)) as executor:
-            for tool_id, result in executor.map(_run_one, calls):
+            for tool_id, result in executor.map(_run_with_context, contexts_and_calls):
                 results[tool_id] = result
         # Deteccao de drift roda sequencialmente apos o paralelismo -- so
         # atualiza um contador local, custo desprezivel, e evita que duas
@@ -848,7 +940,10 @@ class AIAgent:
             # nativa /api/chat, sem esse problema, e o caminho por padrao agora.
             try:
                 return self._run_ollama_native(user_message)
+            except (InterruptedError, TimeoutError):
+                raise
             except Exception as exc:
+                check_execution()
                 logger.warning(
                     "%s API nativa do Ollama indisponivel (%s); caindo para o "
                     "endpoint OpenAI-compat como fallback.", self.log_prefix, exc,
@@ -860,7 +955,8 @@ class AIAgent:
         base_url = self.base_url
         if not base_url and self.provider == "xai":
             base_url = "https://api.x.ai/v1"
-        client = OpenAI(api_key=self.api_key or "no-key", base_url=base_url)
+        client = OpenAI(api_key=self.api_key or "no-key", base_url=base_url,
+                        timeout=remaining_seconds(180), **_sdk_retry_options())
 
         # Long-Horizon: o historico so e compactado aqui, ANTES do loop. Dentro do
         # loop `input_items` vira replay de function_call + function_call_output, e
@@ -876,7 +972,7 @@ class AIAgent:
         final_response = ""
         usage_total = _empty_usage()
 
-        for _iteration in range(self.max_iterations):
+        for _iteration in self._iterations():
             if self.steer_check:
                 steer_msg = self.steer_check()
                 if steer_msg:
@@ -950,6 +1046,7 @@ class AIAgent:
                     stream_cm = client.responses.stream(**kwargs)
                 with stream_cm as stream:
                     for event in stream:
+                        check_execution()
                         event_type = str(getattr(event, "type", ""))
                         if event_type == "response.output_text.delta":
                             delta = str(getattr(event, "delta", ""))
@@ -1054,7 +1151,7 @@ class AIAgent:
             base_url = "https://api.x.ai/v1"
         client = OpenAI(
             api_key=self.api_key or "no-key",
-            base_url=base_url
+            base_url=base_url, timeout=remaining_seconds(180), **_sdk_retry_options(),
         )
 
         # Reasoning models on OpenAI's real API reject `max_tokens` on Chat Completions
@@ -1084,7 +1181,7 @@ class AIAgent:
         usage_total = _empty_usage()
         no_tool_call_nudge_used = False
         any_tool_called = False
-        for _iteration in range(self.max_iterations):
+        for _iteration in self._iterations():
             # Long-Horizon: comprime historico se ultrapassar o limite de contexto
             messages = self._compress_history_if_needed(messages)
             if self.steer_check:
@@ -1128,6 +1225,7 @@ class AIAgent:
                 tool_calls_dict = {}
 
                 for chunk in response_stream:
+                    check_execution()
                     # O chunk final de usage vem sem choices.
                     _accumulate_usage(usage_total, getattr(chunk, "usage", None))
                     if not chunk.choices:
@@ -1368,7 +1466,7 @@ class AIAgent:
         if host.endswith("/v1"):
             host = host[: -len("/v1")]
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
-        client = ollama_lib.Client(host=host, headers=headers)
+        client = ollama_lib.Client(host=host, headers=headers, timeout=remaining_seconds(180))
 
         messages: list[dict[str, Any]] = []
         if self.ephemeral_system_prompt:
@@ -1407,7 +1505,7 @@ class AIAgent:
         no_tool_call_nudge_used = False
         any_tool_called = False
 
-        for _iteration in range(self.max_iterations):
+        for _iteration in self._iterations():
             messages = self._compress_history_if_needed(messages)
             if self.steer_check:
                 steer_msg = self.steer_check()
@@ -1426,6 +1524,7 @@ class AIAgent:
             content_chunks: list[str] = []
             captured_tool_calls: list[Any] = []
             for chunk in stream:
+                check_execution()
                 if chunk.message.thinking:
                     if self.thinking_callback:
                         self.thinking_callback(chunk.message.thinking)
@@ -1591,7 +1690,8 @@ class AIAgent:
         from anthropic import Anthropic
 
         from agent.models_dev import get_model_info
-        client = Anthropic(api_key=self.api_key)
+        client = Anthropic(api_key=self.api_key, timeout=remaining_seconds(180),
+                           **_sdk_retry_options())
 
         system = self.ephemeral_system_prompt or ""
         # Prompt caching (Anthropic): o system prompt de cada sub-agente/turno de
@@ -1643,7 +1743,7 @@ class AIAgent:
 
         final_response = ""
         usage_total = _empty_usage()
-        for _iteration in range(self.max_iterations):
+        for _iteration in self._iterations():
             # Long-Horizon: comprime historico se ultrapassar o limite de contexto
             messages = self._compress_history_if_needed(messages)
             if self.steer_check:
@@ -1697,6 +1797,7 @@ class AIAgent:
 
                 # Para streaming do Anthropic, processamos cada tipo de evento
                 for event in response_stream:
+                    check_execution()
                     # message_start traz input_tokens; message_delta traz output_tokens.
                     if event.type == "message_start":
                         _accumulate_usage(usage_total, getattr(event.message, "usage", None))
@@ -1908,14 +2009,17 @@ class AIAgent:
         }
         usage_total = _empty_usage()
 
-        for _iteration in range(self.max_iterations):
-            # steer_check NAO esta ligado neste loop: a Interactions API usa
-            # `next_input` stateful (function_result items), e o formato exato
-            # de um item de texto de usuario avulso misturado com esses
-            # resultados nao foi confirmado na documentacao (mesma cautela da
-            # nota de thoughtSignature abaixo) -- arriscar o formato quebraria
-            # silenciosamente turnos Gemini em vez de so nao ter steer. Redirecionar
-            # um turno Gemini em andamento cai no cancelamento (best-effort) por ora.
+        for _iteration in self._iterations():
+            if _iteration and self.steer_check:
+                steer_msg = self.steer_check()
+                if steer_msg:
+                    # A Interactions API aceita user_input junto com os
+                    # function_result da interacao anterior. Preservamos os
+                    # resultados para que o redirecionamento nao perca trabalho.
+                    next_input = [
+                        *next_input,
+                        {"type": "user_input", "content": [{"type": "text", "text": steer_msg}]},
+                    ]
             # Risco conhecido (auditoria 2026-07-26, nao implementado): Gemini 3
             # exige o echo de `thoughtSignature` em partes function_call na
             # proxima chamada (400 se omitido). Aqui usamos `store: True` +
@@ -1940,6 +2044,7 @@ class AIAgent:
             if self.stream_delta_callback or self.thinking_callback or self.reasoning_callback:
                 interaction = None
                 for event in self._gemini_interactions_create(client, kwargs, stream=True):
+                    check_execution()
                     event_type = getattr(event, "event_type", "")
                     delta = getattr(event, "delta", None)
                     if event_type == "content.delta":

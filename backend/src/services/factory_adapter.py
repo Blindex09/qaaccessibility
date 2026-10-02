@@ -18,6 +18,8 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, cast
 
+from backend.src.services.execution_scope import check_execution, current_budget, remaining_seconds
+
 
 def _plain(value: Any) -> Any:
     if isinstance(value, Mapping):
@@ -61,6 +63,8 @@ def run_factory(
     """
     import droid_sdk as sdk
     from droid_sdk.mcp import DroidTool, create_sdk_mcp_server
+
+    timeout = remaining_seconds(timeout)
 
     executable = shutil.which("droid")
     if not executable:
@@ -110,7 +114,8 @@ def run_factory(
                 async def handler(arguments: dict[str, Any]) -> str:
                     nonlocal tool_count
                     async with lock:
-                        if (cancel_check and cancel_check()) or tool_count >= max_tool_calls:
+                        check_execution()
+                        if (cancel_check and cancel_check()) or (current_budget() is None and tool_count >= max_tool_calls):
                             return json.dumps({"error": "Execução cancelada ou limite de ferramentas atingido."})
                         tool_count += 1
                     if execute_tools is None:
@@ -161,8 +166,9 @@ def run_factory(
 
         task = asyncio.create_task(invoke())
         try:
-            async with asyncio.timeout(timeout + 15):
+            async with asyncio.timeout(remaining_seconds(timeout)):
                 while not task.done():
+                    check_execution()
                     if cancel_check and cancel_check():
                         raise asyncio.CancelledError("Factory: turno cancelado")
                     await asyncio.wait({task}, timeout=0.1)

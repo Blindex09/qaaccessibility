@@ -9,8 +9,7 @@ router = APIRouter(prefix="/models", tags=["models"])
 # Providers suportados (todos tool-capable). Labels para a UI.
 # "agentic" é um provider LÓGICO (não conecta a um endpoint próprio): resolve
 # para o primeiro provider concreto com API key configurada, em cascata —
-# ver model_router.resolve_alto_model/resolve_fast_model. Vem primeiro para
-# ser a opção recomendada/default na UI. A ordem é a fonte de verdade que a
+# ver model_router.resolve_alto_model/resolve_fast_model. A ordem é a fonte de verdade que a
 # UI espelha (SettingsScreen.tsx).
 CHAT_PROVIDERS: list[tuple[str, str]] = [
     ("agentic", "Agentic Auto (Seleção Inteligente)"),
@@ -64,9 +63,8 @@ async def list_models() -> dict:
         except Exception as exc:  # pragma: no cover - defensivo
             logger.warning("[Models] listagem de modelos para (%s) falhou: %s", provider_id, exc)
             models = []
-        # "alto" e a opcao padrão/recomendada: roteia para o melhor modelo
-        # agentico recente do provider (resolvido no servidor). Vem sempre
-        # primeiro; os modelos concretos seguem como override manual.
+        # "alto" é uma opção explícita de roteamento dinâmico; os modelos
+        # concretos vêm do catálogo do provedor, sem recomendação fixa.
         model_capabilities: dict[str, dict[str, object]] = {}
         if provider_id in ("ollama-cloud", "ollama_cloud"):
             # Keep the live Ollama catalog and its native capabilities visible

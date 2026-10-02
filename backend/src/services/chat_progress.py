@@ -120,9 +120,18 @@ def new_clarify() -> tuple[str, threading.Event]:
 
 def wait_clarify(rid: str, ev: threading.Event, timeout: float = 300.0) -> str:
     """Bloqueia ate o usuário responder (ou timeout). Retorna a resposta ("" se não veio)."""
-    ev.wait(timeout=timeout)
-    _pending.pop(rid, None)
-    return _answers.pop(rid, "")
+    import time
+
+    from backend.src.services.execution_scope import remaining_seconds
+
+    try:
+        deadline = time.monotonic() + remaining_seconds(timeout)
+        while not ev.is_set() and not is_cancelled() and time.monotonic() < deadline:
+            ev.wait(timeout=min(.1, max(0.0, deadline - time.monotonic())))
+        return _answers.pop(rid, "")
+    finally:
+        _pending.pop(rid, None)
+        _answers.pop(rid, None)
 
 
 def answer_clarify(rid: str, answer: str) -> bool:

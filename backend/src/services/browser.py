@@ -102,7 +102,9 @@ def _scrape_with_firecrawl(url: str, api_key: str) -> str:
     """
     logger.info("[Browser] Executando scrape do Firecrawl para: %s", url)
     req_url = "https://api.firecrawl.dev/v2/scrape"
-    payload = {"url": url, "formats": ["html"]}
+    # Cleaned `html` can remove head/style/landmarks and create false findings.
+    # Accessibility needs the full original document, not only article content.
+    payload = {"url": url, "formats": ["rawHtml"], "onlyMainContent": False}
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
     data = json.dumps(payload).encode("utf-8")
@@ -111,7 +113,13 @@ def _scrape_with_firecrawl(url: str, api_key: str) -> str:
         res_data = json.loads(response.read().decode("utf-8"))
         if not res_data.get("success") or "data" not in res_data:
             raise RuntimeError(f"Erro no scrape do Firecrawl: {res_data.get('error', 'Resposta invalida')}")
-        return res_data["data"].get("html") or ""
+        target_status = res_data["data"].get("metadata", {}).get("statusCode")
+        if isinstance(target_status, int) and target_status >= 400:
+            raise RuntimeError("A página solicitada retornou um erro de acesso; seu conteúdo não foi auditado.")
+        html = res_data["data"].get("rawHtml")
+        if not isinstance(html, str) or not html.strip():
+            raise RuntimeError("A extração não forneceu o documento HTML completo; a página não foi auditada.")
+        return html
 
 
 async def _fetch_via_direct_browser(
