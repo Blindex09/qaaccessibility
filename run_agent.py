@@ -9,22 +9,29 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
+import httpx
+
 from backend.src.services import agent_hooks
 from backend.src.services.execution_scope import (
     check_execution,
     current_budget,
     execution_scope,
     note_progress,
-    remaining_seconds,
 )
 from backend.src.services.telemetry import agent_span
 
 logger = logging.getLogger(__name__)
 
 
-def _sdk_retry_options() -> dict[str, Any]:
-    # SDK retries cannot silently multiply an already shared turn deadline.
-    return {"max_retries": 0} if current_budget() else {}
+def _provider_timeout() -> httpx.Timeout:
+    """Timeout dos clientes HTTP dos providers (regra 8: sem relógio fixo sobre o trabalho).
+
+    Só o ESTABELECIMENTO da conexão tem limite: não é trabalho em andamento. Ler a resposta
+    não tem: uma chamada lenta continua sendo a MESMA chamada, esperando com paciência, e
+    quem a encerra é o cancelamento da pessoa. As tentativas automáticas do SDK (queda de
+    conexão, 429, 5xx) ficam como o SDK as define: esperam de verdade e se revezam.
+    """
+    return httpx.Timeout(connect=30.0, read=None, write=None, pool=None)
 
 _SENSITIVE_ARGUMENT_PARTS = ("token", "secret", "password", "api_key", "authorization", "cookie")
 
@@ -735,7 +742,7 @@ class AIAgent:
                     stream_callback=self.stream_delta_callback,
                     thinking_callback=self.thinking_callback or self.reasoning_callback,
                     cancel_check=self.cancel_check,
-                    timeout=remaining_seconds(900 if self.enabled_toolsets else 180), images=self.images,
+                    images=self.images,
                 )
             if self.provider == "anthropic":
                 return self._run_anthropic(user_message)
@@ -1051,7 +1058,7 @@ class AIAgent:
         if not base_url and self.provider == "xai":
             base_url = "https://api.x.ai/v1"
         client = OpenAI(api_key=self.api_key or "no-key", base_url=base_url,
-                        timeout=remaining_seconds(180), **_sdk_retry_options())
+                        timeout=_provider_timeout())
 
         # Long-Horizon: o historico so e compactado aqui, ANTES do loop. Dentro do
         # loop `input_items` vira replay de function_call + function_call_output, e
@@ -1247,7 +1254,7 @@ class AIAgent:
             base_url = "https://api.x.ai/v1"
         client = OpenAI(
             api_key=self.api_key or "no-key",
-            base_url=base_url, timeout=remaining_seconds(180), **_sdk_retry_options(),
+            base_url=base_url, timeout=_provider_timeout(),
         )
 
         # Reasoning models on OpenAI's real API reject `max_tokens` on Chat Completions
@@ -1562,7 +1569,7 @@ class AIAgent:
         if host.endswith("/v1"):
             host = host[: -len("/v1")]
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
-        client = ollama_lib.Client(host=host, headers=headers, timeout=remaining_seconds(180))
+        client = ollama_lib.Client(host=host, headers=headers, timeout=_provider_timeout())
 
         messages: list[dict[str, Any]] = []
         if self.ephemeral_system_prompt:
@@ -1815,8 +1822,7 @@ class AIAgent:
         from anthropic import Anthropic
 
         from agent.models_dev import get_model_info
-        client = Anthropic(api_key=self.api_key, timeout=remaining_seconds(180),
-                           **_sdk_retry_options())
+        client = Anthropic(api_key=self.api_key, timeout=_provider_timeout())
 
         system = self.ephemeral_system_prompt or ""
         # Prompt caching (Anthropic): o system prompt de cada sub-agente/turno de

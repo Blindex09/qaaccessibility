@@ -190,3 +190,37 @@ async def test_route_consultation_that_keeps_progressing_is_not_cut():
         _tight(budget, 0.2)
         advice = await rank_candidates(cands, task="t-rule8", step_type="audit", timeout=0.01, ask=slow_but_alive)
     assert advice.source == "ia"
+
+
+# ----------------------------------------------------------------- clientes HTTP dos providers
+def test_provider_http_clients_have_no_read_clock_and_keep_sdk_retries_inside_a_turn():
+    """Regressão: dentro do turno os clientes saíam com max_retries=0 e um timeout de
+    leitura fixo de 180s, o que matava uma chamada lenta e proibia o SDK de esperar e
+    tentar de novo em 429/queda de conexão (as docstrings dos testes dizem que isso nunca
+    pode ser desligado; eles só passavam porque rodam sem orçamento)."""
+    import httpx
+
+    from tests.backend.unit.test_run_agent import _mock_anthropic_client
+
+    with execution_scope(10), patch("anthropic.Anthropic") as mock_cls:
+        mock_cls.return_value = _mock_anthropic_client()
+        AIAgent(model="claude-opus-5", provider="anthropic", api_key="k")._run_anthropic("hello")
+    kwargs = mock_cls.call_args.kwargs
+    assert "max_retries" not in kwargs
+    timeout = kwargs["timeout"]
+    assert isinstance(timeout, httpx.Timeout)
+    assert timeout.read is None and timeout.write is None and timeout.pool is None
+    assert timeout.connect is not None  # estabelecer a conexão não é trabalho em andamento
+
+
+def test_openai_and_ollama_clients_share_the_same_no_read_clock_policy():
+    import httpx
+
+    from run_agent import _provider_timeout
+
+    timeout = _provider_timeout()
+    assert isinstance(timeout, httpx.Timeout) and timeout.read is None
+
+
+def test_factory_runtime_has_no_fixed_timeout_parameter():
+    assert "timeout" not in inspect.signature(run_factory).parameters

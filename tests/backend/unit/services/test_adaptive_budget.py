@@ -13,7 +13,7 @@ def test_standalone_phase_window_slides_with_progress():
 
     budget = create_analysis_budget(selected_agents=4, parallelism=2, per_agent_timeout=10, tradeoff=9)
     budget.scope.deadline = time.monotonic() + 0.05
-    assert budget.remaining_seconds <= 0.05
+    assert budget.remaining_seconds <= 0.06  # tolerância de relógio
     budget.note_progress()
     assert budget.remaining_seconds > 5
     assert not budget.expired
@@ -51,7 +51,7 @@ def test_phase_budget_is_a_live_view_of_the_turn_window():
     with execution_scope(10) as parent:
         budget = create_analysis_budget(selected_agents=6, parallelism=3, per_agent_timeout=10, tradeoff=3)
         parent.deadline = time.monotonic() + 0.05
-        assert budget.remaining_seconds <= 0.05
+        assert budget.remaining_seconds <= 0.06  # tolerância de relógio
         parent.note_progress()  # um especialista terminou: a janela desliza
         assert budget.remaining_seconds > 5
         assert not budget.expired

@@ -32,7 +32,7 @@ def test_context_schema_system_and_permission_boundary(sdk_run):
     assert _plain(args.kwargs["output"].schema) == schema
     assert args.kwargs["config"].restrict_tools == frozenset({"qa___no_tools_allowed"})
     assert args.kwargs["interactions"].on_permission is not None
-    assert args.kwargs["timeout"] > 0
+    assert "timeout" not in args.kwargs  # sem relógio fixo sobre a chamada (regra 8)
     assert response["usage"]["total_tokens"] == 48
 
 

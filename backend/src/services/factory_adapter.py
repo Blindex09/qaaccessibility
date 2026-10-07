@@ -18,7 +18,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, cast
 
-from backend.src.services.execution_scope import check_execution, current_budget, remaining_seconds
+from backend.src.services.execution_scope import check_execution
 
 
 def _plain(value: Any) -> Any:
@@ -52,7 +52,6 @@ def run_factory(
     stream_callback: Callable[[str], None] | None = None,
     thinking_callback: Callable[[str], None] | None = None,
     cancel_check: Callable[[], bool] | None = None,
-    timeout: float = 180,
     images: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Only QA tools are allowlisted; temporary cwd avoids repository instructions.
@@ -62,8 +61,6 @@ def run_factory(
     """
     import droid_sdk as sdk
     from droid_sdk.mcp import DroidTool, create_sdk_mcp_server
-
-    timeout = remaining_seconds(timeout)
 
     executable = shutil.which("droid")
     if not executable:
@@ -152,10 +149,10 @@ def run_factory(
 
         async def invoke() -> Any:
             if stream_callback is None and thinking_callback is None:
-                return await sdk.run(user_prompt, **kwargs, output=output, images=image_inputs, timeout=timeout)
+                return await sdk.run(user_prompt, **kwargs, output=output, images=image_inputs)
             async with sdk.Session(**kwargs) as session:
                 async with session.stream(user_prompt, output=output, images=image_inputs,
-                                          timeout=timeout, include_partial_messages=True) as stream:
+                                          include_partial_messages=True) as stream:
                     async for event in stream:
                         if isinstance(event, sdk.TextDelta) and stream_callback:
                             stream_callback(event.text)
@@ -165,15 +162,14 @@ def run_factory(
 
         task = asyncio.create_task(invoke())
         try:
-            # Com orçamento do turno, quem encerra é a falta de progresso
-            # (check_execution); o prazo fixo só vale fora do chat.
-            async with asyncio.timeout(remaining_seconds(timeout) if current_budget() is None else None):
-                while not task.done():
-                    check_execution()
-                    if cancel_check and cancel_check():
-                        raise asyncio.CancelledError("Factory: turno cancelado")
-                    await asyncio.wait({task}, timeout=0.1)
-                return await task
+            # Sem relógio fixo (regra 8): quem encerra é o cancelamento ou a falta de
+            # progresso do turno (check_execution).
+            while not task.done():
+                check_execution()
+                if cancel_check and cancel_check():
+                    raise asyncio.CancelledError("Factory: turno cancelado")
+                await asyncio.wait({task}, timeout=0.1)
+            return await task
         finally:
             if not task.done():
                 task.cancel()

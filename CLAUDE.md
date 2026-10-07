@@ -492,14 +492,19 @@ erro informa. O reparo de JSON em `call_llm_structured` não tem contador nem te
 a saída foi cortada e termina por saída válida, repetição da mesma saída ou do mesmo defeito, erro do
 provider ou cancelamento.
 
-Limites que ainda existem, e que são honestos: os clientes HTTP de cada provider (ex.: o timeout de
-180s do cliente Anthropic, os do OpenAI/Ollama) ainda têm um timeout fixo por chamada, que precisa
-virar espera com mais paciência sobre a mesma chamada (regra 8); não existe ainda um orçamento de custo
-configurável pela pessoa (hoje os laços terminam por convergência, repetição, falta de progresso ou
-cancelamento); sem nenhum orçamento (chamada direta de teste ou script) o `fallback_timeout` legado
-continua valendo; o padrão de 32000 da Anthropic e a autocorreção pelo limite do provider foram
-cobertos só com mocks, sem chamada real. Ao mexer nesses pontos, convergir para a regra 8 e registrar
-aqui o que mudou.
+Clientes HTTP dos providers: sem timeout de leitura nem de escrita (`_provider_timeout` em
+`run_agent.py`); só estabelecer a conexão tem limite, porque isso não é trabalho em andamento. Uma
+chamada lenta continua sendo a mesma chamada. As tentativas automáticas do SDK (queda de conexão, 429,
+5xx) voltaram a valer dentro do turno: antes `_sdk_retry_options` as desligava (`max_retries=0`).
+
+Limites que ainda existem, e que são honestos: não existe ainda um orçamento de custo configurável
+pela pessoa (hoje os laços terminam por convergência, repetição, falta de progresso ou cancelamento);
+sem nenhum orçamento (chamada direta de teste ou script) o `fallback_timeout` legado continua valendo;
+a consulta ao catálogo de modelos do Ollama Cloud (`ollama_cloud_adapter.py`) mantém timeouts curtos de
+10 a 15 segundos, por ser metadado e não trabalho do modelo; uma conexão de leitura pendurada sem nenhum
+byte só é encerrada pelo cancelamento da pessoa ou pelo sistema operacional; o padrão de 32000 da
+Anthropic e a autocorreção pelo limite do provider foram cobertos só com mocks, sem chamada real. Ao
+mexer nesses pontos, convergir para a regra 8 e registrar aqui o que mudou.
 
 Cada instância de `AIAgent` captura suas concessões de ferramentas ao nascer.
 O dispatcher verifica concessão, schema e aprovação antes de chamar o handler.
