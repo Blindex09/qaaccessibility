@@ -174,6 +174,14 @@ class Settings(BaseSettings):
         gt=0,
         description="TTL do cache de respostas dos agentes de análise, em segundos",
     )
+    turn_token_budget: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Orçamento de tokens por resposta do chat, escolhido pela pessoa nas Configurações. "
+            "0 = sem limite (o padrão): o código nunca impõe um teto de trabalho por conta própria."
+        ),
+    )
     a11y_model_arbitration_enabled: bool = Field(
         default=True,
         description="Permite julgamento contextual entre modelos quando o modo Alto prioriza qualidade",

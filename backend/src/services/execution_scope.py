@@ -32,6 +32,21 @@ from typing import ParamSpec, TypeVar
 from backend.src.services import chat_progress
 
 
+class TokenBudgetReachedError(Exception):
+    """O limite de tokens que a PESSOA configurou foi atingido (regra 8).
+
+    Não é timeout nem travamento: é a escolha dela. O trabalho pára no próximo limite de
+    chamada, nada é refeito por cima e o que já foi apurado é entregue como parcial.
+    """
+
+    def __init__(self, used: int, limit: int) -> None:
+        self.used = used
+        self.limit = limit
+        super().__init__(
+            f"O limite de {limit} tokens que você configurou para esta resposta foi atingido (usei {used})."
+        )
+
+
 @dataclass
 class ExecutionBudget:
     started_at: float
@@ -54,6 +69,10 @@ class ExecutionBudget:
     # chamada, nunca uma nova por cima). Quem encerra uma conexão pendurada é a camada
     # HTTP ou o cancelamento da pessoa.
     inflight: int = 0
+    # Orçamento de custo configurado pela pessoa, em tokens (None = sem limite). É o único
+    # teto de trabalho que existe: escolha dela, nunca um número embutido no código.
+    token_limit: int | None = None
+    tokens_used: int = 0
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -67,6 +86,14 @@ class ExecutionBudget:
         if self.inflight > 0:
             self.note_progress()  # esperar o provedor responder é espera legítima
         return self.deadline + self._paused_now()
+
+    def add_tokens(self, count: int) -> None:
+        with self._lock:
+            self.tokens_used += max(0, int(count))
+
+    @property
+    def token_budget_reached(self) -> bool:
+        return bool(self.token_limit) and self.tokens_used >= int(self.token_limit or 0)
 
     def begin_call(self) -> None:
         with self._lock:
@@ -133,6 +160,13 @@ def current_budget() -> ExecutionBudget | None:
     return _budget.get()
 
 
+def add_tokens(count: int) -> None:
+    """Soma os tokens de uma chamada ao orçamento do turno atual, se houver um."""
+    budget = _budget.get()
+    if budget is not None:
+        budget.add_tokens(count)
+
+
 def note_progress() -> None:
     """Sinaliza progresso real ao orçamento do turno atual, se houver um."""
     budget = _budget.get()
@@ -170,6 +204,8 @@ def check_execution() -> None:
     if chat_progress.is_cancelled():
         raise InterruptedError("Execução interrompida pelo usuário.")
     budget = current_budget()
+    if budget is not None and budget.token_budget_reached:
+        raise TokenBudgetReachedError(budget.tokens_used, int(budget.token_limit or 0))
     if budget and time.monotonic() >= budget.effective_deadline():
         raise TimeoutError("A execução parou de avançar e foi encerrada; os resultados disponíveis são parciais.")
 
@@ -204,14 +240,16 @@ def pause_for_user_gate() -> Iterator[None]:
 
 
 @contextmanager
-def execution_scope(seconds: float) -> Iterator[ExecutionBudget]:
+def execution_scope(seconds: float, token_limit: int | None = None) -> Iterator[ExecutionBudget]:
     inherited = current_budget()
     if inherited is not None:
         check_execution()
         yield inherited
         return
     started = time.monotonic()
-    budget = ExecutionBudget(started, started + max(1.0, seconds) * 2, max(1.0, seconds))
+    budget = ExecutionBudget(
+        started, started + max(1.0, seconds) * 2, max(1.0, seconds), token_limit=token_limit or None
+    )
     token = _budget.set(budget)
     try:
         yield budget

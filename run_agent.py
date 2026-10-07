@@ -13,6 +13,8 @@ import httpx
 
 from backend.src.services import agent_hooks
 from backend.src.services.execution_scope import (
+    TokenBudgetReachedError,
+    add_tokens,
     check_execution,
     current_budget,
     execution_scope,
@@ -241,6 +243,7 @@ def _accumulate_usage(accumulator: dict[str, int], raw: Any) -> None:
         return
     for key in accumulator:
         accumulator[key] += usage.get(key, 0)
+    add_tokens(usage.get("total_tokens", 0))  # alimenta o limite que a pessoa configurou
 
 
 def _approval_summary(name: str, args: dict[str, Any]) -> str:
@@ -293,7 +296,7 @@ def run_local_tool(
         schema = schema.get("function", schema).get("parameters", {})
         if schema:
             Draft202012Validator(schema).validate(clean_args)
-    except (TimeoutError, InterruptedError) as exc:
+    except (TimeoutError, InterruptedError, TokenBudgetReachedError) as exc:
         logger.warning("[ToolValidation] blocked tool=%s reason=%s", name, type(exc).__name__)
         if approval_decision_callback:
             approval_decision_callback("invalid_arguments")

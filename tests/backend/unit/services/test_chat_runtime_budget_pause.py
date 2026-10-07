@@ -14,8 +14,8 @@ async def test_stream_rechecks_deadline_after_user_gate_pause(monkeypatch):
     real_scope = execution_scope.execution_scope
 
     @contextmanager
-    def short_scope(_seconds):
-        with real_scope(10) as budget:
+    def short_scope(_seconds, token_limit=None):
+        with real_scope(10, token_limit=token_limit) as budget:
             budget.deadline = time.monotonic() + 0.12
             yield budget
 

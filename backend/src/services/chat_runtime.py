@@ -413,7 +413,7 @@ async def stream_chat(
     attachments: list[dict[str, str]] | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """Supervise the entire turn, including routing and planning, not just tools."""
-    from backend.src.services.execution_scope import execution_scope
+    from backend.src.services.execution_scope import TokenBudgetReachedError, execution_scope
 
     stream_id = chat_progress.new_cancel_token()
     cancel = chat_progress.cancel_event(stream_id)
@@ -438,12 +438,19 @@ async def stream_chat(
         try:
             from backend.src.services.request_context import record_public_update, request_context
 
-            with execution_scope(get_settings().agent_timeout_seconds) as budget, request_context(message, history):
+            with execution_scope(
+                get_settings().agent_timeout_seconds, token_limit=get_settings().turn_token_budget or None,
+            ) as budget, request_context(message, history):
                 state["budget"] = budget
                 async for event in _stream_chat_impl(message, history, provider, model,
                                                      conversation_id, attachments, stream_id):
                     record_public_update(event)
                     await queue.put(event)
+        except TokenBudgetReachedError as exc:
+            # Limite escolhido pela pessoa: não é falha. O que já apareceu fica e a resposta
+            # explica o que aconteceu e como continuar.
+            logger.info("[ChatRuntime] Limite de tokens do turno atingido (%d/%d)", exc.used, exc.limit)
+            await queue.put({"type": "budget_reached", "text": str(exc)})
         except Exception as exc:
             logger.exception("[ChatRuntime] Turn failed (%s)", type(exc).__name__)
             await queue.put({"type": "error", "error": format_human_friendly_error(str(exc))})
@@ -486,6 +493,22 @@ async def stream_chat(
                 break
             event = get.result()
             if event is None:
+                break
+            if event.get("type") == "budget_reached":
+                what_remains = (
+                    " O que já apareceu acima continua valendo, mas a resposta está incompleta."
+                    if "".join(partial).strip()  # eventos chegam em ordem: já contém o que foi dito antes
+                    else " Não houve como apurar nada antes de atingir o limite."
+                )
+                how_to_continue = (
+                    " Para continuar, aumente o limite nas Configurações (ou deixe em branco para não ter limite)"
+                    " e peça de novo."
+                )
+                text = "\n\n" + str(event.get("text", "")) + what_remains + how_to_continue
+                yield {"type": "token", "text": text}
+                chat_history_store.append_message("assistant", "".join(partial) + text, session_id=conversation_id)
+                terminal = True
+                yield {"type": "done", "final": "".join(partial) + text}
                 break
             if event.get("type") == "token":
                 partial.append(str(event.get("text", "")))

@@ -25,6 +25,8 @@ export interface SettingsData {
   llm_base_url?: string;
   has_llm_api_key: boolean;
   approval_enabled?: boolean;
+  // Limite de tokens por resposta escolhido pela pessoa (0 = sem limite).
+  turn_token_budget?: number;
   llm_api_key?: string;
   // Overrides opcionais do LLM usado pelo chat agêntico (ChatScreen) -- quando
   // ausentes, o chat usa os llm_* acima (ver backend chat_llm_config).

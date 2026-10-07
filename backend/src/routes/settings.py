@@ -3,7 +3,7 @@ import logging
 import os
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.src.config.settings import get_settings
 from backend.src.security.dependencies import rate_limit_dependency
@@ -45,6 +45,8 @@ class SettingsResponse(BaseModel):
     chat_llm_models_by_provider: dict[str, str]
     chat_llm_base_url: str | None
     has_chat_llm_api_key: bool
+    # Orçamento de tokens por resposta escolhido pela pessoa (0 = sem limite).
+    turn_token_budget: int = 0
 
 
 class SettingsUpdateBody(BaseModel):
@@ -57,6 +59,7 @@ class SettingsUpdateBody(BaseModel):
     chat_llm_api_key: str | None = None
     chat_llm_model: str | None = None
     chat_llm_base_url: str | None = None
+    turn_token_budget: int | None = Field(default=None, ge=0, le=1_000_000_000)
 
 
 @router.get("", response_model=SettingsResponse)
@@ -81,6 +84,7 @@ async def get_settings_route() -> SettingsResponse:
         chat_llm_models_by_provider=chat_model_choices,
         chat_llm_base_url=settings.chat_llm_base_url,
         has_chat_llm_api_key=bool(settings.chat_llm_api_key),
+        turn_token_budget=settings.turn_token_budget,
     )
 
 
@@ -152,6 +156,8 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
     env_vars["LLM_MODELS_BY_PROVIDER"] = json.dumps(model_choices, ensure_ascii=False, separators=(",", ":"))
     if body.approval_enabled is not None:
         env_vars["APPROVAL_ENABLED"] = "true"
+    if body.turn_token_budget is not None:
+        env_vars["TURN_TOKEN_BUDGET"] = str(body.turn_token_budget)
 
     if body.llm_api_key is not None:
         val = body.llm_api_key.strip()
@@ -253,6 +259,8 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
     os.environ["CHAT_LLM_MODELS_BY_PROVIDER"] = env_vars["CHAT_LLM_MODELS_BY_PROVIDER"]
     if body.approval_enabled is not None:
         os.environ["APPROVAL_ENABLED"] = "true"
+    if body.turn_token_budget is not None:
+        os.environ["TURN_TOKEN_BUDGET"] = str(body.turn_token_budget)
     if body.llm_api_key is not None:
         val = body.llm_api_key.strip()
         if val and "•" not in val:

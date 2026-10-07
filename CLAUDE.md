@@ -497,14 +497,22 @@ Clientes HTTP dos providers: sem timeout de leitura nem de escrita (`_provider_t
 chamada lenta continua sendo a mesma chamada. As tentativas automáticas do SDK (queda de conexão, 429,
 5xx) voltaram a valer dentro do turno: antes `_sdk_retry_options` as desligava (`max_retries=0`).
 
-Limites que ainda existem, e que são honestos: não existe ainda um orçamento de custo configurável
-pela pessoa (hoje os laços terminam por convergência, repetição, falta de progresso ou cancelamento);
-sem nenhum orçamento (chamada direta de teste ou script) o `fallback_timeout` legado continua valendo;
-a consulta ao catálogo de modelos do Ollama Cloud (`ollama_cloud_adapter.py`) mantém timeouts curtos de
-10 a 15 segundos, por ser metadado e não trabalho do modelo; uma conexão de leitura pendurada sem nenhum
-byte só é encerrada pelo cancelamento da pessoa ou pelo sistema operacional; o padrão de 32000 da
-Anthropic e a autocorreção pelo limite do provider foram cobertos só com mocks, sem chamada real. Ao
-mexer nesses pontos, convergir para a regra 8 e registrar aqui o que mudou.
+Orçamento de custo da pessoa (único teto de trabalho que existe): a tela de Configurações tem o campo
+"Limite de tokens por resposta (opcional)", gravado como `TURN_TOKEN_BUDGET` e lido em `Settings.turn_token_budget`.
+O padrão é 0, sem limite: o código nunca escolhe um número por conta própria. O consumo de cada chamada ao
+provider (`_accumulate_usage`) soma no orçamento do turno, e `check_execution` levanta `TokenBudgetReachedError`
+no próximo limite de chamada; chamadas em andamento terminam, então o limite é verificado nas fronteiras, não
+no meio de uma geração. O chat encerra com uma explicação honesta (o que já apareceu continua valendo, ou
+"não houve como apurar nada") e diz como continuar; nunca é tratado como erro. A chamada de fallback para outro
+modelo não é tentada depois do limite. A contagem inclui as chamadas de triagem e roteamento, que são custo real.
+
+Limites que ainda existem, e que são honestos: sem nenhum orçamento (chamada direta de teste ou script) o
+`fallback_timeout` legado continua valendo; a consulta ao catálogo de modelos do Ollama Cloud
+(`ollama_cloud_adapter.py`) mantém timeouts curtos de 10 a 15 segundos, por ser metadado e não trabalho do
+modelo; uma conexão de leitura pendurada sem nenhum byte só é encerrada pelo cancelamento da pessoa ou pelo
+sistema operacional; o limite de tokens só vale no chat (as rotas REST não o recebem); o padrão de 32000 da
+Anthropic e a autocorreção pelo limite do provider foram cobertos só com mocks, sem chamada real. Ao mexer
+nesses pontos, convergir para a regra 8 e registrar aqui o que mudou.
 
 Cada instância de `AIAgent` captura suas concessões de ferramentas ao nascer.
 O dispatcher verifica concessão, schema e aprovação antes de chamar o handler.

@@ -348,3 +348,31 @@ class TestChavesConfiguraveisPelaInterface:
             "BROWSERLESS_WS_URL",
         ):
             assert env_var in fonte, f"{env_var} nao tem caminho pela rota de configuracao"
+
+
+class TestTurnTokenBudgetSetting:
+    """O limite de tokens por resposta é escolha da pessoa: padrão 0 (sem limite),
+    gravado nas Configurações e lido de volta."""
+
+    def test_default_is_no_limit(self, client):
+        assert client.get("/settings/").json()["turn_token_budget"] == 0
+
+    def test_person_can_set_read_back_and_clear_the_limit(self, client, monkeypatch):
+        monkeypatch.delenv("TURN_TOKEN_BUDGET", raising=False)
+        assert client.post("/settings/", json={"llm_provider": "openai", "turn_token_budget": 250000}).status_code == 200
+        assert client.get("/settings/").json()["turn_token_budget"] == 250000
+        env_file = Path("backend/.env") if Path("backend/.env").exists() else Path(".env")
+        assert "TURN_TOKEN_BUDGET=250000" in env_file.read_text(encoding="utf-8")
+        client.post("/settings/", json={"llm_provider": "openai", "turn_token_budget": 0})
+        assert client.get("/settings/").json()["turn_token_budget"] == 0
+        os.environ.pop("TURN_TOKEN_BUDGET", None)
+
+    def test_omitting_the_field_keeps_the_limit_the_person_chose(self, client, monkeypatch):
+        monkeypatch.delenv("TURN_TOKEN_BUDGET", raising=False)
+        client.post("/settings/", json={"llm_provider": "openai", "turn_token_budget": 5000})
+        client.post("/settings/", json={"llm_provider": "openai", "llm_model": "gpt-x"})
+        assert client.get("/settings/").json()["turn_token_budget"] == 5000
+        os.environ.pop("TURN_TOKEN_BUDGET", None)
+
+    def test_negative_limit_is_rejected(self, client):
+        assert client.post("/settings/", json={"llm_provider": "openai", "turn_token_budget": -1}).status_code == 422

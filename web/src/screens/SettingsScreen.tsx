@@ -10,6 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { getSettings, saveSettings, saveServiceKey, SettingsData } from "../services/api";
+import { describeTokenBudget, parseTokenBudget } from "../services/tokenBudget";
 import { getModels } from "../services/chat";
 import { colors, font, radius, space, shadow, a11y } from "../design/tokens";
 import { displayFont, monoFont } from "../design/helpers";
@@ -140,6 +141,7 @@ export function SettingsScreen({ onBack }: Props) {
   const [selectedModelOption, setSelectedModelOption] = useState("");
   const [modelChoices, setModelChoices] = useState<Record<string, string>>({});
   const [baseUrl, setBaseUrl] = useState("");
+  const [tokenBudgetText, setTokenBudgetText] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
 
   // Loaded metadata
@@ -214,6 +216,7 @@ export function SettingsScreen({ onBack }: Props) {
         }
 
         setBaseUrl(data.llm_base_url || "");
+        setTokenBudgetText(data.turn_token_budget ? String(data.turn_token_budget) : "");
         setHasApiKey(data.has_llm_api_key);
         setInitialHasApiKey(data.has_llm_api_key);
 
@@ -253,15 +256,21 @@ export function SettingsScreen({ onBack }: Props) {
   }, []);
 
   async function handleSave() {
-    setSaving(true);
     setStatusMsg(null);
     setErrorMsg(null);
+    const parsedBudget = parseTokenBudget(tokenBudgetText);
+    if (parsedBudget.error) {
+      setErrorMsg(parsedBudget.error);
+      return;
+    }
+    setSaving(true);
 
     const payload: Partial<SettingsData> = {
       llm_provider: provider,
       llm_model: model,
       llm_base_url: baseUrl,
       approval_enabled: true,
+      turn_token_budget: parsedBudget.value,
     };
 
     // Só envia a chave de API se o usuário alterou o valor da máscara padrão
@@ -676,6 +685,30 @@ export function SettingsScreen({ onBack }: Props) {
           aria-invalid={errorMsg ? true : undefined}
           aria-describedby={errorMsg ? "settingsErrorMsg" : undefined}
         />
+
+        {/* Limite de tokens por resposta (escolha da pessoa; vazio = sem limite) */}
+        <Text nativeID="tokenBudgetLabel" style={styles.label}>Limite de tokens por resposta (opcional)</Text>
+        <TextInput
+          style={styles.input}
+          value={tokenBudgetText}
+          onChangeText={setTokenBudgetText}
+          placeholder="Em branco = sem limite"
+          accessibilityLabelledBy="tokenBudgetLabel"
+          aria-labelledby="tokenBudgetLabel"
+          aria-describedby="tokenBudgetHint"
+          accessibilityHint="Digite um número de tokens para limitar o gasto de cada resposta, ou deixe em branco para não ter limite"
+          keyboardType="number-pad"
+          inputMode="numeric"
+          autoCapitalize="none"
+          autoCorrect={false}
+          spellCheck={false}
+          autoComplete="off"
+          placeholderTextColor={colors.text.tertiary}
+          aria-invalid={errorMsg ? true : undefined}
+        />
+        <Text nativeID="tokenBudgetHint" style={[styles.statusHint, { marginBottom: space[3] }]} accessibilityRole="text">
+          {describeTokenBudget(parseTokenBudget(tokenBudgetText).value)}
+        </Text>
 
         {/* Override de LLM do Chat Agêntico */}
         <View style={styles.sectionDivider} />
