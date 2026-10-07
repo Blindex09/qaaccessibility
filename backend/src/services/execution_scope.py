@@ -22,10 +22,11 @@ click never consumes work budget. The next real task pays full price again.
 import asyncio
 import contextvars
 import functools
+import threading
 import time
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ParamSpec, TypeVar
 
 from backend.src.services import chat_progress
@@ -48,6 +49,12 @@ class ExecutionBudget:
     # Janela de silêncio tolerada: quanto tempo sem NENHUM progresso significa
     # "travado". Começa igual à folga inicial e só cresce.
     patience: float = 0.0
+    # Chamadas ao provedor em andamento. Uma chamada lenta não é um travamento: enquanto
+    # houver uma em curso a janela não esgota (regra 8: mais paciência sobre a MESMA
+    # chamada, nunca uma nova por cima). Quem encerra uma conexão pendurada é a camada
+    # HTTP ou o cancelamento da pessoa.
+    inflight: int = 0
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.patience <= 0:
@@ -57,7 +64,18 @@ class ExecutionBudget:
         return self.paused_total + (time.monotonic() - self.paused_since if self.paused_since is not None else 0.0)
 
     def effective_deadline(self) -> float:
+        if self.inflight > 0:
+            self.note_progress()  # esperar o provedor responder é espera legítima
         return self.deadline + self._paused_now()
+
+    def begin_call(self) -> None:
+        with self._lock:
+            self.inflight += 1
+
+    def end_call(self) -> None:
+        with self._lock:
+            self.inflight = max(0, self.inflight - 1)
+        self.note_progress()  # a chamada terminou: a janela recomeça daqui
 
     def note_progress(self) -> None:
         """Registra progresso real: a janela de silêncio recomeça a partir de agora.

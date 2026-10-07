@@ -50,7 +50,6 @@ async def node_plan(issues: list[AccessibilityIssue]) -> dict:
             system_prompt=_PLANNER_SYSTEM_PROMPT,
             user_prompt=f"Plan the remediation order for these issues:\n\n{issues_summary}",
             temperature=0.1,
-            max_tokens=800,
             agent_label="self_healing_planner",
             model_tier="fast",
         )

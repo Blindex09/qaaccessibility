@@ -202,7 +202,6 @@ async def audit_agent_project(files: list[tuple[str, str]], skipped: dict[str, i
             response_schema=AGENT_AUDIT_RESPONSE_SCHEMA,
             temperature=0.1,
             agent_label="agent_project_auditor",
-            max_tokens=16_384,
         )
         return AgentResult(
             agent="agent_project_auditor",

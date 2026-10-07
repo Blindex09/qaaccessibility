@@ -188,7 +188,6 @@ async def _review_single_batch(
                 "If no source evidence is available, do not invent document structure or AT observations."
             ),
             temperature=0.1,
-            max_tokens=16384,
             response_schema=ISSUES_RESPONSE_SCHEMA,
             agent_label="a11y_expert_reviewer",
         )

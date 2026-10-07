@@ -130,3 +130,66 @@ def test_persistent_repetition_ends_the_tool_loop_instead_of_spinning():
         assert agent._drift_stalled
         assert list(agent._iterations()) == []
         assert "repetiu a mesma chamada" in agent._loop_exit_error("havia pendências")
+
+
+def test_a_slow_provider_call_in_flight_is_not_a_stall():
+    """Regressão (teste ao vivo 2026-10-07): uma chamada ao provedor sem streaming passa mais
+    do que a janela em silêncio. Isso é espera legítima, não travamento; a chamada ganha
+    mais paciência e a janela só recomeça quando ela termina."""
+    with execution_scope(10) as budget:
+        _tight_window(budget, 0.1)
+        budget.begin_call()
+        time.sleep(0.3)  # bem mais que a janela, com a chamada ainda em curso
+        assert budget.effective_deadline() > time.monotonic()
+        budget.end_call()
+        assert budget.effective_deadline() > time.monotonic()  # janela nova a partir do fim da chamada
+
+
+def test_without_a_call_in_flight_silence_is_still_a_stall():
+    with execution_scope(10) as budget:
+        _tight_window(budget, 0.1)
+        time.sleep(0.2)
+        assert budget.effective_deadline() <= time.monotonic()
+
+
+def test_agent_iteration_marks_the_provider_call_while_it_runs():
+    from run_agent import AIAgent
+
+    agent = AIAgent(enabled_toolsets=[], max_iterations=1)
+    with execution_scope(10) as budget:
+        iterator = agent._iterations()
+        assert next(iterator) == 0
+        assert budget.inflight == 1
+        assert list(iterator) == []  # a única iteração terminou
+        assert budget.inflight == 0
+
+
+@pytest.mark.asyncio
+async def test_slow_call_wrapped_by_run_until_stalled_is_not_cut():
+    async def slow_call():
+        budget = current_budget()
+        budget.begin_call()
+        try:
+            await asyncio.sleep(0.5)
+        finally:
+            budget.end_call()
+        return "pronto"
+
+    from backend.src.services.execution_scope import current_budget
+
+    with execution_scope(10) as budget:
+        _tight_window(budget, 0.15)
+        assert await run_until_stalled(slow_call()) == "pronto"
+
+
+def test_dropping_stuck_specialists_gives_the_rest_of_the_pipeline_a_fresh_window():
+    """Depois do autosubmit parcial, os passos seguintes (revisão, relatório) não podem
+    herdar a janela esgotada, senão a análise inteira falha em vez de entregar parcial."""
+    from backend.src.services.adaptive_budget import create_analysis_budget
+
+    with execution_scope(10) as budget:
+        phase = create_analysis_budget(selected_agents=6, parallelism=3, per_agent_timeout=10, tradeoff=3)
+        budget.deadline = time.monotonic() - 1  # a fase esgotou
+        assert phase.expired
+        phase.note_progress()  # o que o orquestrador faz ao largar os parados
+        assert not phase.expired

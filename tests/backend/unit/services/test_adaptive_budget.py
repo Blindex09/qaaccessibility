@@ -1,10 +1,22 @@
 from backend.src.services.adaptive_budget import create_analysis_budget
 
 
-def test_budget_scales_with_selected_agents_and_parallelism():
+def test_more_specialists_never_lengthen_the_silence_window():
+    """Regra 8: a janela é de silêncio entre progressos, não soma das ondas."""
     small = create_analysis_budget(selected_agents=3, parallelism=3, per_agent_timeout=90, tradeoff=9)
     large = create_analysis_budget(selected_agents=12, parallelism=3, per_agent_timeout=90, tradeoff=9)
-    assert large.deadline - large.started_at > small.deadline - small.started_at
+    assert large.deadline - large.started_at == small.deadline - small.started_at
+
+
+def test_standalone_phase_window_slides_with_progress():
+    import time
+
+    budget = create_analysis_budget(selected_agents=4, parallelism=2, per_agent_timeout=10, tradeoff=9)
+    budget.scope.deadline = time.monotonic() + 0.05
+    assert budget.remaining_seconds <= 0.05
+    budget.note_progress()
+    assert budget.remaining_seconds > 5
+    assert not budget.expired
 
 
 def test_quality_tradeoff_gets_more_operational_slack():

@@ -4,12 +4,19 @@ import copy
 import hashlib
 import json
 import logging
+import re
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
 from backend.src.services import agent_hooks
-from backend.src.services.execution_scope import check_execution, current_budget, note_progress, remaining_seconds
+from backend.src.services.execution_scope import (
+    check_execution,
+    current_budget,
+    execution_scope,
+    note_progress,
+    remaining_seconds,
+)
 from backend.src.services.telemetry import agent_span
 
 logger = logging.getLogger(__name__)
@@ -43,6 +50,24 @@ _ANTHROPIC_THINKING_BUDGET_RATIO: dict[str, float] = {
     "max": 0.8,
 }
 _ANTHROPIC_MIN_THINKING_BUDGET = 1024
+# A Anthropic exige max_tokens. Sem pedido explícito usa-se um padrão alto (não um teto de
+# tarefa) e, se o modelo tiver um limite menor, o provider o informa e o código refaz uma vez.
+_ANTHROPIC_DEFAULT_MAX_TOKENS = 32000
+_PROVIDER_LIMIT_PATTERNS = (
+    re.compile(r"(\d{3,7}),? which is the maximum", re.IGNORECASE),
+    re.compile(r"maximum (?:allowed )?(?:number of )?(?:output )?tokens?[^0-9]{0,40}(\d{3,7})", re.IGNORECASE),
+)
+
+
+def _provider_output_limit(exc: Exception) -> int | None:
+    """Lê, da mensagem de erro do provider, o limite de tokens de saída que ele informou."""
+    text = str(exc)
+    for pattern in _PROVIDER_LIMIT_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            return int(match.group(1))
+    return None
+
 
 # Níveis aceitos por `output_config.effort` na API Anthropic (docs Anthropic,
 # Adaptive thinking / Effort).
@@ -382,7 +407,9 @@ class AIAgent:
         self.base_url = base_url
         self.max_iterations = max_iterations
         self.quiet_mode = quiet_mode
-        self.max_tokens = max_tokens or 4096
+        # None = nenhum teto de saída imposto pelo código (regra 8): o modelo para quando
+        # termina. Só a Anthropic exige um número e usa um padrão alto com autocorreção.
+        self.max_tokens: int | None = max_tokens
         self.max_context_chars = max_context_chars
         self.request_overrides = request_overrides or {}
         self.fallback_model = fallback_model
@@ -566,10 +593,17 @@ class AIAgent:
                 # A mesma chamada voltou a repetir depois da reflexão: não há
                 # mais nada útil a fazer, encerra com o que já está provado.
                 return
-            if (not self.enabled_toolsets or current_budget() is None) and iteration >= self.max_iterations:
-                return
+            if not self.enabled_toolsets and iteration >= self.max_iterations:
+                return  # folha sem ferramentas: uma única chamada, por estrutura
             note_progress()  # nova rodada do modelo = progresso real
-            yield iteration
+            budget = current_budget()
+            if budget is not None:
+                budget.begin_call()  # a rodada em curso é uma chamada ao provedor, não um travamento
+            try:
+                yield iteration
+            finally:
+                if budget is not None:
+                    budget.end_call()
             iteration += 1
 
     def _get_api_tools(self) -> list[dict[str, Any]]:
@@ -676,6 +710,13 @@ class AIAgent:
         return None
 
     def run_conversation(self, user_message: str, task_id: str | None = None) -> dict[str, Any]:
+        """Toda execução tem um orçamento de progresso (regra 8): herda o do turno ou abre o seu."""
+        from backend.src.config.settings import get_settings
+
+        with execution_scope(get_settings().agent_timeout_seconds):
+            return self._run_conversation_inner(user_message, task_id)
+
+    def _run_conversation_inner(self, user_message: str, task_id: str | None = None) -> dict[str, Any]:
         """
         Roda o loop do agente conversacional utilizando os SDKs oficiais.
         Sem simulação: faz chamadas reais para as APIs e executa as tools locais.
@@ -693,7 +734,7 @@ class AIAgent:
                     tools=self._get_api_tools(), execute_tools=self._execute_tool_calls,
                     stream_callback=self.stream_delta_callback,
                     thinking_callback=self.thinking_callback or self.reasoning_callback,
-                    cancel_check=self.cancel_check, max_tool_calls=self.max_iterations,
+                    cancel_check=self.cancel_check,
                     timeout=remaining_seconds(900 if self.enabled_toolsets else 180), images=self.images,
                 )
             if self.provider == "anthropic":
@@ -1035,10 +1076,11 @@ class AIAgent:
                 "model": self.model,
                 "input": input_items,
                 "instructions": self.ephemeral_system_prompt,
-                "max_output_tokens": self.max_tokens,
                 "tools": tools or None,
                 "store": False,
             }
+            if self.max_tokens is not None:
+                kwargs["max_output_tokens"] = self.max_tokens
             effort = self.request_overrides.get("reasoning_effort")
             if effort is not None:
                 kwargs["reasoning"] = {"effort": effort}
@@ -1242,7 +1284,7 @@ class AIAgent:
                 steer_msg = self.steer_check()
                 if steer_msg:
                     messages.append({"role": "user", "content": steer_msg})
-            kwargs = {token_limit_kwarg: self.max_tokens}
+            kwargs = {} if self.max_tokens is None else {token_limit_kwarg: self.max_tokens}
             if "temperature" in self.request_overrides:
                 kwargs["temperature"] = self.request_overrides["temperature"]
             # Forwarded so leaf subagents can actually disable/tune reasoning depth
@@ -1550,7 +1592,9 @@ class AIAgent:
         elif effort in ("high", "xhigh", "max"):
             think = "high"
 
-        options: dict[str, Any] = {"num_predict": self.max_tokens}
+        options: dict[str, Any] = {}
+        if self.max_tokens is not None:
+            options["num_predict"] = self.max_tokens
         if "temperature" in self.request_overrides:
             options["temperature"] = self.request_overrides["temperature"]
 
@@ -1688,17 +1732,44 @@ class AIAgent:
                 self.log_prefix, effort,
             )
             return {}
-        budget = int(self.max_tokens * ratio)
+        cap = self._anthropic_max_tokens()
+        budget = int(cap * ratio)
         if budget < _ANTHROPIC_MIN_THINKING_BUDGET:
             logger.warning(
                 "%s max_tokens=%d é baixo demais para o orçamento mínimo de thinking (%d); "
                 "enviando sem thinking.",
-                self.log_prefix, self.max_tokens, _ANTHROPIC_MIN_THINKING_BUDGET,
+                self.log_prefix, cap, _ANTHROPIC_MIN_THINKING_BUDGET,
             )
             return {}
         return {"thinking": {"type": "enabled", "budget_tokens": budget}}
 
+    def _anthropic_max_tokens(self) -> int:
+        """A API da Anthropic exige um número; sem pedido explícito usa um padrão alto,
+        corrigido para o limite real do modelo quando o próprio provider o informa."""
+        return self.max_tokens or _ANTHROPIC_DEFAULT_MAX_TOKENS
+
     def _anthropic_messages_create(self, client: Any, **kwargs: Any) -> Any:
+        """Chama a API e, se ela rejeitar o tamanho de saída, refaz UMA vez com o
+        limite que ela mesma informou (fato objetivo do provider, não uma suposição)."""
+        try:
+            return self._anthropic_messages_create_once(client, **kwargs)
+        except Exception as exc:
+            limit = _provider_output_limit(exc)
+            requested = kwargs.get("max_tokens")
+            if limit is None or not isinstance(requested, int) or requested <= limit:
+                raise
+            logger.info("%s provider limitou a saída a %d tokens; refazendo com esse limite.", self.log_prefix, limit)
+            adjusted = {**kwargs, "max_tokens": limit}
+            thinking = adjusted.get("thinking")
+            if isinstance(thinking, dict) and thinking.get("type") == "enabled":
+                budget = min(int(thinking.get("budget_tokens", 0)), limit - _ANTHROPIC_MIN_THINKING_BUDGET)
+                if budget >= _ANTHROPIC_MIN_THINKING_BUDGET:
+                    adjusted["thinking"] = {**thinking, "budget_tokens": budget}
+                else:
+                    adjusted.pop("thinking")
+            return self._anthropic_messages_create_once(client, **adjusted)
+
+    def _anthropic_messages_create_once(self, client: Any, **kwargs: Any) -> Any:
         """`client.messages.create` com o Compaction API nativo da Anthropic
         (beta `compact-2026-01-12`) e Structured Outputs (`output_config.format`,
         ver `self.response_schema`) como redes de seguranca -- ver comentario em
@@ -1829,7 +1900,7 @@ class AIAgent:
                 response_stream: Any = self._anthropic_messages_create(
                     client,
                     model=self.model,
-                    max_tokens=self.max_tokens,
+                    max_tokens=self._anthropic_max_tokens(),
                     system=system_arg,  # type: ignore[arg-type]  # payload já no shape esperado pela API
                     messages=messages,  # type: ignore[arg-type]  # payload já no shape esperado pela API
                     tools=tools_arg,  # type: ignore[arg-type]  # payload já no shape esperado pela API
@@ -1952,7 +2023,7 @@ class AIAgent:
                 resp = self._anthropic_messages_create(
                     client,
                     model=self.model,
-                    max_tokens=self.max_tokens,
+                    max_tokens=self._anthropic_max_tokens(),
                     system=system_arg,  # type: ignore[arg-type]  # payload já no shape esperado pela API
                     messages=messages,  # type: ignore[arg-type]  # payload já no shape esperado pela API
                     tools=tools_arg,  # type: ignore[arg-type]  # payload já no shape esperado pela API
@@ -2057,10 +2128,9 @@ class AIAgent:
             "xhigh": "high",
             "max": "high",
         }.get(effort, "medium")
-        generation_config = {
-            "max_output_tokens": self.max_tokens,
-            "thinking_level": thinking_level,
-        }
+        generation_config: dict[str, Any] = {"thinking_level": thinking_level}
+        if self.max_tokens is not None:
+            generation_config["max_output_tokens"] = self.max_tokens
         usage_total = _empty_usage()
 
         for _iteration in self._iterations():

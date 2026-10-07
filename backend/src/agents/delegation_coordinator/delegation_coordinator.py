@@ -104,7 +104,6 @@ async def run_delegation_coordinator(
             user_prompt=_build_user_prompt(issues_summary, skipped_agents),
             build=lambda raw: extract_json_object(raw),
             temperature=0.1,
-            max_tokens=1024,
             agent_label="delegation_coordinator",
         )
         raw_delegations = result.get("delegations", []) if isinstance(result, dict) else []

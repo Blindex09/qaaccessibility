@@ -159,7 +159,6 @@ async def run_clarifier(user_message: str) -> AgentResult:
             # -- mas o objeto nao fechava, o parse falhava e a classificacao
             # inteira era descartada. 4/10 de acerto. Mesma causa do estouro de
             # orcamento ja corrigido no VPAT e no gerador de testes.
-            max_tokens=1200,
             agent_label="clarifier",
             response_schema=CLASSIFICACAO_SCHEMA,
             model_tier="fast",

@@ -46,7 +46,7 @@ from backend.src.services.adaptive_budget import AdaptiveExecutionBudget, create
 from backend.src.services.audit_observability import audited_orchestrator
 from backend.src.services.complexity_router import classify_and_set_tradeoff, get_current_tradeoff
 from backend.src.services.contrast_verifier import verify_contrast_issues
-from backend.src.services.execution_scope import run_until_stalled
+from backend.src.services.execution_scope import budgeted, run_until_stalled
 from backend.src.services.lessons_store import get_known_false_positive_patterns
 from backend.src.shared.i18n.criteria_pt import translate_issues
 from backend.src.shared.models import (
@@ -734,6 +734,7 @@ async def _run_analysis_pipeline(
                 _name, result, duration = await task
                 tuples.append((result, duration))
                 completed += 1
+                budget.note_progress()
                 chat_progress.emit(
                     {"type": "analysis_partial", "agent": result.agent, "completed": completed, "total": len(agents)}
                 )
@@ -742,6 +743,10 @@ async def _run_analysis_pipeline(
             for task in pending:
                 task.cancel()
             await asyncio.gather(*pending, return_exceptions=True)
+            # Largar os especialistas parados é uma decisão tomada: o restante do
+            # pipeline (revisão, relatório) segue com uma janela nova, e a entrega
+            # parcial continua honesta em vez de a análise inteira falhar.
+            budget.note_progress()
             logger.info(
                 "[Orchestrator] Autosubmit do resultado parcial: %d/%d especialista(s) concluíram antes de a execução parar de avançar.",
                 completed,
@@ -902,6 +907,7 @@ async def _run_analysis_pipeline(
 
 
 @audited_orchestrator
+@budgeted
 async def orchestrate(
     html_content: str,
     task_type: TaskType,

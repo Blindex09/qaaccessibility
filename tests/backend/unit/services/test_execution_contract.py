@@ -86,15 +86,16 @@ def test_adaptation_grows_the_silence_window_without_ever_shrinking_it():
         assert budget.deadline >= reserved
 
 
-def test_expired_budget_stops_tool_loop_not_an_arbitrary_round_count():
+def test_stalled_budget_stops_tool_loop_not_an_arbitrary_round_count():
     with execution_scope(10) as budget:
         agent = AIAgent(enabled_toolsets=["probe"], max_iterations=1)
         iterator = agent._iterations()
         assert next(iterator) == 0
-        assert next(iterator) == 1
-        budget.deadline = 0
+        assert next(iterator) == 1  # agente com ferramentas não é cortado por max_iterations
+        iterator.close()
+        budget.deadline = 0  # sem chamada em curso e sem progresso: travado
         with pytest.raises(TimeoutError):
-            next(iterator)
+            next(agent._iterations())
 
 
 @pytest.mark.asyncio

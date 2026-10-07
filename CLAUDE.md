@@ -476,13 +476,30 @@ Convergência com a regra 8 (2026-10-07): o orçamento do turno em `execution_sc
 um teto de duração. O `deadline` passou a ser o instante em que a execução seria considerada TRAVADA:
 todo progresso real (evento publicado, token recebido, ferramenta concluída, nova rodada do modelo,
 especialista concluído) desliza esse instante, e a janela de silêncio se adapta à complexidade que a IA
-declarou. `run_until_stalled` substitui os `wait_for` de prazo fixo no orquestrador, no `llm_client` e no
-factory; a espera por aprovação do usuário não tem mais relógio; a repetição persistente de uma chamada
-depois da reflexão encerra o laço de ferramentas. Limites que ainda existem e são honestos: rotas fora do
-chat (sem orçamento herdado) mantêm o prazo legado por chamada; `max_tokens` por chamada continua sendo
-parâmetro exigido pelo provider (com escalonamento quando o JSON vem truncado); `route_advisor` ainda usa
-uma janela fixa curta para a consulta de roteamento. Ao mexer nesses pontos, convergir para a regra 8 e
-registrar aqui o que mudou.
+declarou. `run_until_stalled` substitui os `wait_for` de prazo fixo no orquestrador, no `llm_client`, no
+`route_advisor` e no factory. Toda execução tem esse orçamento: `orchestrate` e `run_conversation` abrem
+o seu quando não há um do turno, então as rotas fora do chat seguem a mesma regra. A espera por
+aprovação do usuário não tem relógio. Uma chamada lenta ao provedor em curso nunca é "travamento": enquanto
+houver uma rodada do modelo em andamento a janela não esgota, e quando ela termina a janela recomeça; depois de largar
+especialistas parados, o restante do pipeline segue com janela nova (entrega parcial, não falha total). O factory não tem mais máximo de chamadas de ferramenta, e o laço
+de um agente com ferramentas não é cortado por `max_iterations` (só a folha sem ferramentas é uma
+chamada única, por estrutura); a repetição persistente depois da reflexão encerra o laço.
+
+Tokens: nenhum chamador impõe teto de saída. `AIAgent.max_tokens` e o padrão de `call_llm` são
+`None` (o parâmetro é omitido onde o provider permite). A Anthropic exige um número: usa um padrão
+alto (32000) e, se o provider recusar o tamanho, o código refaz uma vez com o limite que o próprio
+erro informa. O reparo de JSON em `call_llm_structured` não tem contador nem teto: dobra o espaço quando
+a saída foi cortada e termina por saída válida, repetição da mesma saída ou do mesmo defeito, erro do
+provider ou cancelamento.
+
+Limites que ainda existem, e que são honestos: os clientes HTTP de cada provider (ex.: o timeout de
+180s do cliente Anthropic, os do OpenAI/Ollama) ainda têm um timeout fixo por chamada, que precisa
+virar espera com mais paciência sobre a mesma chamada (regra 8); não existe ainda um orçamento de custo
+configurável pela pessoa (hoje os laços terminam por convergência, repetição, falta de progresso ou
+cancelamento); sem nenhum orçamento (chamada direta de teste ou script) o `fallback_timeout` legado
+continua valendo; o padrão de 32000 da Anthropic e a autocorreção pelo limite do provider foram
+cobertos só com mocks, sem chamada real. Ao mexer nesses pontos, convergir para a regra 8 e registrar
+aqui o que mudou.
 
 Cada instância de `AIAgent` captura suas concessões de ferramentas ao nascer.
 O dispatcher verifica concessão, schema e aprovação antes de chamar o handler.

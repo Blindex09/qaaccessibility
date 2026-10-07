@@ -22,7 +22,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_SUMMARY_MAX_TOKENS = 1024
 
 SUMMARY_PROMPT = (
     "You compact the older part of a conversation so an assistant can keep working "
@@ -65,7 +64,6 @@ def summarize_messages(
         base_url=base_url,
         max_iterations=1,
         quiet_mode=True,
-        max_tokens=_SUMMARY_MAX_TOKENS,
         # Leaf call: no tools, minimal reasoning -- this is a compression step,
         # not a task that benefits from deliberation.
         request_overrides={"reasoning_effort": "low"},

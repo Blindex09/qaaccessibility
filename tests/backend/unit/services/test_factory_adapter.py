@@ -89,20 +89,24 @@ def test_real_qa_handler_and_callbacks_are_used(sdk_run, monkeypatch):
     complete.assert_called_once()
 
 
-def test_tool_limit_blocks_additional_executions(sdk_run):
+def test_no_fixed_cap_on_tool_executions_but_cancel_still_blocks(sdk_run):
+    """Regra 8: nenhum máximo fixo de ações. Só o cancelamento do usuário barra uma execução."""
     execute = Mock(side_effect=lambda calls: {calls[0][0]: "ok"})
     response = sdk_run.return_value
+    cancelled = {"on": False}
 
     async def invoke(prompt, **kwargs):
         handler = kwargs["config"].mcp_servers[0].tools[0].handler
-        assert await handler({}) == "ok"
+        for _ in range(60):  # bem acima do antigo teto de 40
+            assert await handler({}) == "ok"
+        cancelled["on"] = True
         assert "error" in json.loads(await handler({}))
         return response
 
     sdk_run.side_effect = invoke
-    run_factory("hello", None, "auto", None, max_tool_calls=1, execute_tools=execute,
+    run_factory("hello", None, "auto", None, execute_tools=execute, cancel_check=lambda: cancelled["on"],
                 tools=[{"function": {"name": "probe", "parameters": {"type": "object"}}}])
-    execute.assert_called_once()
+    assert execute.call_count == 60
 
 
 def test_cancelled_turn_does_not_start_or_fallback(sdk_run):

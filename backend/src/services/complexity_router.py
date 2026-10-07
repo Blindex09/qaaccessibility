@@ -143,7 +143,6 @@ async def classify_and_set_tradeoff(content: str) -> int:
             # accessibility complexity. The content is a Portuguese..." --
             # `extract_json_object` ja tolera prosa antes; falta o objeto caber
             # depois dela.
-            max_tokens=1200,
             agent_label="complexity_router",
             response_schema=TRADEOFF_SCHEMA,
             model_tier="fast",

@@ -1456,10 +1456,13 @@ class TestAnthropicWirePayload:
                 },
             )
 
-        def _factory(**_kwargs):
+        def _factory(**kwargs):
+            # Como em produção: o cliente recebe o timeout explícito, o que também
+            # impede o SDK de exigir streaming para um max_tokens padrão alto.
             return real_client_cls(
                 api_key="test-key",
                 http_client=httpx.Client(transport=httpx.MockTransport(_handler)),
+                timeout=kwargs.get("timeout"),
             )
 
         return _factory
@@ -1561,8 +1564,9 @@ class TestAnthropicWirePayload:
                 "usage": {"input_tokens": 5, "output_tokens": 2},
             })
 
-        def _factory(**_kwargs):
-            return real_client_cls(api_key="test-key", http_client=httpx.Client(transport=httpx.MockTransport(_handler)))
+        def _factory(**kwargs):
+            return real_client_cls(api_key="test-key", http_client=httpx.Client(transport=httpx.MockTransport(_handler)),
+                                   timeout=kwargs.get("timeout"))
 
         agent = AIAgent(model="claude-opus-5", provider="anthropic", api_key="test-key", response_schema={"type": "object"})
         with patch("anthropic.Anthropic", _factory):
@@ -1636,10 +1640,13 @@ class TestAnthropicWirePayload:
                 },
             )
 
-        def _factory(**_kwargs):
+        def _factory(**kwargs):
+            # Como em produção: o cliente recebe o timeout explícito, o que também
+            # impede o SDK de exigir streaming para um max_tokens padrão alto.
             return real_client_cls(
                 api_key="test-key",
                 http_client=httpx.Client(transport=httpx.MockTransport(_handler)),
+                timeout=kwargs.get("timeout"),
             )
 
         agent = AIAgent(model="claude-opus-5", provider="anthropic", api_key="test-key")

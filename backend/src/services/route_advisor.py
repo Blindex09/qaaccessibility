@@ -17,6 +17,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.src.services.execution_scope import run_until_stalled
+
 logger = logging.getLogger(__name__)
 
 
@@ -208,18 +210,17 @@ async def rank_candidates(
     schema["properties"].pop("source")
     schema["required"] = ["updates", "ranking", "complexity", "preference", "compare_models", "judge", "reason"]
     try:
-        deadline = time.monotonic() + timeout
-        raw = await asyncio.wait_for(ask(_SYSTEM, payload, schema), timeout=timeout)
+        raw = await run_until_stalled(ask(_SYSTEM, payload, schema), fallback_timeout=timeout)
         try:
             advice = _validate_advice(raw, valid)
         except ValueError:
             # Uma reparação de contrato, sem reutilizar conteúdo inválido e sem
             # renovar o orçamento. O harness não escolhe a resposta semântica.
-            raw = await asyncio.wait_for(ask(
+            raw = await run_until_stalled(ask(
                 _SYSTEM + "\nA tentativa anterior violou o contrato. Copie os IDs exatamente "
                 "do catálogo, sem repetições; respeite o schema e os participantes elegíveis.",
                 payload, schema,
-            ), timeout=max(.001, deadline - time.monotonic()))
+            ), fallback_timeout=timeout)
             advice = _validate_advice(raw, valid)
         advice.ranking += [k for k in _fallback(candidates, "").ranking if k not in advice.ranking]
         advice.compare_models = list(dict.fromkeys(advice.compare_models))[:max_candidates]
@@ -250,10 +251,10 @@ async def advise_route(
     max_candidates: int = 3,
     comparison_allowed: bool = True,
 ) -> RouteAdvice:
-    from backend.src.services.execution_scope import remaining_seconds
+    from backend.src.services.execution_scope import check_execution
     from backend.src.services.model_router import is_alto
 
-    timeout = remaining_seconds(timeout)
+    check_execution()
 
     if not is_alto(configured_model):
         return RouteAdvice(ranking=[f"{provider}::{configured_model}"], reason="modelo escolhido pelo usuário",
@@ -262,15 +263,14 @@ async def advise_route(
 
     providers = _available_auto_providers() if provider in ("agentic", "auto", "") else [provider]
     candidates: list[RouteCandidate] = []
-    deadline = time.monotonic() + timeout
     for candidate_provider in providers:
         candidate_key, _ = route_credentials(candidate_provider, provider, api_key, base_url)
         try:
-            candidates.extend(await asyncio.wait_for(asyncio.to_thread(
+            candidates.extend(await run_until_stalled(asyncio.to_thread(
                 eligible_candidates, candidate_provider, input_tokens=max(1, len(task) // 3),
                 output_tokens=output_tokens, needs_tools=needs_tools, needs_vision=needs_vision,
                 api_key=candidate_key,
-            ), timeout=max(.001, deadline - time.monotonic())))
+            ), fallback_timeout=timeout))
         except Exception as exc:
             logger.warning("[RouteAdvisor] catálogo %s indisponível (%s)", candidate_provider, type(exc).__name__)
 
@@ -286,7 +286,7 @@ async def advise_route(
         else:
             adapted = schema
         agent = AIAgent(model=bootstrap.model, provider=bootstrap.provider, api_key=bootstrap_key, base_url=bootstrap_url,
-                        max_iterations=1, quiet_mode=True, max_tokens=3000,
+                        max_iterations=1, quiet_mode=True,
                         ephemeral_system_prompt=system, enabled_toolsets=[], response_schema=adapted,
                         fallback_model={},
                         # Routing is control-plane telemetry, not user work.
@@ -316,7 +316,7 @@ async def advise_route(
     if not comparison_allowed:
         task = "Operational contract: this control-plane step permits ONE answer, no comparison or judge.\n" + task
     advice = await rank_candidates(candidates, task=task, step_type=step_type,
-                                   timeout=max(.001, deadline - time.monotonic()),
+                                   timeout=timeout,
                                    max_candidates=max_candidates, ask=ask)
     if not comparison_allowed:
         advice = advice.model_copy(update={"compare_models": [], "judge": ""})

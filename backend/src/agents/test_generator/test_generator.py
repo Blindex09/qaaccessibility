@@ -215,7 +215,6 @@ async def _gerar_testes_do_lote(lote: list[AccessibilityIssue], target: str) -> 
         ),
         build=lambda raw: [AccessibilityTest(**t) for t in extract_json_array(raw)],
         temperature=0.1,
-        max_tokens=16384,
         agent_label="test_generator",
     )
     logger.info("[TestGenerator] Lote de %d issues -> %d testes", len(lote), len(testes))

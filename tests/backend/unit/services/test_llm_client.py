@@ -589,7 +589,7 @@ async def test_call_llm_structured_retries_then_succeeds():
 async def test_call_llm_structured_raises_after_all_attempts():
     """Se todas as tentativas falharem, levanta a ultima excecao de parse."""
     with patch("backend.src.services.llm_client.call_llm", new=AsyncMock(return_value="nope")) as m, pytest.raises(json.JSONDecodeError):
-        await call_llm_structured("sys", "user", build=lambda raw: json.loads(raw), attempts=2)
+        await call_llm_structured("sys", "user", build=lambda raw: json.loads(raw))
 
 
 class TestStructuredOutputFallbackChain:
@@ -763,7 +763,7 @@ async def test_resposta_vazia_persistente_ainda_falha_explicito():
     with patch("backend.src.services.llm_client.call_llm", new=_sempre_vazio), pytest.raises(
         ValueError, match="empty final response"
     ):
-        await call_llm_structured("sys", "user", build=lambda raw: json.loads(raw), attempts=2)
+        await call_llm_structured("sys", "user", build=lambda raw: json.loads(raw))
 
 
 @pytest.mark.asyncio
@@ -778,6 +778,6 @@ async def test_erro_de_provider_nao_entra_em_retry_cego():
     with patch("backend.src.services.llm_client.call_llm", new=_erro_de_provider), pytest.raises(
         Exception, match="401"
     ):
-        await call_llm_structured("sys", "user", build=lambda raw: json.loads(raw), attempts=3)
+        await call_llm_structured("sys", "user", build=lambda raw: json.loads(raw))
 
     assert len(chamadas) == 1, "erro de provider nao pode ser repetido cegamente"

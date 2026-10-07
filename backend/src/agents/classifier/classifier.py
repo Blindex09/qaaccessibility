@@ -76,7 +76,6 @@ async def run_classifier(html_content: str) -> AgentResult:
             # I see...' -- prosa ate o limite, JSON nenhum.
             # `extract_json_array` tolera prosa ANTES do array; o que faltava
             # era o array caber depois dela.
-            max_tokens=600,
             agent_label="classifier",
             model_tier="fast",
         )

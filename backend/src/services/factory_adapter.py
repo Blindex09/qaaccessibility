@@ -52,7 +52,6 @@ def run_factory(
     stream_callback: Callable[[str], None] | None = None,
     thinking_callback: Callable[[str], None] | None = None,
     cancel_check: Callable[[], bool] | None = None,
-    max_tool_calls: int = 40,
     timeout: float = 180,
     images: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
@@ -115,8 +114,8 @@ def run_factory(
                     nonlocal tool_count
                     async with lock:
                         check_execution()
-                        if (cancel_check and cancel_check()) or (current_budget() is None and tool_count >= max_tool_calls):
-                            return json.dumps({"error": "Execução cancelada ou limite de ferramentas atingido."})
+                        if cancel_check and cancel_check():
+                            return json.dumps({"error": "Execução cancelada pelo usuário."})
                         tool_count += 1
                     if execute_tools is None:
                         raise RuntimeError("Ponte de ferramentas QA ausente")

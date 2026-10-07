@@ -490,7 +490,6 @@ async def rerank_chunks(question: str, candidates: list[KnowledgeChunk], top_k: 
             system_prompt=_RERANK_SYSTEM_PROMPT,
             user_prompt=f"Question:\n{question}\n\nCandidates:\n{listing}",
             temperature=0.0,
-            max_tokens=1024,
             agent_label="kb-rerank",
         )
         order = _parse_rerank_order(raw, len(candidates))

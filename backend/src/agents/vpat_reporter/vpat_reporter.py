@@ -248,7 +248,6 @@ async def _avaliar_nivel(
         user_prompt=prompt,
         build=lambda raw: [VPATCriterion(**c) for c in extract_json_array(raw)],
         temperature=0.1,
-        max_tokens=16384,
         agent_label=f"vpat_reporter_{nivel.lower()}",
     )
     logger.info("[VPATReporter] Nivel %s avaliado -- %d criterios", nivel, len(avaliados))
