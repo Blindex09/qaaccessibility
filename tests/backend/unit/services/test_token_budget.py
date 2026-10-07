@@ -19,6 +19,12 @@ from backend.src.services.execution_scope import (
 from run_agent import _accumulate_usage, run_local_tool
 
 
+@pytest.fixture(autouse=True)
+def _no_configured_limit(monkeypatch):
+    """Hermético: nunca depende do limite que a pessoa tenha gravado no .env dela."""
+    monkeypatch.setattr(execution_scope, "_configured_token_limit", lambda: None)
+
+
 def test_no_limit_by_default_and_the_code_never_imposes_one(monkeypatch):
     monkeypatch.delenv("TURN_TOKEN_BUDGET", raising=False)
     monkeypatch.setenv("SECRET_KEY", "test-secret-key")

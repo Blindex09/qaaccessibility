@@ -181,6 +181,8 @@ class CrawlResult(BaseModel):
     pages: list[CrawlPageIssues]
     total_issues: int
     score: int = Field(..., ge=0, le=100)
+    # Presente só quando o limite de tokens da pessoa cortou o trabalho: os achados são parciais.
+    token_limit: dict[str, int | bool] | None = None
 
 
 class AnalyzeFileRequest(BaseModel):

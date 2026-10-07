@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import logging
 import re
 
@@ -46,7 +47,7 @@ from backend.src.services.adaptive_budget import AdaptiveExecutionBudget, create
 from backend.src.services.audit_observability import audited_orchestrator
 from backend.src.services.complexity_router import classify_and_set_tradeoff, get_current_tradeoff
 from backend.src.services.contrast_verifier import verify_contrast_issues
-from backend.src.services.execution_scope import budgeted, run_until_stalled
+from backend.src.services.execution_scope import budgeted, run_until_stalled, token_limit_note
 from backend.src.services.lessons_store import get_known_false_positive_patterns
 from backend.src.shared.i18n.criteria_pt import translate_issues
 from backend.src.shared.models import (
@@ -906,8 +907,38 @@ async def _run_analysis_pipeline(
     return unique, metrics, failed, pipeline_graph
 
 
+def _mark_token_limit(function):
+    """Se o limite de tokens da pessoa cortou o trabalho, o resultado parcial diz isso.
+
+    Igual às APIs de IA: devolve o que foi feito, como resposta normal, com um aviso de que
+    foi cortado (Anthropic: stop_reason max_tokens; OpenAI: finish_reason length).
+    """
+    @functools.wraps(function)
+    async def wrapper(*args, **kwargs):
+        result = await function(*args, **kwargs)
+        note = token_limit_note()
+        if note and isinstance(getattr(result, "data", None), dict):
+            result.data["token_limit"] = note
+            result.data["complete"] = False
+            found = len(result.data.get("issues") or [])
+            outcome = (
+                f"os {found} achados devolvidos são parciais, pode haver mais."
+                if found
+                else "não houve como apurar achados antes de atingir o limite."
+            )
+            result.data.setdefault(
+                "warning",
+                f"O limite de {note['limit']} tokens que você configurou foi atingido (usei {note['used']}): "
+                + outcome,
+            )
+        return result
+
+    return wrapper
+
+
 @audited_orchestrator
 @budgeted
+@_mark_token_limit
 async def orchestrate(
     html_content: str,
     task_type: TaskType,

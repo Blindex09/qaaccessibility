@@ -506,6 +506,13 @@ no meio de uma geração. O chat encerra com uma explicação honesta (o que já
 "não houve como apurar nada") e diz como continuar; nunca é tratado como erro. A chamada de fallback para outro
 modelo não é tentada depois do limite. A contagem inclui as chamadas de triagem e roteamento, que são custo real.
 
+O limite vale também fora do chat (CI, scripts, outras IAs): `RequestBudgetMiddleware` abre o orçamento de cada
+pedido HTTP com o limite da pessoa, e o que acontece ao atingi-lo segue o que a Anthropic (`stop_reason: max_tokens`)
+e a OpenAI (`finish_reason: length`) fazem: devolver o que já foi feito como resposta normal (HTTP 200), marcada
+como cortada, e não como erro. As análises voltam com `data.token_limit`, `data.complete = false` e um `warning`
+que diz se há achados parciais ou nenhum; o crawl traz `token_limit`; uma rota que atinge o limite antes de
+produzir qualquer coisa responde 200 com `complete: false`, o corte descrito e o cabeçalho `X-Token-Limit-Reached`.
+
 Não existe prazo legado de reserva: `run_until_stalled` não tem `fallback_timeout`, e a consulta de roteamento
 (`advise_route`, `rank_candidates`) não recebe timeout. Sem orçamento (não acontece nos caminhos do produto,
 que sempre abrem um) só o cancelamento encerra uma espera.
@@ -513,7 +520,8 @@ que sempre abrem um) só o cancelamento encerra uma espera.
 Limites que ainda existem, e que são honestos: a consulta ao catálogo de modelos do Ollama Cloud
 (`ollama_cloud_adapter.py`) mantém timeouts curtos de 10 a 15 segundos, por ser metadado e não trabalho do
 modelo; uma conexão de leitura pendurada sem nenhum byte só é encerrada pelo cancelamento da pessoa ou pelo
-sistema operacional; o limite de tokens só vale no chat (as rotas REST não o recebem); o padrão de 32000 da
+sistema operacional; o limite de tokens não cobre o servidor MCP por stdio nem o protocolo A2A, que não passam
+pelo middleware HTTP, e uma rota que faz várias chamadas isoladas divide um único orçamento por pedido; o padrão de 32000 da
 Anthropic e a autocorreção pelo limite do provider foram cobertos só com mocks, sem chamada real. Ao mexer
 nesses pontos, convergir para a regra 8 e registrar aqui o que mudou.
 

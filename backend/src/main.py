@@ -9,6 +9,7 @@ from backend.src.config.logging_config import configure_logging
 from backend.src.config.settings import get_settings
 from backend.src.middleware.logging_middleware import LoggingMiddleware
 from backend.src.middleware.pii_middleware import PIIRedactionMiddleware
+from backend.src.middleware.request_budget import RequestBudgetMiddleware
 from backend.src.middleware.security_headers import SecurityHeadersMiddleware
 from backend.src.routes.a2a_route import router as a2a_router
 from backend.src.routes.analyze import router as analyze_router
@@ -26,6 +27,7 @@ from backend.src.routes.tests_route import router as tests_router
 from backend.src.routes.vpat_route import router as vpat_router
 from backend.src.routes.webhook import router as webhook_router
 from backend.src.services.config_drift import log_config_drift
+from backend.src.services.execution_scope import TokenBudgetReachedError
 from backend.src.services.telemetry import configure_telemetry
 
 settings = get_settings()
@@ -48,6 +50,7 @@ app = FastAPI(
 )
 
 # Middleware stack (Starlette LIFO: last added = outermost = first on request)
+app.add_middleware(RequestBudgetMiddleware)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(PIIRedactionMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
@@ -74,6 +77,21 @@ async def require_api_token(request: Request, call_next):
         if not hmac.compare_digest(supplied, expected):
             return JSONResponse(status_code=401, content={"detail": "Token de sessão inválido."})
     return await call_next(request)
+
+
+@app.exception_handler(TokenBudgetReachedError)
+async def token_limit_reached_handler(_request: Request, exc: TokenBudgetReachedError) -> JSONResponse:
+    """Limite de tokens escolhido pela pessoa: como a Anthropic (stop_reason max_tokens) e a OpenAI
+    (finish_reason length), devolve 200 com o aviso de que foi cortado, e não um erro."""
+    return JSONResponse(
+        status_code=200,
+        content={
+            "complete": False,
+            "token_limit": {"reached": True, "used": exc.used, "limit": exc.limit},
+            "message": str(exc) + " Não havia nada apurado para devolver; aumente o limite e repita o pedido.",
+        },
+        headers={"X-Token-Limit-Reached": "true"},
+    )
 
 
 app.include_router(analyze_router)

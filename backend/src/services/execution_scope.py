@@ -167,6 +167,24 @@ def add_tokens(count: int) -> None:
         budget.add_tokens(count)
 
 
+def _configured_token_limit() -> int | None:
+    """Limite de tokens que a PESSOA escolheu nas Configurações (None = sem limite)."""
+    try:
+        from backend.src.config.settings import get_settings
+
+        return int(get_settings().turn_token_budget or 0) or None
+    except Exception:
+        return None
+
+
+def token_limit_note() -> dict[str, int | bool] | None:
+    """Descreve o corte quando o limite da pessoa foi atingido (para marcar resultados parciais)."""
+    budget = _budget.get()
+    if budget is None or not budget.token_budget_reached:
+        return None
+    return {"reached": True, "used": budget.tokens_used, "limit": int(budget.token_limit or 0)}
+
+
 def note_progress() -> None:
     """Sinaliza progresso real ao orçamento do turno atual, se houver um."""
     budget = _budget.get()
@@ -247,7 +265,8 @@ def execution_scope(seconds: float, token_limit: int | None = None) -> Iterator[
         return
     started = time.monotonic()
     budget = ExecutionBudget(
-        started, started + max(1.0, seconds) * 2, max(1.0, seconds), token_limit=token_limit or None
+        started, started + max(1.0, seconds) * 2, max(1.0, seconds),
+        token_limit=token_limit or _configured_token_limit(),
     )
     token = _budget.set(budget)
     try:

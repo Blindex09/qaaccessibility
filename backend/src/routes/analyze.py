@@ -31,6 +31,7 @@ from backend.src.services.browser import (
     fetch_rendered_html_screenshot_and_focus_states,
 )
 from backend.src.services.crawler import crawl_site
+from backend.src.services.execution_scope import token_limit_note
 from backend.src.services.response_cache import set_cached_response
 from backend.src.shared.models import (
     AccessibilityIssue,
@@ -914,6 +915,7 @@ async def analyze_crawl(body: CrawlRequest) -> CrawlResult:
         pages=pages_detail,
         total_issues=len(all_issues),
         score=score,
+        token_limit=token_limit_note(),
     )
 
 
