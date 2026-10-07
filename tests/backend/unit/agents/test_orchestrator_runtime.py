@@ -15,11 +15,17 @@ async def test_timeout_does_not_repeat_specialist_call(monkeypatch):
     async def slow_agent():
         nonlocal calls
         calls += 1
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(5)  # sem nenhum progresso: a janela de silêncio esgota
         return AgentResult(agent="specialist", success=True, data={"issues": []})
 
-    monkeypatch.setattr(orchestrator, "_get_agent_timeout", lambda: 0.001)
-    result, _ = await orchestrator._timed("specialist", slow_agent)
+    import time
+
+    from backend.src.services.execution_scope import execution_scope
+
+    with execution_scope(10) as budget:
+        budget.patience = 0.1
+        budget.deadline = time.monotonic() + 0.1
+        result, _ = await orchestrator._timed("specialist", slow_agent)
 
     assert calls == 1
     assert result.success is False

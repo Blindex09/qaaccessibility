@@ -34,7 +34,7 @@ def answer(**extra):
 @pytest.mark.asyncio
 async def test_model_decides_ranking_and_single_response_instead_of_quality_threshold():
     ask = AsyncMock(return_value=answer())
-    advice = await rank_candidates(candidates(), task="contexto real", step_type="audit", timeout=1, ask=ask)
+    advice = await rank_candidates(candidates(), task="contexto real", step_type="audit", ask=ask)
     assert advice.ranking[0] == "ollama-cloud::b"
     assert advice.source == "ia"
     assert advice.compare_models == []
@@ -49,7 +49,7 @@ async def test_model_decides_ranking_and_single_response_instead_of_quality_thre
     'not json',
 ])
 async def test_invalid_advice_falls_back_without_inventing_model_or_comparison(raw):
-    advice = await rank_candidates(candidates(), task="x", step_type="audit", timeout=1,
+    advice = await rank_candidates(candidates(), task="x", step_type="audit",
                                    ask=AsyncMock(return_value=raw))
     assert advice.source == "fallback"
     assert advice.ranking[0] == "ollama-cloud::a"
@@ -60,24 +60,50 @@ async def test_invalid_advice_falls_back_without_inventing_model_or_comparison(r
 async def test_cache_hits_same_context_but_new_task_or_catalog_is_reclassified():
     ask = AsyncMock(return_value=answer())
     for task in ["first", "first", "second"]:
-        await rank_candidates(candidates(), task=task, step_type="audit", timeout=1, ask=ask)
+        await rank_candidates(candidates(), task=task, step_type="audit", ask=ask)
     assert ask.await_count == 2
     changed = candidates()[:2]
     ask.return_value = '{"ranking":["ollama-cloud::b","ollama-cloud::a"],"reason":"x"}'
-    await rank_candidates(changed, task="second", step_type="audit", timeout=1, ask=ask)
+    await rank_candidates(changed, task="second", step_type="audit", ask=ask)
     assert ask.await_count == 3
 
 
 @pytest.mark.asyncio
-async def test_timeout_preserves_only_objective_fallback():
+async def test_stalled_router_preserves_only_objective_fallback():
+    """Sem prazo legado: quem encerra uma consulta que não avança é a falta de progresso."""
     import asyncio
+    import time
+
+    from backend.src.services.execution_scope import execution_scope
 
     async def slow(*_args):
-        await asyncio.sleep(1)
+        await asyncio.sleep(5)
         return answer()
 
-    advice = await rank_candidates(candidates(), task="x", step_type="audit", timeout=.01, ask=slow)
+    with execution_scope(10) as budget:
+        budget.patience = 0.1
+        budget.deadline = time.monotonic() + 0.1
+        advice = await rank_candidates(candidates(), task="x", step_type="audit", ask=slow)
     assert advice.source == "fallback"
+
+
+@pytest.mark.asyncio
+async def test_router_without_a_budget_has_no_clock_at_all():
+    """Não existe prazo escondido: sem orçamento a consulta apenas espera a resposta."""
+    import asyncio
+    import inspect
+
+    from backend.src.services.execution_scope import run_until_stalled
+    from backend.src.services.route_advisor import advise_route
+
+    async def eventually():
+        await asyncio.sleep(0.2)
+        return "resposta"
+
+    assert await run_until_stalled(eventually()) == "resposta"
+    assert "fallback_timeout" not in inspect.signature(run_until_stalled).parameters
+    assert "timeout" not in inspect.signature(rank_candidates).parameters
+    assert "timeout" not in inspect.signature(advise_route).parameters
 
 
 def test_eligibility_never_relaxes_vision_or_context():
@@ -102,7 +128,7 @@ def test_credentials_are_not_forwarded_to_another_provider(monkeypatch):
 async def test_full_context_not_silently_truncated_and_schema_excludes_harness_source():
     ask = AsyncMock(return_value=answer())
     task = "x" * 15001 + "continuação relevante"
-    await rank_candidates(candidates(), task=task, step_type="chat", timeout=1, ask=ask)
+    await rank_candidates(candidates(), task=task, step_type="chat", ask=ask)
     assert json.loads(ask.call_args.args[1])["task"] == task
     assert "source" not in ask.call_args.args[2]["properties"]
 
@@ -124,7 +150,7 @@ async def test_auto_compares_only_providers_with_credentials():
         patch("backend.src.services.route_advisor.rank_candidates", side_effect=rank),
     ):
         advice = await advise_route("auto", "alto", task="contexto", step_type="chat", api_key=None,
-                                    base_url=None, timeout=1, output_tokens=1000)
+                                    base_url=None, output_tokens=1000)
     assert advice.ranking[0] == "anthropic::model"
 
 
@@ -143,7 +169,7 @@ def test_model_name_heuristics_cannot_grant_tools_or_vision():
 @pytest.mark.asyncio
 async def test_invalid_contract_gets_one_bounded_repair_not_a_semantic_override():
     ask = AsyncMock(side_effect=['{"ranking":["invented"],"reason":"x"}', answer()])
-    advice = await rank_candidates(candidates(), task="contexto", step_type="chat", timeout=1, ask=ask)
+    advice = await rank_candidates(candidates(), task="contexto", step_type="chat", ask=ask)
     assert advice.source == "ia"
     assert advice.ranking[0] == "ollama-cloud::b"
     assert ask.await_count == 2
@@ -192,7 +218,7 @@ async def test_invalid_bootstrap_output_is_recorded_and_repair_can_use_another_m
         patch("run_agent.AIAgent", side_effect=construct),
     ):
         advice = await advise_route("ollama-cloud", "alto", task="contexto", step_type="triage",
-                                    api_key="dummy", base_url=None, timeout=1, output_tokens=500)
+                                    api_key="dummy", base_url=None, output_tokens=500)
     assert used == ["a", "b"]
     assert outcomes == [False, True]
     assert advice.source == "ia"

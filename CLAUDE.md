@@ -506,8 +506,11 @@ no meio de uma geração. O chat encerra com uma explicação honesta (o que já
 "não houve como apurar nada") e diz como continuar; nunca é tratado como erro. A chamada de fallback para outro
 modelo não é tentada depois do limite. A contagem inclui as chamadas de triagem e roteamento, que são custo real.
 
-Limites que ainda existem, e que são honestos: sem nenhum orçamento (chamada direta de teste ou script) o
-`fallback_timeout` legado continua valendo; a consulta ao catálogo de modelos do Ollama Cloud
+Não existe prazo legado de reserva: `run_until_stalled` não tem `fallback_timeout`, e a consulta de roteamento
+(`advise_route`, `rank_candidates`) não recebe timeout. Sem orçamento (não acontece nos caminhos do produto,
+que sempre abrem um) só o cancelamento encerra uma espera.
+
+Limites que ainda existem, e que são honestos: a consulta ao catálogo de modelos do Ollama Cloud
 (`ollama_cloud_adapter.py`) mantém timeouts curtos de 10 a 15 segundos, por ser metadado e não trabalho do
 modelo; uma conexão de leitura pendurada sem nenhum byte só é encerrada pelo cancelamento da pessoa ou pelo
 sistema operacional; o limite de tokens só vale no chat (as rotas REST não o recebem); o padrão de 32000 da

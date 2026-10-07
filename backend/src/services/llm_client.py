@@ -328,7 +328,6 @@ async def call_llm(
     dos SDKs oficiais por padrao -- nao duplicado aqui de proposito (ver nota
     em config/settings.py::a11y_max_concurrent_agents).
     """
-    from backend.src.services.execution_scope import remaining_seconds
 
     settings = get_settings()
     from backend.src.services.request_context import SCOPE_CONTRACT, context_payload
@@ -448,7 +447,6 @@ async def call_llm(
         route_advice = await advise_route(
             settings.llm_provider, settings.llm_model, task=route_task,
             step_type=label, api_key=api_key, base_url=base_url,
-            timeout=remaining_seconds(settings.agent_timeout_seconds),
             output_tokens=max_tokens or _EXPECTED_OUTPUT_TOKENS, needs_tools=bool(enabled_toolsets), needs_vision=needs_vision,
             max_candidates=settings.a11y_model_arbitration_max_candidates,
             comparison_allowed=model_tier != "fast",

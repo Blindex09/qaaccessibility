@@ -174,19 +174,18 @@ def note_progress() -> None:
         budget.note_progress()
 
 
-async def run_until_stalled(awaitable: Awaitable[_R], *, fallback_timeout: float | None = None) -> _R:
+async def run_until_stalled(awaitable: Awaitable[_R]) -> _R:
     """Espera o trabalho enquanto a execução avança; só desiste se ela travar.
 
     Substitui `asyncio.wait_for(..., timeout=<segundos fixos>)`. A cada volta o
     tempo até o travamento é reavaliado, porque o progresso (de qualquer parte
     do turno) desliza a janela para frente. Cancelamento do usuário continua
-    sendo checado de forma determinística. Sem orçamento (rotas fora do chat),
-    cai no `fallback_timeout` legado, se houver.
+    sendo checado de forma determinística. Não há prazo legado: sem orçamento
+    (não acontece nos caminhos do produto, que sempre abrem um) só o
+    cancelamento encerra a espera.
     """
     if current_budget() is None:
-        if fallback_timeout is None:
-            return await awaitable
-        return await asyncio.wait_for(awaitable, timeout=fallback_timeout)
+        return await awaitable
     task = asyncio.ensure_future(awaitable)
     try:
         while True:

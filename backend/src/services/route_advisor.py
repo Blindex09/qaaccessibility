@@ -190,7 +190,7 @@ def _validate_advice(raw: str, valid: set[str]) -> RouteAdvice:
 
 async def rank_candidates(
     candidates: list[RouteCandidate], *, task: str, step_type: str,
-    timeout: float, max_candidates: int = 3,
+    max_candidates: int = 3,
     ask: Callable[[str, str, dict[str, Any]], Awaitable[str]],
 ) -> RouteAdvice:
     if len(candidates) <= 1:
@@ -210,7 +210,7 @@ async def rank_candidates(
     schema["properties"].pop("source")
     schema["required"] = ["updates", "ranking", "complexity", "preference", "compare_models", "judge", "reason"]
     try:
-        raw = await run_until_stalled(ask(_SYSTEM, payload, schema), fallback_timeout=timeout)
+        raw = await run_until_stalled(ask(_SYSTEM, payload, schema))
         try:
             advice = _validate_advice(raw, valid)
         except ValueError:
@@ -220,7 +220,7 @@ async def rank_candidates(
                 _SYSTEM + "\nA tentativa anterior violou o contrato. Copie os IDs exatamente "
                 "do catálogo, sem repetições; respeite o schema e os participantes elegíveis.",
                 payload, schema,
-            ), fallback_timeout=timeout)
+            ))
             advice = _validate_advice(raw, valid)
         advice.ranking += [k for k in _fallback(candidates, "").ranking if k not in advice.ranking]
         advice.compare_models = list(dict.fromkeys(advice.compare_models))[:max_candidates]
@@ -246,7 +246,7 @@ async def rank_candidates(
 
 async def advise_route(
     provider: str, configured_model: str | None, *, task: str, step_type: str,
-    api_key: str | None, base_url: str | None, timeout: float,
+    api_key: str | None, base_url: str | None,
     output_tokens: int, needs_tools: bool = False, needs_vision: bool = False,
     max_candidates: int = 3,
     comparison_allowed: bool = True,
@@ -270,7 +270,7 @@ async def advise_route(
                 eligible_candidates, candidate_provider, input_tokens=max(1, len(task) // 3),
                 output_tokens=output_tokens, needs_tools=needs_tools, needs_vision=needs_vision,
                 api_key=candidate_key,
-            ), fallback_timeout=timeout))
+            )))
         except Exception as exc:
             logger.warning("[RouteAdvisor] catálogo %s indisponível (%s)", candidate_provider, type(exc).__name__)
 
@@ -316,7 +316,6 @@ async def advise_route(
     if not comparison_allowed:
         task = "Operational contract: this control-plane step permits ONE answer, no comparison or judge.\n" + task
     advice = await rank_candidates(candidates, task=task, step_type=step_type,
-                                   timeout=timeout,
                                    max_candidates=max_candidates, ask=ask)
     if not comparison_allowed:
         advice = advice.model_copy(update={"compare_models": [], "judge": ""})

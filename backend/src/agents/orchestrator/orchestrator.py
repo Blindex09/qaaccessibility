@@ -270,7 +270,7 @@ async def _timed(name: str, coro_factory) -> tuple[AgentResult, float]:
         result = AgentResult(agent=name, success=False, data={}, error="Cancelado pelo usuário")
     else:
         try:
-            result = await run_until_stalled(coro_factory(), fallback_timeout=timeout)
+            result = await run_until_stalled(coro_factory())
         except asyncio.TimeoutError:
             logger.warning(
                 "[Orchestrator] Agente '%s' ficou sem progresso (janela de %.0fs); seguindo com resultado parcial.",

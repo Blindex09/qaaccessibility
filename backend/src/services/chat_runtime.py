@@ -679,13 +679,12 @@ async def _stream_chat_impl(
     # nunca impõem uma cerimônia fixa. A ferramenta consult_squad permite
     # rever essa mobilização com evidências durante a execução.
     if contextual_route:
-        from backend.src.services.execution_scope import remaining_seconds
         from backend.src.services.route_advisor import route_credentials
 
         routing_context = json.dumps({"history": cleaned_history, "message": message}, ensure_ascii=False)
         advice = await advise_route(
             raw_provider, raw_model, task=routing_context, step_type="chat",
-            api_key=api_key, base_url=base_url, timeout=remaining_seconds(settings.agent_timeout_seconds),
+            api_key=api_key, base_url=base_url,
             output_tokens=16384, needs_tools=True, needs_vision=bool(images),
             max_candidates=settings.a11y_model_arbitration_max_candidates,
         )

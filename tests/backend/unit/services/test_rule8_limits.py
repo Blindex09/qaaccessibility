@@ -188,7 +188,7 @@ async def test_route_consultation_that_keeps_progressing_is_not_cut():
 
     with execution_scope(10) as budget:
         _tight(budget, 0.2)
-        advice = await rank_candidates(cands, task="t-rule8", step_type="audit", timeout=0.01, ask=slow_but_alive)
+        advice = await rank_candidates(cands, task="t-rule8", step_type="audit", ask=slow_but_alive)
     assert advice.source == "ia"
 
 
