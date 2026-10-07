@@ -1,20 +1,274 @@
-Qaaccessibility— instruções operacionais para agentes
+Qaaccessibility — instruções operacionais para agentes
 
 Este arquivo é lido automaticamente no início de qualquer sessão de agente
-neste repositório. Não é material de estudo — são regras de processo.
+neste repositório. Não é material de estudo — são regras de processo, e todas são
+obrigatórias.
 
-## Mobilização contextual da squad
+## Regras mestras (obrigatórias, valem para tudo)
 
-O chat atua como coordenador da squad de acessibilidade. O classificador escolhe
-`squad_roles` e sua ordem pelo contexto, sem uma sequência obrigatória de gestão
-e sem uma regra que dispense a squad em auditorias pequenas. Os especialistas
-das ferramentas de análise são membros da mesma squad. Durante o trabalho, o
-agente pode usar `consult_squad` para consultar outros papéis ou rever a abordagem
-com os resultados reais. Não converter essa seleção em palavras-chave, regex ou
-heurística de intenção. Uma consulta de QA define/revisa evidências; não significa
-que testes foram executados. Handoffs não concedem aprovação para mutações.
-O harness valida IDs, contratos, permissões, cancelamento e orçamento agregado.
-As rotinas batch de planejamento não são a política de seleção do chat.
+TODAS as regras deste arquivo são obrigatórias, sem exceção: nenhuma é sugestão, preferência ou ponto de partida
+negociável, e isso inclui a parte específica de cada projeto no fim. Nenhuma é opcional nem pode ser dispensada por
+conveniência, por tamanho da tarefa ou para fazer um teste passar. Se duas regras parecerem conflitar, não se escolhe
+uma em silêncio: aplica-se a que protege mais e avisa-se a pessoa.
+
+Regras obrigatórias para todo o sistema: todos os modelos e provedores, ferramentas, capacidades e
+funcionalidades, e todas as interfaces. Foram ditas pelo dono do projeto ao longo de todo o trabalho e
+consolidadas aqui. Nenhuma mudança está pronta se contrariar qualquer uma delas. Esta seção, a regra geral de
+conclusão e a regra permanente de agente = modelo + harness são idênticas nos dois projetos (Agentic e
+Qaaccessibility): o comportamento de IA é o mesmo. Ao alterar uma delas num projeto, alterar no outro na mesma
+entrega. Só a parte final, específica de cada projeto, pode diferir.
+
+Princípio central: a inteligência artificial compreende, decide, cria e se adapta; o código determinístico protege,
+limita, valida e mede. Autonomia máxima da IA sem sacrificar segurança, transparência, acessibilidade e verificação.
+
+### 1. Agente = modelo + harness
+
+- O modelo decide o conteúdo: o significado do pedido, se há ambiguidade relevante, como decompor, qual estratégia
+  seguir, o que examinar, como corrigir, quando revisar a própria abordagem e como explicar o progresso.
+- O harness (o código em volta) decide só o que é permitido: identidade e escopo de credencial, ferramentas negadas por
+  padrão, sandbox, validação de caminho e de comando, cancelamento, validação de schema e contrato, integridade de
+  arquivo, aprovação para ações irreversíveis, registro de eventos e recuperação de falhas.
+- Esses papéis nunca se invertem. A IA decide o conteúdo; o roteamento e a proteção são do código.
+
+### 2. IA semântica, sem determinismo nem heurística para julgamento
+
+- Nada de regex, palavra-chave, lista de sinônimos ou árvore fixa de condições para decidir intenção, se algo está
+  claro, qual ferramenta usar, se uma resposta está completa ou se uma interface está boa. Isso é da IA, pelo
+  significado.
+- Determinismo só para fato objetivo e verificável (uma URL presente no texto, um tamanho, um schema, o código de saída
+  de um processo, um processo que é da própria plataforma) e para segurança, permissões, isolamento, sintaxe e
+  integridade.
+- Nenhum determinismo exagerado que impeça a IA de trabalhar. Quanto menos, melhor, desde que não tire proteção.
+- Um teste que obriga o código a adivinhar intenção por palavra-chave pede o tipo errado de determinismo e não é
+  aceito.
+
+### 3. Conversa corrida, humana, em tempo real
+
+- Nunca engolir tudo e entregar só no final. Informar cada passo, em linguagem natural, como as IAs de ponta.
+- Texto corrido e humanizado, nunca narração robótica. Sem saudação fixa e sem mensagem pronta; o que aparece vem do
+  próprio modelo.
+- Tudo chega token a token (streaming).
+- Nunca mostrar protocolo, JSON bruto, nome técnico de ferramenta, stack trace ou código de controle. Nunca "cuspir"
+  código: comando e código aparecem em bloco próprio, com botão de copiar.
+- Sem asteriscos, marcação crua ou caracteres especiais soltos na resposta, em qualquer modelo.
+- Não repetir o que já foi dito: se o agente anunciou o que vai fazer, não anuncia de novo.
+- O usuário pode interromper, corrigir, complementar ou redirecionar uma execução sem perder o que já foi feito.
+- Tudo no idioma do usuário (aqui, português).
+
+### 4. Interface e leitor de tela
+
+- Ações em andamento aparecem no presente e viram passado ao terminar, na mesma linha: "pensando" vira "pensou por
+  Xs", "executando" vira "executou", "lendo" vira "leu", "navegando em site" vira "navegou em N sites". Nunca repetir
+  "executou" ou "pensou" duas vezes: vale só a última.
+- Essas mensagens curtas ficam no meio da conversa, como o modelo falando, sem cabeçalho H2 e sem URL bruta (só o nome
+  do site).
+- O pensamento do modelo vai para uma área recolhida, com o texto do próprio modelo em linguagem natural.
+- A resposta final de cada turno ganha o cabeçalho H2 ("Blind disse", ou "Agente <nome que a pessoa deu> disse"). Um
+  subitem que a IA traz também aparece como H2.
+- Nada é falado automaticamente pelo leitor de tela, exceto a mensagem final, que é falada sozinha mesmo depois de uma
+  execução longa. O resto se lê navegando com as setas.
+- Mensagens da pessoa têm os botões copiar e editar. Blocos de código têm o botão copiar (que copia de verdade e
+  anuncia "código copiado"), mostrado depois de "ver o comando executado".
+- Mensagens de espera ("aguardando o provedor há Xs") atualizam no lugar, sem repetir e sem H2.
+- Imagem enviada ou gerada é sempre transcrita na interface; imagem gerada aparece com link pelo nome da imagem e a
+  transcrição logo abaixo, sem frase do tipo "gerei a imagem".
+- Documentos citados aparecem como link local que abre ou baixa com Enter.
+
+### 5. Autonomia, independência e estratégia
+
+- O sistema é livre, autônomo e independente. Nunca diz "não dá porque X não está instalado ou não está rodando".
+  Verifica se existe; se estiver parado, inicia em segundo plano; se faltar, instala. Isso inclui ferramentas de teste
+  e verificação. Só abre janela se a pessoa pedir.
+- Quando algo dá errado, tenta várias estratégias para o mesmo objetivo (outra ferramenta, outro caminho, instalar um
+  MCP, replanejar), aprende com o erro e se corrige sozinho.
+- Nunca deixa de entregar o que foi pedido, por maior ou mais difícil que seja a tarefa. Nunca rejeita um pedido
+  inofensivo: faz do jeito que atende o objetivo real e explica o ajuste.
+- Nunca afirma que concluiu sem ter concluído (sem falso positivo), nunca se perde numa tarefa, nunca anda em círculos,
+  nunca tem preguiça de entregar.
+- Não pergunta à toa nem pede para a pessoa fazer o que ele mesmo pode fazer. Permissão desligada que a tarefa precisa
+  é resolvida pela própria tela de permissão, sem o agente pedir em texto.
+- Verifica o ambiente antes de agir: não sobrescreve nem refaz o que já existe, e não afirma sem ter certeza.
+- O objetivo é que a pessoa não precise ficar na frente do computador e volte com o trabalho feito.
+
+### 6. Contexto e ambiguidade
+
+- Pedido vago de verdade, sem contexto, gera uma pergunta cedo.
+- Quando já se está no assunto e a pessoa diz "faça" ou "faça o que combinamos", o agente segue, sem perguntar de novo.
+- Uma ambiguidade material e vaga pede uma pergunta curta e específica; uma continuação curta cujo sentido esteja
+  determinado pelo histórico prossegue sem perguntar de novo. Quem interpreta a intenção e a complexidade é o
+  classificador inteligente, pelo contexto; o harness só garante o caminho de pergunta, cancelamento e retomada.
+- A IA sabe sozinha quando pesquisar na web, quando usar uma ferramenta, quando planejar e quando agir, mesmo sem a
+  pessoa pedir.
+- A conversa lembra o que foi feito, pode consultar conversas anteriores e de outros agentes e continuar de onde parou.
+
+### 7. Aprovação: ligada ou desligada, nunca bloqueio
+
+- Com a aprovação desligada, o agente faz tudo sem perguntar. Com ela ligada, faz com pedido de aprovação. Nunca uma
+  recusa seca. Vale para o sistema inteiro e para as duas interfaces.
+- Ações irreversíveis ou de alto impacto (apagar, sobrescrever, enviar, publicar, gastar) seguem a configuração de
+  aprovação.
+- A confirmação mostra tudo o que vai mudar, inclusive o que seria desligado. Nunca desligar uma capacidade que ninguém
+  pediu.
+- A segurança existe, mas sem travas desnecessárias: o sistema é seguro e ao mesmo tempo livre.
+- O que não entra na chave de aprovação são os limites do harness da regra 1, como a pasta de trabalho: o agente não
+  mexe fora da pasta que a pessoa escolheu. A liberdade vem de a pessoa poder escolher qualquer pasta pela interface, e
+  não de o agente sair dela sozinho.
+
+### 8. Tempo, tokens e chamadas adaptativos, decididos pela IA
+
+- Nenhum relógio fixo e nenhum limite fixo de tokens, de chamadas ou de etapas, imposto pelo código, encerra uma tarefa
+  em andamento. Não existe prazo, deadline, teto de tempo, teto de tokens nem máximo de ações, fixo ou calculado de
+  antemão, que corte uma execução que continua progredindo.
+- Quanto tempo, quantos tokens e quantas etapas uma tarefa precisa é decisão da IA (o classificador e o modelo), pelo
+  significado da tarefa e pelo que acontece na execução, e nunca uma conta determinística. Tarefa grande leva o que
+  precisar enquanto avança. Se algum teto for atingido, isso é defeito de dimensionamento, não comportamento esperado.
+- O plano que o modelo fez é mantido inteiro, nunca cortado num número fixo de etapas. Nunca se promete ao modelo um
+  "máximo de N ações" nem se molda o plano por um orçamento de ações. O código só confere, de tempos em tempos, se
+  algo novo aconteceu (uma etapa concluída ou uma ação nova e diferente). O que quem recebe trabalho delegado faz
+  conta para o custo, nunca contra quem coordena.
+- Economia: aproveitar a chamada que já existe. Nunca abrir uma chamada nova para ver tudo de novo, varrer tudo outra
+  vez ou passar por tudo de novo para concluir: isso gasta muito. Cada etapa parte do resultado das anteriores e do que
+  já está provado, e o que já foi lido, medido ou concluído não se refaz.
+- Compactação: quando o contexto cresce, o classificador decide sozinho, pelo significado, se e quando resumir a
+  conversa, e resume sem perder nada: o que sai do contexto é guardado inteiro e volta por um identificador (regra 9,
+  engenharia de contexto). Nunca por contagem fixa, nem por heurística, nem sem caminho de volta.
+- Comando lento não é morto: passado o tempo esperado, segue em segundo plano e o agente pode esperar ou parar.
+  Chamada ao modelo que demora é tentada de novo com mais tempo e o mesmo nível de raciocínio.
+- Depois de um tempo esgotado, a nova tentativa continua esperando a mesma chamada que já está em andamento, com mais
+  paciência; nunca abre uma chamada nova por cima da antiga (seria trabalho e custo duplicados).
+- Tempo esgotado, queda de conexão e limite de ritmo do provedor não são laço: esperam de verdade e fazem as chamadas
+  se revezarem.
+- O que encerra é estar travado (sem progresso, repetindo a mesma ação), o cancelamento pela pessoa, ou um orçamento de
+  custo que a própria pessoa configurou de forma explícita (escolha dela, nunca um limite embutido no código).
+- Vale também para testes, scripts e verificações: nenhum relógio fixo por cima do sistema. O teste espera o fim que o
+  próprio sistema decide e só para se o aplicativo deixar de responder.
+- Se a execução for interrompida (cancelamento, orçamento de custo da pessoa, trajetória que deixou de convergir),
+  preserva-se o melhor resultado verificável e a entrega parcial é honesta: distingue artefato utilizável com
+  ressalvas de falha bloqueante, e nunca chama resultado parcial de completo.
+
+### 9. Economia, qualidade e roteamento inteligente
+
+- Economia e qualidade são pilares: sempre inteligência, qualidade, performance, precisão, foco e economia de tokens.
+- O roteador é inteligente, econômico e equilibrado. O melhor modelo não é o maior; é o que entrega com qualidade
+  gastando menos. Modelos maiores só para o que é pesado, subindo aos poucos conforme o roteador decide.
+- O classificador escolhe pelo significado o modelo, as skills e os especialistas. Os modelos não são fixos: cada
+  tarefa vai para o modelo certo, e o mesmo comportamento vale para todos os modelos do roteamento automático
+  (ajustando o que cada um espera). O vencedor nunca é fixo por nome, ordem ou palavra-chave. Quando a qualidade
+  merece o custo extra, o roteador pode consultar mais de um candidato e pedir uma síntese julgada; tarefa simples usa
+  uma única chamada, e se o julgamento falhar fica a melhor resposta verificável já obtida.
+- Quanto o modelo pensa antes de agir também é decisão do roteador, pelo significado da tarefa, na mesma chamada em
+  que ele decide a estratégia (sem chamada extra): pouco quando o caminho é claro e o trabalho é fazer, mais quando há
+  decisão difícil de verdade, subindo sozinho quando uma etapa falha. Nunca pensar sem limite por falta de escolha:
+  pensamento a mais faz a pessoa esperar minutos e é pago em toda chamada. Se a pessoa escolheu um nível, vale o dela.
+- Executa várias ferramentas ao mesmo tempo quando isso ajuda; especialistas independentes rodam em ondas, e o
+  progresso é emitido conforme cada um termina. A economia nunca esconde uma etapa que o relatório apresenta como
+  concluída.
+- Não refaz trabalho: cada etapa recebe o resultado das anteriores, e fatos já provados são reaproveitados.
+  Compactação de conversa é decidida pela IA, não por heurística.
+- Não existe modelo padrão embutido: o padrão é a última escolha da pessoa em cada provedor.
+
+Engenharia de contexto (vale para todo módulo, toda interface e todo laço que chama um modelo):
+
+- Nada é reenviado ao modelo sem necessidade. Todo laço que acumula histórico (resultados de ferramentas, conteúdo de
+  arquivos gravados ou lidos, saídas de comando, conversa) tem de ter um jeito de aliviar esse histórico; um laço em
+  que o contexto só cresce é defeito, mesmo que a tarefa termine.
+- Quem decide é a IA: o código só mede o tamanho (um fato) e, quando ele cresce, convida o modelo a organizar a
+  própria memória de trabalho. O modelo escolhe o que ainda precisa ver palavra por palavra e escreve, com as
+  palavras dele, a nota que fica no lugar do resto. Se decidir manter tudo, fica tudo.
+- Nada se perde: o que sai do contexto é guardado inteiro antes e volta por um identificador, com uma ferramenta que
+  o modelo tem à mão. Sem esse caminho de volta, não se tira nada. Arquivo já gravado é memória: guarda-se o caminho e
+  relê-se quando preciso, em vez de carregar o conteúdo.
+- O começo de cada chamada (instruções e lista de ferramentas) fica estável de uma chamada para a outra e o
+  histórico só cresce no fim, para o provedor reaproveitar o que já processou. Nada de hora, ordem que muda ou
+  ferramenta que entra e sai no meio de uma tarefa.
+- As ferramentas enviadas em cada chamada são as que a tarefa precisa, e quem julga isso é o roteador, pelo
+  significado, na mesma chamada em que decide a estratégia. O código só tem o catálogo (quais ferramentas existem e
+  de que grupo são). Sem opinião do roteador, vai tudo. Nada fica fora de alcance: um grupo que ficou de fora entra
+  na hora em que o agente pedir ou usar uma ferramenta dele, e nunca sai no meio da tarefa.
+- O pensamento do modelo só volta ao provedor junto da rodada ainda em aberto (a última fala dele, cujas
+  ferramentas estão sendo respondidas). O pensamento de rodadas anteriores nunca é reenviado: a pessoa continua vendo
+  na área recolhida, mas ele não entra de novo em cada chamada.
+- Chamadas auxiliares (classificador, roteador, checagens de escopo e de segurança, revisões) vão no modelo mais
+  barato que dá conta, recebem só o que precisam para julgar e nunca se repetem para a mesma pergunta. O que elas
+  gastam é medido por tipo de chamada e tem de ser uma parte pequena do total: coordenação e checagem que gastam mais
+  do que o trabalho de verdade são defeito.
+- Quem recebe trabalho delegado devolve o resultado resumido a quem coordena, não o histórico inteiro do que fez.
+- Todo módulo novo mede antes de afirmar: quantos tokens cada tipo de chamada gasta e do que é feita a mais pesada.
+  Economia é verificada com número de execução real, não suposta.
+
+### 10. Aprendizado sempre
+
+- O sistema aprende com os erros, as correções, os falsos positivos e as atualizações, para melhorar qualidade,
+  performance e precisão, sem a pessoa precisar pedir.
+- O aprendizado vale na hora, sem fila de aprovação. Aprendizado sobre o mesmo assunto atualiza a habilidade existente,
+  nunca cria duplicata. Habilidades seguem o formato aberto SKILL.md.
+- Uma remoção da lista de achados não é automaticamente aprendida como falso positivo: pode ser só um item fora do
+  escopo. O julgamento continua sendo da IA.
+- As habilidades são aplicadas sozinhas pelo classificador quando a tarefa pede.
+- O sistema aprende o que as APIs reais esperam testando de verdade no sandbox, para que o próximo software já nasça
+  funcionando.
+- Conhecimento que muda no mundo (como acessibilidade) se atualiza sozinho a partir de fontes confiáveis.
+
+### 11. Evidência: verde não é funcionando
+
+- Teste passando não é produto pronto. Mock não prova integração. Afirmação da IA não é evidência.
+- Quem executa não é quem aprova: executor, revisor, verificador e portão são papéis separados. Delegar não transfere
+  responsabilidade: o resultado de um subagente é verificado.
+- Primeiro no sandbox isolado, depois no ambiente real, e só então entregar. O resultado é testado de verdade, não
+  simulado.
+- A entrega diz o que foi feito, o que foi verificado, o que falhou ou não pôde ser testado e onde está o resultado.
+- Ausência de achados não é certificação de conformidade: decisões normativas (como WCAG) exigem evidência
+  contextual, e técnica recomendada não é requisito obrigatório isolado.
+
+### 12. Engenharia de software de qualidade, por padrão
+
+- Código limpo, separação de responsabilidades, estrutura de pastas e convenções do próprio projeto, sem excesso de
+  engenharia.
+- Testes no padrão do projeto. Em Python, sempre ruff, mypy e pytest; em JavaScript, o lint e os testes do projeto.
+- A cerimônia acompanha o tamanho do trabalho, e quem julga o tamanho é a IA: num trabalho pequeno e de caminho
+  claro, código e testes são escritos juntos, a verificação roda quando algo mudou e uma vez no fim. Nada de etapas
+  só de cerimônia nem de repetir a mesma verificação sem mudança no meio. O que nunca muda é a prova: os testes
+  existem, rodaram de verdade e o resultado real foi conferido.
+- Nunca deixar arquivos extras no projeto (rascunhos, capturas, relatórios de trabalho, scripts descartáveis).
+- Todo bug real corrigido ganha teste de regressão. Código morto e lógica antiga que atrapalhe a IA são removidos.
+- O agente faz tudo isso sozinho, se corrigindo, sem a pessoa precisar pedir.
+
+### 13. Acessibilidade e visão de UX
+
+- O sistema é feito para todos, e pensar em quem usa leitor de tela é obrigatório em todos os módulos, sem exceção:
+  é o que o diferencia. Em toda entrega ele executa e testa de verdade como uma pessoa que usa leitor de tela e só
+  teclado usaria; revisar o código não basta.
+- Acessibilidade é obrigatória em tudo: interface, código, arquivos, edição, engenharia, documentos (Word, PDF) e
+  imagens. Nunca a acessibilidade genérica: aprendida, atualizada e testada como uma pessoa real usaria.
+- Toda interface é julgada como alguém que navega só por teclado e leitor de tela, e com o olhar de um profissional de
+  UX: o controle certo (escolher entre opções conhecidas é uma lista pelas setas, nunca um campo para adivinhar e
+  digitar), cada coisa no lugar certo, o nome do botão diz o que ele faz, a navegação segue o padrão de cada
+  componente. Não basta estar conforme: tem que ser fácil de usar.
+
+### 14. Paridade entre as interfaces
+
+- Toda funcionalidade de comportamento vale em todas as interfaces que executam tarefas, na mesma entrega, em perfeita
+  conformidade, com aprovação ligada ou desligada. Quais são as interfaces de cada projeto está na parte específica no
+  fim deste arquivo.
+- O assistente conversacional não é só um criador de agentes: é um assistente geral que executa tarefas reais.
+
+### 15. Processo de trabalho
+
+- Testar na interface real, como um usuário iniciante usaria, nas duas interfaces. Testes baratos (lint, tipos,
+  unitários) antes; o teste ao vivo confirma.
+- Um módulo de cada vez: nunca começar outro sem o atual funcionando por completo.
+- Antes de codar, ver o que já existe no código, nos commits e nas docs.
+- Documentar tudo o que foi feito e corrigido na pasta de cada módulo, e commitar ao final. Nunca fazer merge sem
+  autorização.
+- Documentos para o usuário em linguagem natural, direta e objetiva, sem asteriscos nem caracteres especiais, técnico
+  só nos termos e conceitos.
+- Falar com o usuário em português, em texto corrido.
+
+### 16. Supervisão humana calibrada
+
+- Intervenção humana onde o risco é maior (ações irreversíveis, escopo ampliado, ambiguidade material) e fora do
+  caminho no resto. Supervisão constante em ação de baixo risco é tão errado quanto autonomia total em ação de alto
+  risco.
 
 ## Antes de declarar qualquer implementação concluída
 
@@ -65,9 +319,10 @@ mudança tocar a costura entre módulos — confirmação de que o que um lado
 promete é literalmente o que o outro consome. "Parece certo" não é
 suficiente; "os degraus baratos da pirâmide confirmam" é.
 
-Isso não substitui julgamento — para mudanças triviais e isoladas, aplicar
-o bom senso sobre qual subconjunto do checklist é proporcional. O objetivo é
-processo real de engenharia, não burocracia por burocracia.
+A proporcionalidade vale só para o tamanho da cerimônia (quais degraus da pirâmide
+cabem numa mudança trivial e isolada), nunca para dispensar uma regra: todas continuam
+obrigatórias e a prova (testes que rodaram de verdade e resultado conferido) nunca muda.
+O objetivo é processo real de engenharia, não burocracia por burocracia.
 
 ## Regra permanente: agente = modelo + harness (determinismo só onde protege)
 
@@ -77,8 +332,8 @@ tem tratamento especial que o isente desta regra. Esta seção é intencionalmen
 **genérica e portável**: não nomeia nenhum provider, arquivo ou módulo específico deste
 projeto de propósito, para poder ser copiada para o `CLAUDE.md` de qualquer outro software
 agentic sem edição. Onde este projeto tiver detalhe concreto de como a regra se aplica aqui
-(nomes de arquivo, endpoints, histórico de correções), ele fica isolado na nota final desta
-seção — apague só aquela nota ao portar esta regra para outro projeto.
+(nomes de arquivo, endpoints, histórico de correções), ele fica isolado na parte específica
+final deste arquivo — apague só aquela parte ao portar esta regra para outro projeto.
 
 ### Princípio central
 
@@ -99,50 +354,38 @@ Um agente é **modelo + harness**, dois papéis que nunca se invertem:
   e com escopo estreito a chaves estáticas de longa duração quando a plataforma de credencial
   permitir.
 - **Acesso a ferramenta como negado-por-padrão**: uma ferramenta/capacidade só fica disponível
-  quando explicitamente concedida; nunca "disponível a menos que alguém desligue".
+  quando explicitamente concedida; nunca "disponível a menos que alguém desligue". A concessão
+  é capturada quando o agente nasce, e o despachante verifica concessão, schema e aprovação
+  antes de chamar o handler.
 - **Isolamento e sandbox**: execução de código, navegador ou comando roda num limite que não
   alcança mais do que o necessário, e cujo vazamento não compromete o resto do sistema.
 - **Validação de caminho e de comando**: nenhuma operação de arquivo ou processo sai do
   workspace/escopo autorizado; comandos são validados antes de rodar, nunca depois.
 - **Cancelamento e interrupção**: parar uma execução em andamento é sempre possível e sempre
-  determinístico — nunca depende do modelo "decidir" parar.
-- **Timeouts e limites operacionais**: todo laço, retry ou orçamento de execução tem um teto
-  agregado imposto pelo código, não apenas a soma de laços independentes sem controle central.
-- **Orçamento adaptativo único — o tempo se adapta e nunca deve esbarrar no teto**: tempo,
-  tokens e turnos partem da complexidade que o classificador inteligente atribuiu e dos
-  recursos realmente selecionados, e o prazo se adapta conforme as tarefas executam — a
-  adaptação recalcula o deadline a partir do início original (retry não reinicia o relógio).
-  O teto é dimensionado pela complexidade declarada e pelas ondas de trabalho selecionadas
-  para que a execução normal convirja com folga: atingir o teto de tempo é sinal de
-  orçamento mal dimensionado, não o comportamento esperado. Não criar um segundo contador
-  de rodadas que interrompa antes do orçamento agregado; o deadline central é o único teto
-  operacional da fase. Se mesmo assim o teto for alcançado, vale a entrega parcial honesta
-  descrita abaixo.
-- **Economia sem sacrificar precisão**: compartilhar contexto, cachear fatos já provados,
-  executar especialistas independentes em ondas controladas e emitir progresso conforme
-  cada papel termina. A economia nunca pode ocultar uma etapa que o relatório apresenta como
-  concluída.
+  determinístico — nunca depende do modelo "decidir" parar. Cancelar preserva o que já foi
+  recebido e encerra o que estava ativo.
+- **Controle central de progresso, sem relógio fixo**: todo laço, retry ou delegação é
+  acompanhado por um controle único, e não por contadores paralelos e cegos. Nenhum limite
+  fixo de tempo, de tokens, de chamadas ou de etapas corta uma execução que continua avançando
+  (regra 8). Retry não zera o que já foi provado nem o que já foi gasto.
 - **Loop adaptativo — nunca loop infinito**: todo laço de execução (tool-loop, delegações,
-  reparos de JSON, espera de steering/esclarecimento) é encerrado por algo real — convergência
-  (não há mais nada útil a fazer), deadline agregado, cancelamento do usuário ou detecção de
-  repetição (a mesma decisão voltou a aparecer). O teto que encerra o laço vem do orçamento
-  central, nunca de um contador paralelo cego, e nenhum laço pode girar indefinidamente;
-  uma decisão repetida encerra o laço com o que já está provado em vez de insistir.
-- **Loops protegidos e entrega parcial honesta**: se o orçamento acabar, houver cancelamento
-  ou a trajetória deixar de convergir, preservar o melhor resultado verificável. Distinguir
-  artefato utilizável com ressalvas de falha bloqueante; nunca chamar um resultado parcial de
-  completo.
-- **Julgamento entre modelos no Alto**: quando o classificador indicar que a qualidade merece
-  o custo adicional, o roteador pode consultar candidatos atuais do catálogo e pedir uma
-  síntese julgada. O vencedor nunca é fixo por nome, ordem ou keyword; tarefas simples usam
-  uma única chamada, e uma falha do julgamento preserva a melhor resposta verificável já obtida.
+  reparos de JSON, espera de steering/esclarecimento) é encerrado por algo real —
+  convergência (não há mais nada útil a fazer), ausência de progresso, cancelamento do
+  usuário, orçamento de custo configurado pela pessoa ou detecção de repetição (a mesma
+  decisão voltou a aparecer). Uma decisão repetida encerra o laço com o que já está provado
+  em vez de insistir. Esperar de verdade (conexão, ritmo do provedor, pergunta ao usuário)
+  não é laço.
+- **Entrega parcial honesta**: se o laço for encerrado antes da conclusão, preservar o melhor
+  resultado verificável, distinguir artefato utilizável com ressalvas de falha bloqueante, e
+  nunca chamar um resultado parcial de completo.
 - **Validação de schema/contrato**: entrada e saída estruturada são validadas contra um
   contrato explícito antes de seguir adiante.
 - **Sintaxe e integridade de arquivo**: uma edição/gravação só é aceita se preservar a
   integridade sintática do que já existia.
 - **Proteção contra operação destrutiva e portão de aprovação**: qualquer ação irreversível
   (apagar, sobrescrever, enviar, publicar, gastar) exige aprovação explícita antes de
-  executar — nunca só depois, nunca implícita.
+  executar — nunca só depois, nunca implícita. A configuração não pode desativar a aprovação
+  de ferramentas marcadas como irreversíveis.
 - **Registro de evento e recuperação de falha**: toda decisão de permissão, erro e retry fica
   auditável; uma falha parcial deve poder ser retomada sem repetir trabalho já provado.
 - **Escalonamento para humano**: quando a ambiguidade for material ao resultado ou a ação for
@@ -153,21 +396,15 @@ Um agente é **modelo + harness**, dois papéis que nunca se invertem:
 ### O que nunca vira regra fixa
 
 **Nunca** transformar uma decisão subjetiva (intenção, se uma tarefa está clara o bastante,
-qual ferramenta "parece" certa, se uma resposta "parece" completa) em árvore fixa de
-palavras-chave/regex/condição — isso é determinismo em excesso disfarçado de segurança, e
-é exatamente o tipo de regressão que trava um agente sem de fato protegê-lo. Uma regra
-determinística nova só é aceitável quando protege um dos itens da lista acima ou valida um
-**fato objetivo e verificável** (ex.: uma URL literalmente presente no texto, um limite de
-tamanho, um schema) — nunca para "deixar o comportamento mais previsível" ou "fazer um teste
-passar mais fácil". Ao escrever ou revisar um teste: se ele exige que o código adivinhe ou
-force uma categoria de intenção por palavra-chave em vez de deixar o modelo julgar, o teste
-está pedindo o tipo errado de determinismo — não aceitar.
-
-O classificador inteligente deve interpretar a intenção e a complexidade no contexto. Uma
-ambiguidade material e vaga pede uma pergunta curta e específica; uma continuação curta cujo
-sentido esteja determinado pelo histórico deve prosseguir sem perguntar de novo. O harness
-garante apenas o caminho de pergunta, cancelamento e retomada; não decide a intenção por
-keywords, regex ou heurística fixa.
+qual ferramenta "parece" certa, se uma resposta "parece" completa, quanto tempo uma tarefa
+"deveria" levar) em árvore fixa de palavras-chave/regex/condição/relógio — isso é determinismo
+em excesso disfarçado de segurança, e é exatamente o tipo de regressão que trava um agente sem
+de fato protegê-lo. Uma regra determinística nova só é aceitável quando protege um dos itens
+da lista acima ou valida um **fato objetivo e verificável** (ex.: uma URL literalmente
+presente no texto, um limite de tamanho, um schema) — nunca para "deixar o comportamento mais
+previsível" ou "fazer um teste passar mais fácil". Ao escrever ou revisar um teste: se ele
+exige que o código adivinhe ou force uma categoria de intenção por palavra-chave em vez de
+deixar o modelo julgar, o teste está pedindo o tipo errado de determinismo — não aceitar.
 
 ### Comportamento conversacional obrigatório
 
@@ -187,11 +424,35 @@ ação de alto risco.
 
 ---
 
-**Nota específica deste projeto** (apagar esta nota ao portar a regra acima para outro
-`CLAUDE.md`): aqui, "todo modelo/provider sem exceção" cobre OpenAI, Anthropic, Gemini, xAI,
+## Parte específica deste projeto (Qaaccessibility)
+
+Tudo acima é comum aos projetos Agentic e Qaaccessibility. Daqui em diante, só o que vale para este.
+
+### Interfaces que executam tarefas (regra 14)
+
+A interface web de chat (`web/src/screens/ChatScreen.tsx`) e qualquer outra que execute tarefas. Toda
+funcionalidade de comportamento vale em todas elas, na mesma entrega. A regra dos dois chats separados é só do
+projeto Agentic e não existe aqui.
+
+### Mobilização contextual da squad
+
+O chat atua como coordenador da squad de acessibilidade. O classificador escolhe
+`squad_roles` e sua ordem pelo contexto, sem uma sequência obrigatória de gestão
+e sem uma regra que dispense a squad em auditorias pequenas. Os especialistas
+das ferramentas de análise são membros da mesma squad. Durante o trabalho, o
+agente pode usar `consult_squad` para consultar outros papéis ou rever a abordagem
+com os resultados reais. Não converter essa seleção em palavras-chave, regex ou
+heurística de intenção. Uma consulta de QA define/revisa evidências; não significa
+que testes foram executados. Handoffs não concedem aprovação para mutações.
+O harness valida IDs, contratos, permissões e cancelamento, e acompanha o progresso do conjunto.
+As rotinas batch de planejamento não são a política de seleção do chat.
+
+### Nota específica deste projeto
+
+Aqui, "todo modelo/provider sem exceção" cobre OpenAI, Anthropic, Gemini, xAI,
 Ollama, Factory, OpenCode Go e `AgenticAutoProvider`. Uma versão anterior desta nota citava
 commits específicos e um documento (`docs/AGENTIC_BEHAVIORAL_CONTRACT_AND_ACCEPTANCE.md`) como
-o histórico completo de por que esta regra existe -- auditoria em 2026-09-12 confirmou que
+o histórico completo de por que a regra existe -- auditoria em 2026-09-12 confirmou que
 nenhum dos hashes citados existe no histórico git deste repositório e que o documento nunca
 chegou a ser criado, então a referência foi removida em vez de mantida sem verificação. Se o
 histórico completo for registrado no futuro, documentar aqui com um link real, não uma
@@ -207,9 +468,16 @@ cancelamento best-effort continua disponível para os dois).
 
 O turno compartilha um único orçamento em `execution_scope.py`, incluindo
 triagem, consultor de rotas, ferramentas, especialistas e reparação de JSON.
-A complexidade declarada pela IA adapta o prazo a partir do início original;
-retry não reinicia o relógio. Planejamento gerencial depende de uma decisão
-estruturada da IA, não da presença de URL/anexo ou de palavras no pedido.
+A complexidade declarada pela IA adapta o orçamento do turno; retry não reinicia a
+contagem. Planejamento gerencial depende de uma decisão estruturada da IA, não da
+presença de URL/anexo ou de palavras no pedido.
+
+Divergência conhecida com a regra 8 (a corrigir no código, não na regra): `execution_scope.py`
+e `adaptive_budget.py` ainda calculam um prazo (deadline) a partir do início do turno, com orçamento de
+tempo e de tokens, e o tratam como teto. A regra vigente é a 8: nenhum relógio e nenhum limite fixo de tokens,
+chamadas ou etapas encerra trabalho que continua avançando; quem decide quanto a tarefa precisa é a IA.
+Encerram a falta de progresso, a repetição, o cancelamento e o orçamento de custo que a pessoa configurou
+de forma explícita. Ao mexer nesses módulos, convergir para a regra 8 e registrar aqui o que mudou.
 
 Cada instância de `AIAgent` captura suas concessões de ferramentas ao nascer.
 O dispatcher verifica concessão, schema e aprovação antes de chamar o handler.
@@ -228,8 +496,6 @@ especialistas por `request_context.py`; a ponte síncrona/assíncrona das ferram
 preserva esse contexto e o orçamento. Redirecionamentos consumidos pelo agente
 também atualizam o escopo dos próximos especialistas. O revisor recebe o HTML
 original da captura, inclusive em cada lote, não apenas os achados consolidados.
-Uma remoção da lista de achados não é automaticamente aprendida como falso positivo:
-pode ser apenas um item fora do escopo. O julgamento continua sendo da IA.
 Eventos de quadro/roteamento são estado interno, não narração pública. Cada resposta
 guarda sua própria duração; histórico sem esse dado não exibe um tempo inventado
 nem a mensagem fixa “Processamento concluído”.
