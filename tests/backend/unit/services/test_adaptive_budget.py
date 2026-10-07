@@ -16,3 +16,17 @@ def test_quality_tradeoff_gets_more_operational_slack():
 def test_budget_remaining_is_never_negative():
     budget = create_analysis_budget(selected_agents=0, parallelism=0, per_agent_timeout=1, tradeoff=3)
     assert budget.remaining_seconds >= 0
+
+
+def test_selected_waves_extend_shared_budget_without_resetting_start():
+    from backend.src.services.execution_scope import execution_scope
+
+    with execution_scope(10) as parent:
+        original_start = parent.started_at
+        budget = create_analysis_budget(selected_agents=22, parallelism=3, per_agent_timeout=10, tradeoff=3)
+        assert parent.deadline - original_start > 80
+        assert budget.deadline == parent.effective_deadline()
+        reserved = parent.deadline
+        parent.adapt("low")
+        assert parent.deadline == reserved
+        assert parent.started_at == original_start

@@ -5,7 +5,7 @@ import os
 import tempfile
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import ValidationError
 
 from backend.src.services.export_session import export_session, export_session_async
@@ -262,7 +262,7 @@ async def export_sarif(payload: dict) -> dict:
 
 
 @router.get("/last_sarif")
-async def export_last_sarif(request: Request) -> dict:
+async def export_last_sarif(request: Request) -> JSONResponse:
     """
     Exporta os ultimos issues de acessibilidade salvos em cache no formato SARIF 2.1.0 JSON.
     """
@@ -280,7 +280,10 @@ async def export_last_sarif(request: Request) -> dict:
 
     try:
         issues = [AccessibilityIssue(**i) for i in issues_raw]
-        return export_to_sarif(issues, url)
+        return JSONResponse(
+            content=export_to_sarif(issues, url),
+            headers={"Content-Disposition": 'attachment; filename="qa-accessibility.sarif"'},
+        )
     except Exception as exc:
         logger.error("[Export] Falha ao gerar SARIF do cache: %s", exc)
         raise HTTPException(status_code=500, detail="Falha ao gerar relatorio SARIF do cache.") from exc

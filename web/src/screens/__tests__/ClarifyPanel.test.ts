@@ -50,9 +50,8 @@ describe("ClarifyPanel — cartão de aprovação", () => {
     expect(source).toMatch(/label: "Apenas consulta/);
   });
 
-  test("o identificador da ação é mostrado por inteiro, sem truncar", () => {
-    expect(source).toMatch(/\{digest\}/);
-    expect(source).not.toMatch(/digest\.slice\(/);
+  test("o identificador técnico não ocupa o cartão de aprovação", () => {
+    expect(source).not.toMatch(/\{digest\}/);
   });
 });
 

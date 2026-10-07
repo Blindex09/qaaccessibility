@@ -5,6 +5,29 @@ from run_agent import run_local_tool
 from tools.registry import Registry
 
 
+def test_two_artifact_approvals_preserve_model_order_without_overlapping_gates(monkeypatch):
+    from run_agent import AIAgent
+    from tools.registry import registry
+
+    events = []
+    for name in ("first_artifact", "second_artifact"):
+        monkeypatch.setitem(registry.tools, name, {
+            "schema": {"parameters": {}},
+            "handler": lambda args, name=name: events.append(name) or "executed",
+            "requires_approval": True,
+        })
+    monkeypatch.setitem(registry.toolsets, "artifact_probe", ["first_artifact", "second_artifact"])
+    agent = AIAgent(enabled_toolsets=["artifact_probe"], clarify_callback=lambda q, c: "Aprovar")
+
+    def no_parallel_pool(*args, **kwargs):
+        raise AssertionError("approval calls must not overlap")
+
+    monkeypatch.setattr("run_agent.ThreadPoolExecutor", no_parallel_pool)
+    result = agent._execute_tool_calls([("one", "first_artifact", {}), ("two", "second_artifact", {})])
+    assert events == ["first_artifact", "second_artifact"]
+    assert result == {"one": "executed", "two": "executed"}
+
+
 def test_registry_defaults_to_no_approval():
     local = Registry()
     local.register("read_only", "test", {"parameters": {}}, lambda args: args)

@@ -50,7 +50,7 @@ def export_to_sarif(issues: list[AccessibilityIssue], url: str = "http://localho
                     {
                         "physicalLocation": {
                             "artifactLocation": {
-                                "uri": url,
+                                "uri": issue.url or url,
                             },
                             "region": {"snippet": {"text": issue.element}},
                         }

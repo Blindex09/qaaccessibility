@@ -46,7 +46,9 @@ class ExecutionBudget:
         # Complexidade declarada move o fim teórico a partir do início
         # original (a pausa do humano não é consumo de trabalho). Pausas já
         # acumuladas continuam valendo: o deadline real segue descontando-as.
-        self.deadline = self.started_at + self.unit_seconds * multiplier
+        # Uma chamada auxiliar simples não reduz a reserva já calculada para
+        # as ondas da auditoria em andamento.
+        self.deadline = max(self.deadline, self.started_at + self.unit_seconds * multiplier)
 
     def pause(self) -> None:
         """Abre a pausa (portão do usuário esperando). Nunca acumula pausa dupla."""

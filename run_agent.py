@@ -824,7 +824,13 @@ class AIAgent:
 
             return record
 
-        if len(calls) <= 1:
+        # O canal de perguntas da interface tem um único portão ativo. Ferramentas
+        # com aprovação não podem disputar esse portão nem consumir artefatos
+        # antes que a chamada anterior os produza. A ordem vem do modelo.
+        from tools.registry import registry
+
+        needs_user_gate = any(registry.tools.get(name, {}).get("requires_approval") for _, name, _ in calls)
+        if len(calls) <= 1 or needs_user_gate:
             results: dict[str, str] = {}
             for tool_id, name, args in calls:
                 result = run_local_tool(

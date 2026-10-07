@@ -589,6 +589,22 @@ class TestFormatAccessibilityNode:
 
 class TestFetchAccessibilityTreeSnapshot:
     @pytest.mark.asyncio
+    @patch("backend.src.services.browser.get_settings")
+    @patch("backend.src.services.browser.async_playwright")
+    async def test_tree_uses_supplied_capture_without_second_navigation(self, mock_pw, mock_settings):
+        mock_settings.return_value.browserless_ws_url = "wss://fake-browserless"
+        page = _mock_cdp_playwright(mock_pw, [_no_cdp("1", "WebArea", "CityLights")])
+        page.set_content = AsyncMock()
+        from backend.src.services.browser import fetch_accessibility_tree_snapshot
+
+        html = '<html><head><title>CityLights</title></head><body>Demo</body></html>'
+        result = await fetch_accessibility_tree_snapshot("https://example.com/", html_content=html)
+        assert "CityLights" in result
+        page.goto.assert_not_awaited()
+        page.set_content.assert_awaited_once()
+        assert "CityLights" in page.set_content.call_args.args[0]
+
+    @pytest.mark.asyncio
     @patch("backend.src.services.browser.async_playwright")
     @patch("backend.src.services.browser.get_settings")
     async def test_returns_empty_string_without_browserless_configured(self, mock_settings, mock_pw):

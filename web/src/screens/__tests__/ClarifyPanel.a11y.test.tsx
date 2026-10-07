@@ -78,6 +78,11 @@ function panel(): HTMLElement {
 }
 
 describe("ClarifyPanel — aprovação inline na conversa", () => {
+  test("mantém os dados da ação legíveis sem expor o digest interno", () => {
+    renderPanel(APPROVAL_QUESTION);
+    expect(panel().textContent).toContain("site.zip");
+    expect(panel().textContent).not.toContain("b".repeat(64));
+  });
   test("sai no DOM como região inline, sem modal", async () => {
     renderPanel(APPROVAL_QUESTION);
     await flushFrame();

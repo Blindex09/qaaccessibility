@@ -379,7 +379,7 @@ async def _arvore_via_cdp(context: Any, page: Any) -> dict[str, Any] | None:
     return _no_cdp_para_snapshot(raizes[0], por_id)
 
 
-async def _snapshot_com_navegador(pw: Any, browser: Any, url: str) -> dict[str, Any] | None:
+async def _snapshot_com_navegador(pw: Any, browser: Any, url: str, html_content: str | None = None) -> dict[str, Any] | None:
     """Navega e extrai a arvore, dado um browser ja conectado/lancado."""
     context = await browser.new_context(
         user_agent=_USER_AGENT,
@@ -388,7 +388,12 @@ async def _snapshot_com_navegador(pw: Any, browser: Any, url: str) -> dict[str, 
         ignore_https_errors=True,
     )
     page = await context.new_page()
-    await page.goto(url, timeout=_NAV_TIMEOUT, wait_until="domcontentloaded")
+    if html_content is None:
+        await page.goto(url, timeout=_NAV_TIMEOUT, wait_until="domcontentloaded")
+    else:
+        # Inspecione a mesma captura renderizada, não uma segunda navegação
+        # que pode devolver login/desafio de acesso em vez do documento.
+        await page.set_content(_inject_base_tag(html_content, url), timeout=_NAV_TIMEOUT)
     try:
         await page.wait_for_load_state("networkidle", timeout=_NETWORK_IDLE_TIMEOUT)
     except PWTimeout:
@@ -396,7 +401,7 @@ async def _snapshot_com_navegador(pw: Any, browser: Any, url: str) -> dict[str, 
     return await _arvore_via_cdp(context, page)
 
 
-async def _capture_raw_accessibility_snapshot(url: str) -> dict[str, Any] | None:
+async def _capture_raw_accessibility_snapshot(url: str, html_content: str | None = None) -> dict[str, Any] | None:
     """Abre a URL num Chromium e devolve a arvore de acessibilidade bruta.
 
     Tenta o Chromium REMOTO (Browserless/CDP) quando configurado e cai para um
@@ -423,7 +428,7 @@ async def _capture_raw_accessibility_snapshot(url: str) -> dict[str, Any] | None
             async with async_playwright() as pw:
                 browser = await pw.chromium.connect_over_cdp(ws_url)
                 try:
-                    snapshot = await _snapshot_com_navegador(pw, browser, url)
+                    snapshot = await _snapshot_com_navegador(pw, browser, url, html_content)
                 finally:
                     await browser.close()
             if snapshot:
@@ -436,7 +441,7 @@ async def _capture_raw_accessibility_snapshot(url: str) -> dict[str, Any] | None
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=True)
             try:
-                snapshot = await _snapshot_com_navegador(pw, browser, url)
+                snapshot = await _snapshot_com_navegador(pw, browser, url, html_content)
             finally:
                 await browser.close()
         return snapshot or None
@@ -445,18 +450,19 @@ async def _capture_raw_accessibility_snapshot(url: str) -> dict[str, Any] | None
         return None
 
 
-async def fetch_accessibility_tree_snapshot(url: str) -> str:
+async def fetch_accessibility_tree_snapshot(url: str, html_content: str | None = None) -> str:
     """Captura a árvore de acessibilidade REAL da página, computada pelo motor
     de acessibilidade do navegador real (Chromium via Playwright/CDP) -- não
     uma estimativa da IA a partir do HTML bruto. É a mesma API que motores de
     assistive technology consultam via a árvore de acessibilidade do SO, então
-    um nó com nome vazio aqui é uma violação confirmada pelo próprio
-    navegador, não um chute.
+    um nome vazio é um fato computado; a necessidade de nome depende do
+    papel e contexto. Quando html_content é informado, inspeciona essa captura
+    sem misturá-la com o resultado de outra navegação.
 
     Best-effort: nunca derruba a análise. Devolve string vazia se
     BROWSERLESS_WS_URL não estiver configurado, se a navegação falhar, ou se
     a página não expuser nós "interesting" (ex.: página em branco)."""
-    snapshot = await _capture_raw_accessibility_snapshot(url)
+    snapshot = await _capture_raw_accessibility_snapshot(url, html_content) if html_content is not None else await _capture_raw_accessibility_snapshot(url)
     if not snapshot:
         return ""
     lines: list[str] = []

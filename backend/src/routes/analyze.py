@@ -6,7 +6,7 @@ import os
 import socket
 import tempfile
 from typing import Annotated
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from bs4 import BeautifulSoup, Comment, Tag
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -329,6 +329,25 @@ def _extract_semantic_html(raw_html: str, accessibility_tree: str | None = None)
         if meta_viewport:
             page_context += f'<meta name="viewport" content="{meta_viewport}">\n'
 
+        # O recorte de elementos não inclui todo div/id. Preserve a resolução
+        # literal de fragmentos antes de remover/truncar o DOM, para que o
+        # especialista não confunda um alvo omitido com um alvo inexistente.
+        fragment_targets = []
+        seen_fragments: set[str] = set()
+        for anchor in soup.find_all("a", href=True):
+            href = _as_str(anchor.get("href"))
+            if not href.startswith("#") or len(href) == 1 or href in seen_fragments:
+                continue
+            seen_fragments.add(href)
+            target_id = unquote(href[1:])
+            target = soup.find(id=target_id) or soup.find("a", attrs={"name": target_id})
+            fragment_targets.append({"href": href, "target_exists": target is not None})
+            if len(fragment_targets) >= 100:
+                break  # Limite de contexto, nunca julgamento de conformidade.
+        if fragment_targets:
+            page_context += "<!-- [FRAGMENT TARGETS: observed in original DOM; not a conformance verdict] -->\n"
+            page_context += json.dumps(fragment_targets, ensure_ascii=True) + "\n"
+
         # ── 2. EMBEDDED STYLES (for css_analyzer) ─────────────────────────────
         style_blocks: list[str] = []
         style_bytes = 0
@@ -420,8 +439,8 @@ def _extract_semantic_html(raw_html: str, accessibility_tree: str | None = None)
         if accessibility_tree:
             sections += [
                 "<!-- [REAL ACCESSIBILITY TREE — computada pelo motor de acessibilidade real "
-                "do navegador (Chromium), NÃO estimada. Um nó '(SEM NOME ACESSÍVEL)' aqui é "
-                "uma violação confirmada, não uma suposição] -->",
+                "do navegador (Chromium), NÃO estimada. Um nó '(SEM NOME ACESSÍVEL)' é "
+                "um fato observado; julgue se o papel/contexto exige nome antes de afirmar violação] -->",
                 accessibility_tree,
             ]
 
@@ -543,7 +562,7 @@ async def analyze_url(body: AnalyzeUrlRequest) -> AgentResult:
 
     # Best-effort: árvore de acessibilidade REAL (motor do navegador), nunca
     # derruba a análise se indisponível (ver fetch_accessibility_tree_snapshot).
-    accessibility_tree = await fetch_accessibility_tree_snapshot(body.url)
+    accessibility_tree = await fetch_accessibility_tree_snapshot(body.url, html_content=html)
     semantic_html = _extract_semantic_html(html, accessibility_tree)
     result = await orchestrate(
         semantic_html,
@@ -551,6 +570,7 @@ async def analyze_url(body: AnalyzeUrlRequest) -> AgentResult:
         screenshot_base64=screenshot_base64,
         focus_screenshots=focus_screenshots,
         only_agents=body.only_agents,
+        source_document=html,
     )
     is_success = result.get("success") if isinstance(result, dict) else result.success
     if is_success:

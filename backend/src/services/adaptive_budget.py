@@ -57,7 +57,11 @@ def create_analysis_budget(
     parent = current_budget()
     deadline = started_at + deadline_seconds
     if parent:
-        deadline = min(deadline, parent.deadline)
+        # As ondas selecionadas dimensionam o mesmo orçamento do turno.
+        # Antes o orçamento local era maior, mas ficava truncado pelo teto
+        # inicial do chat: a revisão nunca chegava a concluir.
+        parent.deadline = max(parent.deadline, parent.started_at + deadline_seconds)
+        deadline = parent.effective_deadline()
     return AdaptiveExecutionBudget(
         started_at=started_at,
         deadline=deadline,

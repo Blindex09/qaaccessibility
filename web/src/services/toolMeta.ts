@@ -86,6 +86,12 @@ const TOOL_META: Readonly<Record<string, ToolMeta>> = {
     start: "Gerando relatório em formato Excel...",
     end: "Relatório Excel gerado e pronto para download",
   },
+  export_sarif: {
+    label: "Relatório SARIF",
+    risk: "artifact",
+    start: "Preparando a exportação SARIF dos achados...",
+    end: "Link da exportação SARIF disponível",
+  },
   generate_vpat: {
     label: "Relatório VPAT",
     risk: "artifact",
@@ -163,7 +169,7 @@ const TOOL_META: Readonly<Record<string, ToolMeta>> = {
     label: "Checklist em PDF",
     risk: "artifact",
     start: "Exportando o checklist em PDF acessível...",
-    end: "PDF do checklist pronto para download",
+    end: "Link de geração do PDF do checklist disponível",
   },
   generate_accessibility_statement: {
     label: "Declaração de acessibilidade",

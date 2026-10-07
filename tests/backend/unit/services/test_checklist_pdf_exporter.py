@@ -43,6 +43,15 @@ _ITEMS = [
 
 
 class TestRenderChecklistHtml:
+    def test_does_not_invent_execution_or_page_language(self):
+        html = render_checklist_html(_ITEMS, "https://example.com")
+        assert "Nenhuma execução de leitor de tela comprovada" in html
+        assert "Não certifica auditoria completa" in html
+        assert "NVDA 2026" not in html
+        assert "axe-core real" not in html
+        assert "lang='pt-BR'" not in html
+        assert "Localize no cabeçalho" in html
+
     def test_html_declares_language_and_title(self):
         html = render_checklist_html(_ITEMS, "https://example.com")
         assert 'lang="pt-BR"' in html
@@ -71,8 +80,9 @@ class TestRenderChecklistHtml:
         assert "Como Compreender os Níveis de Criticidade e Prioridades" in html
         assert "Criticidade Normativa (Níveis WCAG):" in html
         assert "Prioridade de Atendimento da Equipe:" in html
-        assert "Nível A (Criticidade Máxima)" in html
-        assert "Nível AA (Criticidade Padrão Legal)" in html
+        assert "Nível A (Conformidade)" in html
+        assert "Nível AA (Conformidade)" in html
+        assert "não a gravidade de cada barreira" in html
 
     def test_renders_table_of_contents_with_semantic_anchor_links(self):
         html = render_checklist_html(_ITEMS, "https://example.com")

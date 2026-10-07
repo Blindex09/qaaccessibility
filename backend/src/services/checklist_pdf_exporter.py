@@ -102,9 +102,9 @@ _CRITERION_LEVELS: dict[str, str] = {
 
 # Explicação didática dos Níveis de Criticidade Normativa
 _LEVEL_DESCRIPTIONS = {
-    "A": "Nível A (Criticidade Máxima — Barreira Bloqueante para Pessoas com Deficiência)",
-    "AA": "Nível AA (Criticidade Padrão Legal — Requisito de Conformidade Obrigatório)",
-    "AAA": "Nível AAA (Criticidade Especializada — Recursos Avançados de Acessibilidade)",
+    "A": "Nível A (Conformidade)",
+    "AA": "Nível AA (Conformidade)",
+    "AAA": "Nível AAA (Conformidade)",
 }
 
 # Links oficiais W3C Understanding para WCAG 2.2
@@ -270,15 +270,15 @@ def _get_priority_info(priority_val: str, level: str, status_key: str) -> tuple[
     """Retorna a prioridade de atendimento da equipe de desenvolvimento."""
     p_lower = (priority_val or "").lower()
     if status_key == "fail":
-        if "crit" in p_lower or level == "A":
+        if p_lower == "critical":
             return (
                 "Prioridade 1 — Imediata (Bloqueador de Acesso)",
-                "Correção emergencial: impede o uso da interface por pessoas com deficiência.",
+                "Prioridade crítica atribuída pelo especialista; consulte as evidências do impacto.",
             )
-        if "alt" in p_lower or "high" in p_lower or level == "AA":
+        if p_lower == "high":
             return (
-                "Prioridade 2 — Alta (Requisito Legal WCAG AA)",
-                "Correção necessária: exigência legal para conformidade com normas nacionais e internacionais.",
+                "Prioridade 2 — Alta",
+                "Prioridade alta atribuída pelo especialista; não decorre automaticamente do nível WCAG.",
             )
         return (
             "Prioridade 3 — Média (Melhoria Contínua)",
@@ -311,11 +311,9 @@ _STATUS_HUMAN = {
     "not_applicable": "Não Aplicável ao Contexto",
 }
 
-_ENVIRONMENT_TESTED = (
-    "Chromium (renderização remota via Browserless CDP) + axe-core real + especialistas de IA em WCAG 2.2"
-)
-_SCREEN_READER_TESTED = "NVDA 2026 / JAWS / VoiceOver (Árvore de Acessibilidade e Sintetizador de Voz)"
-_TESTED_SCOPE = "Auditoria Completa de Acessibilidade Digital — Interface Web, Componentes Interativos, Contraste de Cores, Navegação por Teclado e Tecnologias Assistivas"
+_ENVIRONMENT_TESTED = "Não informado neste checklist; consulte as evidências da análise de origem."
+_SCREEN_READER_TESTED = "Nenhuma execução de leitor de tela comprovada neste checklist. Inspeção de HTML ou árvore de acessibilidade não equivale a testar fala e interação."
+_TESTED_SCOPE = "Checklist limitado aos achados e verificações fornecidos. Não certifica auditoria completa nem conformidade integral."
 
 _CSS = """
 @page {
@@ -734,45 +732,14 @@ def _extract_location_and_action(item: ChecklistItem, code: str) -> tuple[str, s
     """
     Separa de forma inteligente a Localização / Elemento, o Diagnóstico e a Solução Prática.
     """
-    default_problem = _CRITERION_PROBLEMS.get(
-        code, "Não conformidade de acessibilidade digital identificada na interface."
+    # ChecklistItem ainda não possui localização, impacto e solução separados.
+    # Não inferir esses campos por keywords nem inventar diagnóstico a partir
+    # do número do critério. Preservar literalmente a avaliação do especialista.
+    return (
+        "Consulte a localização nas notas; não fornecida em campo estruturado.",
+        item.notes or "Não foi fornecida evidência ou avaliação detalhada para este item.",
+        "Consulte as orientações específicas nas notas e a referência W3C. Valide a proposta no contexto real antes de aplicar.",
     )
-    default_remediation = _CRITERION_REMEDIATIONS.get(
-        code, "Consulte a especificação técnica do W3C WCAG 2.2 para aplicar a remediação semântica recomendada."
-    )
-
-    location_text = "Interface Web / Elemento Geral da Página"
-
-    if item.notes:
-        notes_clean = item.notes.replace("MANUAL QA CHECK:", "").strip()
-
-        # Extrai dicas de localização se houver
-        if "cabeçalho" in notes_clean.lower() or "header" in notes_clean.lower():
-            location_text = "Cabeçalho da Página (Header) / Topo da Interface"
-        elif "rodapé" in notes_clean.lower() or "footer" in notes_clean.lower():
-            location_text = "Rodapé da Página (Footer) / Área de Termos e Links"
-        elif "menu" in notes_clean.lower() or "nav" in notes_clean.lower():
-            location_text = "Menu de Navegação Principal / Barra Superior"
-        elif "busca" in notes_clean.lower() or "pesquisa" in notes_clean.lower():
-            location_text = "Área de Busca / Campo de Pesquisa no Cabeçalho"
-        elif "modal" in notes_clean.lower() or "dialog" in notes_clean.lower() or "login" in notes_clean.lower():
-            location_text = "Janela Modal de Login / Caixa de Diálogo Interativa"
-
-        # Se notes contiver passos de solução
-        if any(
-            kw in notes_clean.lower()
-            for kw in ("1.", "adicione", "utilize", "substitua", "declare", "ajuste", "corrija")
-        ):
-            problem_text = default_problem
-            remediation_text = notes_clean
-        else:
-            problem_text = notes_clean
-            remediation_text = default_remediation
-    else:
-        problem_text = default_problem
-        remediation_text = default_remediation
-
-    return location_text, problem_text, remediation_text
 
 
 def _build_summary_table_html(by_status: dict[str, list[ChecklistItem]], total: int) -> str:
@@ -884,9 +851,7 @@ def _build_chapter_content_html(chap: dict[str, Any], cap_number: int) -> str:
         location_text, problem_text, remediation_text = _extract_location_and_action(item, code)
 
         # Impacto real no usuário
-        impact_text = _CRITERION_IMPACTS.get(
-            code, "Afeta a compreensão, a autonomia e a usabilidade de pessoas que dependem de tecnologias assistivas."
-        )
+        impact_text = "O impacto específico depende do achado e deve ser sustentado pelas evidências nas notas; não foi medido separadamente neste checklist."
 
         action_box_class = "manual-box" if is_manual else "remediation-box"
         action_header_text = (
@@ -1036,7 +1001,7 @@ def render_checklist_html(items: list[ChecklistItem], url: str) -> str:
   <div class="meta-box" role="region" aria-label="Metadados da Auditoria">
     <p><strong>Site / Página Avaliada:</strong> {html.escape(clean_url)}</p>
     <p><strong>O Que Foi Testado (Escopo):</strong> {html.escape(_TESTED_SCOPE)}</p>
-    <p><strong>Padrão de Referência:</strong> WCAG 2.2 (Níveis A, AA e AAA) &middot; WAI-ARIA &middot; Section 508 &middot; PDF/UA-1</p>
+    <p><strong>Padrão de Referência:</strong> Critérios indicados nos itens. A inclusão de uma referência não comprova avaliação integral da norma.</p>
     <p><strong>Navegador / Motor de Teste:</strong> {html.escape(_ENVIRONMENT_TESTED)}</p>
     <p><strong>Leitor de Tela Testado:</strong> {html.escape(_SCREEN_READER_TESTED)}</p>
     <p><strong>Total de Itens no Checklist:</strong> {total_items} verificações estruturadas</p>
@@ -1051,13 +1016,11 @@ def render_checklist_html(items: list[ChecklistItem], url: str) -> str:
     <div class="explanation-box" role="region" aria-label="Guia de Leitura dos Níveis e Prioridades">
       <h3>Como Compreender os Níveis de Criticidade e Prioridades</h3>
       <p style="margin: 0.3em 0 0.1em 0;"><strong>Criticidade Normativa (Níveis WCAG):</strong></p>
-      <p style="margin: 0.2em 0 0.2em 0.8em;">&bull; <strong>Nível A (Criticidade Máxima):</strong> Requisitos fundamentais e bloqueadores. A violação impede que pessoas com deficiência consigam usar o recurso.</p>
-      <p style="margin: 0.2em 0 0.2em 0.8em;">&bull; <strong>Nível AA (Criticidade Padrão Legal):</strong> Requisito exigido pelas legislações de acessibilidade mundialmente (LBI no Brasil, Section 508 nos EUA, European Accessibility Act).</p>
-      <p style="margin: 0.2em 0 0.2em 0.8em;">&bull; <strong>Nível AAA (Criticidade Especializada):</strong> Recursos avançados para públicos e contextos especializados.</p>
+      <p>Níveis A, AA e AAA descrevem conformidade, não a gravidade de cada barreira. O impacto e a prioridade dependem das evidências no contexto avaliado.</p>
 
       <p style="margin: 0.5em 0 0.1em 0;"><strong>Prioridade de Atendimento da Equipe:</strong></p>
-      <p style="margin: 0.2em 0 0.2em 0.8em;">&bull; <strong>Prioridade 1 — Imediata:</strong> Itens de Nível A com falha impeditiva (devem ser corrigidos no primeiro ciclo de desenvolvimento).</p>
-      <p style="margin: 0.2em 0 0.2em 0.8em;">&bull; <strong>Prioridade 2 — Alta:</strong> Itens de Nível AA com falha (necessários para conformidade legal completa).</p>
+      <p style="margin: 0.2em 0 0.2em 0.8em;">&bull; <strong>Prioridade 1 — Imediata:</strong> Prioridade crítica indicada na avaliação.</p>
+      <p style="margin: 0.2em 0 0.2em 0.8em;">&bull; <strong>Prioridade 2 — Alta:</strong> Prioridade alta indicada na avaliação.</p>
       <p style="margin: 0.2em 0 0.2em 0.8em;">&bull; <strong>Prioridade 3 — Média / Planejada:</strong> Validações manuais guiadas e melhorias de usabilidade.</p>
     </div>
 

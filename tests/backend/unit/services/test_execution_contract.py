@@ -76,12 +76,12 @@ async def test_structured_repair_uses_the_same_budget(monkeypatch):
     assert observed == [budget, budget]
 
 
-def test_adaptation_uses_original_start_and_model_enum():
+def test_adaptation_uses_original_start_without_shrinking_reserved_work():
     with execution_scope(10) as budget:
         budget.adapt("high")
         assert budget.deadline == budget.started_at + 80
         budget.adapt("low")
-        assert budget.deadline == budget.started_at + 20
+        assert budget.deadline == budget.started_at + 80
 
 
 def test_expired_budget_stops_tool_loop_not_an_arbitrary_round_count():

@@ -262,8 +262,8 @@ def _observed_page_structure(html: str) -> dict[str, Any]:
 async def _resolve_and_analyze(html: str, url: str, only_agents: list[str] | None = None) -> tuple[Any, str]:
     """Resolve o conteúdo (HTML direto ou via fetch de URL) e roda o pipeline.
 
-    Devolve (resultado, content) -- o `content` resolvido (HTML semântico
-    extraído, no caso de URL) é cacheado por `analyze_page` para uma correção
+    Devolve (resultado, documento_original) -- a captura integral
+    é cacheada por `analyze_page` para uma correção
     subsequente na mesma conversa não ficar sem HTML para trabalhar (ver
     last_analyzed_content_store.py).
     """
@@ -287,7 +287,7 @@ async def _resolve_and_analyze(html: str, url: str, only_agents: list[str] | Non
         chat_progress.emit_tool_progress(None, "analyze_page", "Extraindo estrutura semântica...")
         # Best-effort: árvore de acessibilidade REAL (motor do navegador), nunca
         # derruba a análise se indisponível (ver fetch_accessibility_tree_snapshot).
-        accessibility_tree = await fetch_accessibility_tree_snapshot(url)
+        accessibility_tree = await fetch_accessibility_tree_snapshot(url, html_content=raw)
         content = _extract_semantic_html(raw, accessibility_tree)
 
     chat_progress.emit_tool_progress(None, "analyze_page", "Executando especialistas em acessibilidade...")
@@ -297,7 +297,9 @@ async def _resolve_and_analyze(html: str, url: str, only_agents: list[str] | Non
     )
     result.data["observed_structure"] = _observed_page_structure(source_document)
     chat_progress.emit_tool_progress(None, "analyze_page", "Consolidando resultados da análise...")
-    return result, content
+    # Correção/preview precisam do documento original, não do recorte enviado
+    # aos especialistas (que omite CSS, ids, partes de containers e assets).
+    return result, source_document
 
 
 def analyze_page(args: dict[str, Any], **_kw: Any) -> str:
@@ -339,8 +341,8 @@ def analyze_page(args: dict[str, Any], **_kw: Any) -> str:
 
     set_last_analysis(issues, url or "Conteúdo enviado por arquivo", append=append)
 
-    # Cacheia o HTML resolvido (bruto se `html` foi passado direto, extraído
-    # semanticamente se veio de `url`) -- sem isso, um pedido de correção
+    # Cacheia o HTML original resolvido, inclusive quando veio de URL.
+    # Sem isso, um pedido de correção
     # subsequente na mesma conversa não tinha HTML disponível para repassar a
     # `fix_and_zip_files` e acabava reanalisando a página do zero (achado real).
     from backend.src.services.last_analyzed_content_store import set_last_analyzed_content
@@ -439,11 +441,22 @@ _ANALYZE_PAGE_SCHEMA: dict[str, Any] = {
             },
             "only_agents": {
                 "type": "array",
-                "items": {"type": "string"},
-                "description": "Choose a subset when the user requests a narrow or initial assessment; do not expand that into an exhaustive audit. Select the relevant specialist IDs using their capabilities (e.g., ['understandability', 'wcag_semantics'] for language and heading semantics; ['forms_a11y', 'widgets_a11y'] for forms and widgets). If omitted, the orchestrator selects specialists for a full audit. This is a model judgment based on user scope, not a keyword rule.",
+                "minItems": 1,
+                "uniqueItems": True,
+                "items": {"type": "string", "enum": [
+                    "perceiver", "operability", "understandability", "robustness",
+                    "aria_specialist", "section508", "css_analyzer", "ajax_dynamic",
+                    "cognitive", "screen_reader", "mobile_a11y", "forms_a11y",
+                    "widgets_a11y", "component_contracts", "tables_data", "link_checker",
+                    "wcag_semantics", "interaction_pattern", "compliance_audit",
+                    "agentic_ai_ui", "spatial_3d_xr", "web_components", "niche_domains",
+                    "react_framework", "angular_framework", "vue_framework", "svelte_framework",
+                    "tailwind_css", "visual_a11y",
+                ]},
+                "description": "You MUST choose specialists for every audit, broad or narrow, using the current request, evidence available, prior results and each specialist's domain. Cover the requested criteria without redundant independent audits of the same facts. Do not select legal, XR, agentic-UI or framework specialists without contextual relevance. No fixed sequence or mandatory subset: this is your semantic judgment, not a harness keyword rule. You may revise the selection after obtaining new evidence. The senior reviewer still reviews the results.",
             },
         },
-        "required": ["pre_exec_msg"],
+        "required": ["pre_exec_msg", "only_agents"],
     },
 }
 
@@ -479,8 +492,9 @@ _ANALYZE_SITE_SCHEMA: dict[str, Any] = {
                 "type": "integer",
                 "description": "Maximum number of pages to crawl. Default is 3, max is 50.",
             },
+            "only_agents": _ANALYZE_PAGE_SCHEMA["parameters"]["properties"]["only_agents"],
         },
-        "required": ["pre_exec_msg"],
+        "required": ["pre_exec_msg", "only_agents"],
     },
 }
 
@@ -489,6 +503,7 @@ async def _run_site_crawl_and_analyze(
     url: str | None,
     urls: list[str] | None,
     max_pages: int,
+    only_agents: list[str] | None = None,
 ) -> dict[str, Any]:
     """Crawl ou lista de URLs especificas, executa o pipeline em cada uma e consolida.
 
@@ -556,7 +571,7 @@ async def _run_site_crawl_and_analyze(
                 f"Executando auditoria agentic na página {page_index}/{len(target_pages)}: {page_url}",
             )
             semantic_html = _extract_semantic_html(html)
-            res = await orchestrate(semantic_html, TaskType.ANALYZE, source_document=html)
+            res = await orchestrate(semantic_html, TaskType.ANALYZE, source_document=html, only_agents=only_agents)
             if res.success:
                 page_issues = res.data.get("issues", [])
                 for issue in page_issues:
@@ -633,7 +648,8 @@ def analyze_site(args: dict[str, Any], **_kw: Any) -> str:
     max_pages = max(1, min(max_pages, 50))
 
     try:
-        result = _safe_async_run(_run_site_crawl_and_analyze(url or None, urls, max_pages))
+        selected = args.get("only_agents")
+        result = _safe_async_run(_run_site_crawl_and_analyze(url or None, urls, max_pages, selected))
         return json.dumps(result, ensure_ascii=True)
     except Exception as exc:
         logger.error("[a11y_chat] analyze_site falhou: %s", exc)
@@ -2712,7 +2728,7 @@ _EXPORT_XLSX_SCHEMA = {
     "description": (
         "Get the download link for the Excel spreadsheet containing the accessibility audit results "
         "of the last analyzed page or site. Call this when the user asks for a spreadsheet, "
-        "an Excel file, a sheet, or to export the results."
+        "an Excel file or a spreadsheet. For SARIF, use export_sarif, not this tool."
     ),
     "parameters": {
         "type": "object",
@@ -2740,6 +2756,30 @@ def export_xlsx(args: dict[str, Any], **_kw: Any) -> str:
         },
         ensure_ascii=True,
     )
+
+
+_EXPORT_SARIF_SCHEMA = {
+    "description": "Get a SARIF 2.1.0 JSON download link for the current conversation's audit results, preserving each finding's source URL. Does not rescan or publish to GitHub or other services. Use for SARIF requests, never substitute Excel.",
+    "parameters": {
+        "type": "object",
+        "properties": {"pre_exec_msg": {"type": "string", "minLength": 1}},
+        "required": ["pre_exec_msg"],
+        "additionalProperties": False,
+    },
+}
+
+
+def export_sarif_tool(args: dict[str, Any], **_kw: Any) -> str:
+    from backend.src.config.settings import get_settings
+
+    issues, _ = _issues_from_last_analysis()
+    if not issues:
+        return json.dumps({"error": "Não há achados de uma auditoria nesta conversa para exportar."}, ensure_ascii=False)
+    return json.dumps({
+        "download_url": f"{get_settings().resolved_public_base_url()}/export/last_sarif",
+        "format": "SARIF 2.1.0",
+        "message": "Link da exportação JSON disponível. Nenhum resultado foi publicado em serviços externos.",
+    }, ensure_ascii=False)
 
 
 def _issues_from_last_analysis() -> tuple[list, str]:
@@ -2889,7 +2929,7 @@ def export_checklist_pdf_tool(args: dict[str, Any], **_kw: Any) -> str:
     return json.dumps(
         {
             "download_url": f"{get_settings().resolved_public_base_url()}/export/last_checklist_pdf",
-            "message": "Accessible checklist PDF (PDF/UA-1) download link is ready. The user can download it by clicking the link.",
+            "message": "Link disponível. O PDF será gerado ao abrir o link, e essa geração ainda pode falhar. Não diga que o arquivo já foi gerado, validado ou certificado PDF/UA.",
         },
         ensure_ascii=True,
     )
@@ -4237,6 +4277,12 @@ def register_chat_tools() -> None:
         requires_approval=True,
     )
     logger.info("[a11y_chat] toolset '%s' registrado (export_xlsx)", A11Y_CHAT_TOOLSET)
+
+    registry.register(
+        name="export_sarif", toolset=A11Y_CHAT_TOOLSET,
+        schema=_EXPORT_SARIF_SCHEMA, handler=export_sarif_tool,
+        is_async=False, emoji="", requires_approval=True,
+    )
 
     registry.register(
         name="generate_checklist",

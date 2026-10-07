@@ -47,6 +47,8 @@ class TestChecklistAgent:
             await run_checklist([_issue()], html_content="<html><body><img src='x.png'></body></html>")
         _, kwargs = mock_llm.call_args
         assert "<img" in kwargs["user_prompt"]
+        assert "prior AI assessment, not an execution log" in kwargs["system_prompt"]
+        assert "Classify those as manual" in kwargs["system_prompt"]
 
     async def test_no_html_content_still_succeeds(self):
         with patch(

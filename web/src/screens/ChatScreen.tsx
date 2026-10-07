@@ -13,6 +13,7 @@ import {
 import { useChat } from "../hooks/useChat";
 import { useDialogFocus } from "../hooks/useDialogFocus";
 import { BASE_URL } from "../services/chat";
+import { isBinaryAttachment } from "../services/attachments";
 import { toolStatusText, type ToolCallData } from "../services/toolPresentation";
 import { getToolLabel } from "../services/toolMeta";
 import { type TokenUsage } from "../services/usage";
@@ -354,7 +355,7 @@ export function cleanAssistantMarkup(text: string): string {
     /\[([^\]]*)\]\((https?:\/\/[^)\s]*)\)/g,
     (_matched: string, label: string, url: string) => {
       escapedUrls.push(url);
-      return `[${label}](\u0000QAURL${escapedUrls.length - 1}\u0000)`;
+      return `[${label}](\uE000QAURL${escapedUrls.length - 1}\uE000)`;
     }
   );
   cleaned = cleaned
@@ -363,7 +364,7 @@ export function cleanAssistantMarkup(text: string): string {
     .replace(/^\s*(?:[-*_]\s*){3,}$/gm, "")
     .replace(/[*_~`]/g, "")
     .replace(/(^|\s)>(?=\s)/gm, "$1")
-    .replace(/\u0000QAURL(\d+)\u0000/g, (_matched: string, index: string) => escapedUrls[Number(index)] ?? "")
+    .replace(/\uE000QAURL(\d+)\uE000/g, (_matched: string, index: string) => escapedUrls[Number(index)] ?? "")
     .trim();
   return cleaned;
 }
@@ -714,11 +715,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
       (file) =>
         new Promise<Attachment>((resolve) => {
           const reader = new FileReader();
-          const isZip = file.name.toLowerCase().endsWith(".zip");
-          const isDocx = file.name.toLowerCase().endsWith(".docx");
-          const isPdf = file.name.toLowerCase().endsWith(".pdf");
-          const isPptx = file.name.toLowerCase().endsWith(".pptx");
-          const isBinary = isZip || isDocx || isPdf || isPptx;
+          const isBinary = isBinaryAttachment(file.name);
 
           reader.onload = () => {
             let content = String(reader.result ?? "");
@@ -1166,9 +1163,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                 ? input.trim()
                   ? "Redirecionar o assistente com esta correção, sem perder o progresso já feito"
                   : "Parar geração"
-                : naoPodeEnviar
-                  ? "Enviar mensagem — digite uma mensagem ou anexe um arquivo primeiro"
-                  : "Enviar mensagem"
+                : "Enviar mensagem"
             }
             style={[styles.sendBtn, streaming && styles.stopBtn, naoPodeEnviar && styles.sendBtnDisabled]}
           >

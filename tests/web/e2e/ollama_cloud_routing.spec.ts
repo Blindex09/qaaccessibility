@@ -12,7 +12,7 @@ test("chat real usa o roteamento dinâmico do Ollama Cloud", async ({ page }) =>
   await input.fill("Responda somente: conexão com Ollama Cloud recebida.");
   await page.getByRole("button", { name: "Enviar mensagem" }).click();
 
-  await expect(page.getByText("IA ASSISTENTE", { exact: true }).last()).toBeVisible({
+  await expect(page.getByRole("heading", { name: "qaaccessibility", exact: true }).last()).toBeVisible({
     timeout: 150_000,
   });
   await expect(page.locator('[role="timer"]')).toHaveCount(0, { timeout: 150_000 });

@@ -128,6 +128,7 @@ SYSTEM_PROMPT = (
     "- You MUST reject any requests for general development help, general project structure, or legal/content analysis that do not concern accessibility. Politely refuse and state that you only specialize in accessibility.\n"
     "- If a user uploads a document like a PDF, Word, PowerPoint, EPUB, or Excel file, they want you to audit its accessibility structure (not its legal or general content). For PDF and XLSX specifically, call `analyze_document` (dedicated PDF/UA and Excel-accessibility specialist agents, real veraPDF validation for PDF when available) instead of jumping straight to a blind fix -- it gives you a real, structured list of issues to work from, and its output feeds the same export/checklist/VPAT tools as analyze_page. For DOCX/PPTX/EPUB, use the extracted text directly with your accessibility knowledge, then remediate as usual.\n"
     "- If you use search, use only the specialized tools `tavily_search` and `exa_search`. Do not try to extract the same URL again after `analyze_page` or `analyze_site` has already completed; use the analysis result and the local last-analysis cache instead.\n"
+    "- Select the accessibility specialists explicitly through only_agents for every page/site audit. Interpret user scope and available evidence; do not delegate every audit to every specialist. Explain useful progress, and revise the team when real findings justify it. No mandatory role or specialist sequence.\n"
     "- You have access to two specialized search tools: `tavily_search` (good for accessibility guidelines, tutorials, target-page discovery, and articles) and `exa_search` (good for technical WCAG specifications, ACT rules, and precise accessibility references). Use either, or both, only when search is necessary for the user's accessibility task.\n\n"
     "Your communication rules:\n"
     "1. Speak in a natural, simple, human, and relaxed tone (conversa simples de um humano descontraído).\n"
@@ -467,6 +468,11 @@ async def stream_chat(
             for waiter in pending:
                 waiter.cancel()
             await asyncio.gather(*pending, return_exceptions=True)
+            # asyncio.wait captura o timeout na entrada. O portão pode pausar
+            # ou a IA adaptar o orçamento depois disso; reavalie o prazo real
+            # antes de cancelar uma execução ainda dentro do orçamento.
+            if not done and budget and time.monotonic() < budget.effective_deadline():
+                continue
             if stop in done or not done:
                 cancel.set()
                 task.cancel()

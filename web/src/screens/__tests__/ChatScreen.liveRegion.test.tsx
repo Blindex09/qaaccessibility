@@ -87,6 +87,12 @@ function sendMessage(text: string): void {
 }
 
 describe("ChatScreen — live regions persistentes", () => {
+  test("enviar vazio mantem nome curto e estado indisponivel", () => {
+    const button = host.querySelector('[aria-label="Enviar mensagem"]');
+    expect(button).not.toBeNull();
+    expect(button?.getAttribute("aria-disabled")).toBe("true");
+    expect(host.innerHTML).not.toContain("digite uma mensagem ou anexe um arquivo primeiro");
+  });
   test("histórico sem duração não mostra mensagem fixa nem tempo inventado", async () => {
     act(() => root.unmount());
     jest.mocked(fetchChatHistory).mockResolvedValueOnce([

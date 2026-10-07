@@ -11,6 +11,17 @@ needed by all 16 specialist agents:
 from backend.src.routes.analyze import _extract_semantic_html
 
 
+def test_fragment_target_outside_semantic_selectors_is_preserved():
+    result = _extract_semantic_html('<a href="#page">Pular</a><div id="page">Conteúdo</div>')
+    assert '"href": "#page", "target_exists": true' in result
+
+
+def test_missing_and_named_fragment_targets_remain_distinct():
+    result = _extract_semantic_html('<a href="#absent">A</a><a href="#named">B</a><a name="named"></a>')
+    assert '"href": "#absent", "target_exists": false' in result
+    assert '"href": "#named", "target_exists": true' in result
+
+
 class TestPageContext:
     """[PAGE CONTEXT] section must capture head-level a11y attributes."""
 

@@ -83,15 +83,14 @@ describe("WCAG 2.1.1 Keyboard -- botoes indisponiveis comunicam seu estado", () 
     expect(CHAT).toMatch(/accessibilityState=\{\{ disabled: naoPodeEnviar \}\}/);
   });
 
-  test("o rotulo diz POR QUE esta indisponivel", () => {
-    expect(CHAT).toMatch(/digite uma mensagem ou anexe um arquivo primeiro/);
+  test("nao restaura a instrucao fixa removida pelo usuario", () => {
+    expect(CHAT).not.toMatch(/digite uma mensagem ou anexe um arquivo primeiro/);
   });
 
   test("o rotulo indisponivel ainda contem o texto visivel (2.5.3)", () => {
-    // "Enviar mensagem — digite uma mensagem..." contem "Enviar mensagem".
-    const m = CHAT.match(/"(Enviar mensagem — [^"]+)"/);
-    expect(m).not.toBeNull();
-    expect((m as RegExpMatchArray)[1]).toContain("Enviar mensagem");
+    // O estado nativo disabled comunica indisponibilidade sem alongar o nome.
+    const bloco = CHAT.slice(CHAT.indexOf("onPress={streaming ? handlePrimaryAction : handleSend}"));
+    expect(bloco.slice(0, bloco.indexOf("</TouchableOpacity>"))).toContain(': "Enviar mensagem"');
   });
 
   test("o botao de anexar recebeu o mesmo tratamento", () => {

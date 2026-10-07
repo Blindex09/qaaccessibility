@@ -11,7 +11,7 @@ export const BASE_URL =
 const API_TOKEN = process.env.EXPO_PUBLIC_QA_API_TOKEN ?? "";
 const API_HEADERS = {
   "Content-Type": "application/json",
-  ...(API_TOKEeEN ? { "X-QA-Accessibility-Token": API_TOKEN } : {}),
+  ...(API_TOKEN ? { "X-QA-Accessibility-Token": API_TOKEN } : {}),
 };
 
 /** Resumo estruturado do resultado real de uma ferramenta (ver

@@ -153,12 +153,10 @@ function ApprovalCard({
   toolLabel,
   risk,
   args,
-  digest,
 }: {
   toolLabel: string;
   risk: ToolRisk;
   args: { key: string; value: string }[];
-  digest?: string;
 }) {
   const style = RISK_STYLES[risk];
 
@@ -231,11 +229,6 @@ function ApprovalCard({
         </View>
       )}
 
-      {digest ? (
-        <View style={styles.digestBox}>
-          <Text style={styles.digestText}>{digest}</Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -267,7 +260,6 @@ export function ClarifyPanel({ question, choices, onAnswer }: ClarifyPanelProps)
           toolLabel={view.toolLabel}
           risk={view.risk}
           args={view.args}
-          digest={view.digest}
         />
       )}
 
