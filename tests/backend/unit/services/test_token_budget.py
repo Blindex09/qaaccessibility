@@ -134,3 +134,34 @@ async def test_when_nothing_was_produced_yet_the_message_does_not_pretend_otherw
     text = "".join(e.get("text", "") for e in events if e["type"] == "token")
     assert "Não houve como apurar nada" in text
     assert "já apareceu acima" not in text
+
+
+# ----------------------------------------------------------------- registro de custo por tipo de chamada
+def test_cost_summary_groups_tokens_by_call_type_and_by_model():
+    with execution_scope.execution_scope(10) as budget:
+        execution_scope.record_call("a11y:classificador", "ollama-cloud", "m1", {"input_tokens": 100, "output_tokens": 20, "total_tokens": 120})
+        execution_scope.record_call("a11y:perceiver", "ollama-cloud", "m2", {"total_tokens": 900})
+        execution_scope.record_call("a11y:perceiver", "ollama-cloud", "m2", {"total_tokens": 100})
+        summary = budget.cost_summary()
+    assert summary["total_tokens"] == 1120 and summary["calls"] == 3
+    assert summary["by_label"]["a11y:perceiver"] == {"calls": 2, "total": 1000, "input": 0, "output": 0}
+    assert list(summary["by_label"])[0] == "a11y:perceiver"  # o mais caro primeiro
+    assert summary["by_model"]["ollama-cloud::m2"]["total"] == 1000
+
+
+def test_every_agent_conversation_records_what_it_cost():
+    from unittest.mock import patch
+
+    from run_agent import AIAgent
+
+    agent = AIAgent(provider="openai", model="m", api_key="k", log_prefix="[a11y:roteador]")
+    fake = {"final_response": "ok", "usage": {"input_tokens": 7, "output_tokens": 3, "total_tokens": 10}}
+    with execution_scope.execution_scope(10) as budget, patch.object(agent, "_run_conversation_inner", return_value=fake):
+        agent.run_conversation("oi")
+        assert budget.cost_summary()["by_label"] == {"a11y:roteador": {"calls": 1, "total": 10, "input": 7, "output": 3}}
+
+
+def test_call_without_usage_is_recorded_as_zero_not_invented():
+    with execution_scope.execution_scope(10) as budget:
+        execution_scope.record_call("a11y:x", "p", "m", None)
+        assert budget.cost_summary()["total_tokens"] == 0 and budget.cost_summary()["calls"] == 1

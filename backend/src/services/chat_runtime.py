@@ -47,6 +47,7 @@ from backend.src.services import (
 )
 from backend.src.services.chat_tools import A11Y_CHAT_TOOLSET, CLARIFY_TOOLSET
 from backend.src.services.telemetry import agent_span
+from backend.src.services.tool_groups import GROUP_DESCRIPTIONS, offered_tools, tools_of_group
 from backend.src.shared.error_formatter import format_human_friendly_error
 from backend.src.shared.normative_calibration import NORMATIVE_CALIBRATION
 from run_agent import AIAgent
@@ -596,6 +597,7 @@ async def _stream_chat_impl(
     from backend.src.services.model_router import is_alto, resolve_model_and_provider
 
     contextual_route = settings.a11y_route_advisor_enabled is True and is_alto(raw_model)
+    offered_names: frozenset[str] | None = None  # None = sem opinião do roteador: vai tudo
     if contextual_route:
         provider, model = raw_provider, raw_model
     else:
@@ -660,9 +662,11 @@ async def _stream_chat_impl(
                 yield {"type": "phase", "text": update}
             if is_first_turn and not has_attachments:
                 if intent == _INTENT_OUT_OF_SCOPE:
-                    out_of_scope_text = "Desculpe, mas sou um assistente especializado exclusivamente em acessibilidade digital (WCAG, Section 508, WAI-ARIA). Não posso ajudar com assuntos gerais ou fora de escopo."
+                    # A resposta vem do próprio modelo (regra 3: sem mensagem pronta); o texto
+                    # padrão só existe para o caso de o contrato voltar sem texto algum.
+                    out_of_scope_text = str(clarifier_res.data.get("question") or "").strip() or _DEFAULT_CLARIFY_QUESTION
                     yield {"type": "token", "text": out_of_scope_text}
-                    yield {"type": "done", "final": "Pedido fora de escopo de acessibilidade."}
+                    yield {"type": "done", "final": out_of_scope_text}
                     chat_history_store.append_message("assistant", out_of_scope_text, session_id=conversation_id)
                     chat_progress.clear_cancel_token(stream_id)
                     return
@@ -687,7 +691,20 @@ async def _stream_chat_impl(
             api_key=api_key, base_url=base_url,
             output_tokens=16384, needs_tools=True, needs_vision=bool(images),
             max_candidates=settings.a11y_model_arbitration_max_candidates,
+            tool_catalog=GROUP_DESCRIPTIONS,
         )
+        if advice.tool_groups is not None:
+            from tools.registry import registry
+
+            every_tool = [
+                name for toolset in (A11Y_CHAT_TOOLSET, CLARIFY_TOOLSET)
+                for name in registry.get_tool_names_for_toolset(toolset)
+            ]
+            offered_names = offered_tools(advice.tool_groups, every_tool)
+            logger.info(
+                "[Ferramentas] grupos escolhidos pelo roteador=%s; oferecidas %d de %d",
+                advice.tool_groups, len(offered_names or ()), len(every_tool),
+            )
         if not advice.ranking:
             raise ValueError("Não encontrei um modelo disponível com as capacidades necessárias.")
         provider, model = advice.ranking[0].split("::", 1)
@@ -854,6 +871,17 @@ async def _stream_chat_impl(
             f"{a11y_ref}"
         )
     dynamic_prompt += RESEARCH_PROTOCOL + "\n\n" + NORMATIVE_CALIBRATION
+    if offered_names is not None:
+        pending = [
+            f"{name} ({text})" for name, text in GROUP_DESCRIPTIONS.items()
+            if not tools_of_group(name) <= offered_names
+        ]
+        if pending:
+            dynamic_prompt += (
+                "\n\nFerramentas: você recebeu só as que o pedido parece precisar. Se descobrir que precisa "
+                "de outra, chame enable_tool_group com o grupo (ela entra na sua próxima chamada) em vez de "
+                "dizer que não consegue. Grupos ainda não habilitados: " + "; ".join(pending) + "."
+            )
 
     provider_cancel_event = chat_progress.cancel_event(stream_id)
     def consume_steer() -> str | None:
@@ -878,6 +906,7 @@ async def _stream_chat_impl(
         # generico "web": ele expoe web_extract e pode repetir fetch depois de
         # analyze_page. Buscas ficam nas tools controladas tavily_search/exa_search.
         enabled_toolsets=[A11Y_CHAT_TOOLSET, CLARIFY_TOOLSET],
+        offered_tools=offered_names,
         ephemeral_system_prompt=dynamic_prompt,
         prefill_messages=cleaned_history or None,
         stream_delta_callback=on_token,

@@ -82,6 +82,7 @@ async def run_deep_research(
     logger.info("[deep_research] Investigando: %s", question[:120])
     try:
         from backend.src.services.chat_tools import A11Y_CHAT_TOOLSET
+        from backend.src.services.tool_groups import tools_of_group
         from run_agent import AIAgent
 
         agent = AIAgent(
@@ -92,6 +93,8 @@ async def run_deep_research(
             max_iterations=8,
             quiet_mode=True,
             enabled_toolsets=[A11Y_CHAT_TOOLSET],
+            # Menor privilégio e economia: a pesquisa só precisa das ferramentas de busca, não das 33 do chat.
+            allowed_tools=tools_of_group("pesquisa") - {"run_deep_research"},
             ephemeral_system_prompt=_DEEP_RESEARCH_PROMPT,
             log_prefix="[deep_research]",
             # Pedido do usuário (2026-08-11): busca nativa do provider (OpenAI/

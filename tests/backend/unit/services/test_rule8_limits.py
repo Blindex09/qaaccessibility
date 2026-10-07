@@ -209,8 +209,8 @@ def test_provider_http_clients_have_no_read_clock_and_keep_sdk_retries_inside_a_
     assert "max_retries" not in kwargs
     timeout = kwargs["timeout"]
     assert isinstance(timeout, httpx.Timeout)
-    assert timeout.read is None and timeout.write is None and timeout.pool is None
-    assert timeout.connect is not None  # estabelecer a conexão não é trabalho em andamento
+    assert timeout.read is not None and timeout.read >= 30  # só o SILÊNCIO encerra, nunca a duração
+    assert timeout.connect is not None
 
 
 def test_openai_and_ollama_clients_share_the_same_no_read_clock_policy():
@@ -219,8 +219,20 @@ def test_openai_and_ollama_clients_share_the_same_no_read_clock_policy():
     from run_agent import _provider_timeout
 
     timeout = _provider_timeout()
-    assert isinstance(timeout, httpx.Timeout) and timeout.read is None
+    assert isinstance(timeout, httpx.Timeout) and timeout.read is not None
 
 
 def test_factory_runtime_has_no_fixed_timeout_parameter():
     assert "timeout" not in inspect.signature(run_factory).parameters
+
+
+def test_the_silence_window_follows_the_turns_adaptive_patience():
+    """Conexão muda por toda a janela encerra; a janela cresce com a complexidade que a IA declarou."""
+    from run_agent import _provider_timeout
+
+    with execution_scope(10) as budget:
+        base = _provider_timeout().read
+        budget.adapt("high")
+        assert _provider_timeout().read > base
+        assert _provider_timeout().read == budget.patience
+    assert _provider_timeout().read == 180.0  # sem turno: o mesmo padrão da janela inicial

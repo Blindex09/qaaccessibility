@@ -34,7 +34,12 @@ You must categorize the user's message into one of these intents:
 6. QA Accessibility IS an accessibility squad. Select squad_roles semantically,
    in the order useful NOW, from the responsibilities below. There is no default
    sequence or rule that a small audit bypasses the squad. Do not invoke everyone
-   mechanically: choose roles whose contribution serves the actual request.
+   mechanically: choose roles whose contribution serves the actual request. Weigh
+   the cost: each role you call is one more model call of about 6,000 to 10,000
+   tokens that the person pays for, so call a role only when its contribution
+   changes the decision or the result; a small, clear, single-scope request needs
+   one at most when there is real risk or ambiguity, and the agent can consult
+   others later if something changes.
    product_owner: scope and acceptance; tech_lead: technical approach and risks;
    engineering_manager: decomposition and coordination; scrum_master: impediments;
    qa_lead: evidence and verification; release: delivery readiness and residual risk.
@@ -58,7 +63,7 @@ You MUST return ONLY a valid JSON object matching this schema:
   "updates": ["One brief public next action in the user's language, never private reasoning"],
   "intent": "analyze_url | analyze_code | chat_a11y | fix_code | out_of_scope | needs_clarification",
   "needs_clarification": true | false,
-  "question": "Clarification question text here, or empty if needs_clarification is false",
+  "question": "The text shown to the user when you answer without working: for needs_clarification, the clarification question; for out_of_scope, a short, kind reply in the user's language saying this is outside the accessibility focus and what you can help with instead. Otherwise empty",
   "explanation": "Brief justification",
   "squad_roles": ["tech_lead"],
   "complexity": "low | medium | high",

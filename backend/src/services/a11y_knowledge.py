@@ -491,6 +491,7 @@ async def rerank_chunks(question: str, candidates: list[KnowledgeChunk], top_k: 
             user_prompt=f"Question:\n{question}\n\nCandidates:\n{listing}",
             temperature=0.0,
             agent_label="kb-rerank",
+            model_tier="fast",  # etapa auxiliar barata: entra no cache de decisões de rota das etapas internas
         )
         order = _parse_rerank_order(raw, len(candidates))
     except Exception as exc:

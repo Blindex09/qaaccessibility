@@ -5,7 +5,7 @@ import hashlib
 import json
 import logging
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
@@ -19,8 +19,10 @@ from backend.src.services.execution_scope import (
     current_budget,
     execution_scope,
     note_progress,
+    record_call,
 )
 from backend.src.services.telemetry import agent_span
+from backend.src.services.tool_groups import ENABLE_TOOL_GROUP, TOOL_GROUPS, tools_of_group
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +30,16 @@ logger = logging.getLogger(__name__)
 def _provider_timeout() -> httpx.Timeout:
     """Timeout dos clientes HTTP dos providers (regra 8: sem relógio fixo sobre o trabalho).
 
-    Só o ESTABELECIMENTO da conexão tem limite: não é trabalho em andamento. Ler a resposta
-    não tem: uma chamada lenta continua sendo a MESMA chamada, esperando com paciência, e
-    quem a encerra é o cancelamento da pessoa. As tentativas automáticas do SDK (queda de
-    conexão, 429, 5xx) ficam como o SDK as define: esperam de verdade e se revezam.
+    Não existe teto de DURAÇÃO: uma geração que continua enviando dados nunca é cortada. O que
+    encerra é o SILÊNCIO: nenhum byte recebido por toda a janela de paciência do turno, que se
+    adapta à complexidade declarada pela IA. Foi o que faltou no e2e real de 2026-10-07: o
+    Ollama Cloud respondeu 200 e ficou mudo por mais de 10 minutos, e sem esse limite nada
+    encerrava a espera. As tentativas automáticas do SDK (queda de conexão, 429, 5xx) valem.
     """
-    return httpx.Timeout(connect=30.0, read=None, write=None, pool=None)
+    budget = current_budget()
+    silence = max(30.0, budget.patience) if budget is not None else 180.0
+    return httpx.Timeout(connect=30.0, read=silence, write=silence, pool=silence)
+
 
 _SENSITIVE_ARGUMENT_PARTS = ("token", "secret", "password", "api_key", "authorization", "cookie")
 
@@ -384,6 +390,8 @@ class AIAgent:
         ephemeral_system_prompt: str | None = None,
         enabled_toolsets: list[str] | None = None,
         log_prefix: str = "",
+        offered_tools: Iterable[str] | None = None,
+        allowed_tools: Iterable[str] | None = None,
         prefill_messages: list[dict[str, Any]] | None = None,
         stream_delta_callback: Callable[[str], None] | None = None,
         thinking_callback: Callable[[str], None] | None = None,
@@ -430,7 +438,14 @@ class AIAgent:
         self._allowed_tools = frozenset(
             name for toolset in self.enabled_toolsets for name in registry.get_tool_names_for_toolset(toolset)
         )
+        if allowed_tools is not None:
+            # Menor privilégio: o agente só recebe a CONCESSÃO das ferramentas que o chamador listou,
+            # mesmo que o toolset inteiro tenha mais.
+            self._allowed_tools &= frozenset(allowed_tools)
         self.log_prefix = log_prefix
+        # O que é OFERECIDO ao modelo (None = tudo). A concessão de segurança continua sendo
+        # `_allowed_tools`, capturada ao nascer; o agente só pode ampliar o que já lhe foi concedido.
+        self._offered_tools: frozenset[str] | None = frozenset(offered_tools) if offered_tools is not None else None
         # Busca web NATIVA do provider (2026-08-11, pedido do usuário): roda EM
         # PARALELO com tavily_search/exa_search (tools/funcao proprias do
         # projeto, ja usadas por deep_research), nunca em vez delas -- o
@@ -616,6 +631,25 @@ class AIAgent:
                     budget.end_call()
             iteration += 1
 
+    def _is_offered(self, name: str) -> bool:
+        if name == ENABLE_TOOL_GROUP:
+            return self._offered_tools is not None  # com tudo oferecido não há grupo a habilitar
+        return self._offered_tools is None or name in self._offered_tools
+
+    def _enable_tool_group(self, group: str) -> str:
+        """O agente pede outro grupo: ele entra na próxima chamada e não sai mais da tarefa."""
+        if group not in TOOL_GROUPS:
+            return json.dumps({"error": f"Grupo desconhecido. Grupos válidos: {', '.join(TOOL_GROUPS)}."}, ensure_ascii=False)
+        names = tools_of_group(group) & self._allowed_tools
+        self._offered_tools = (self._offered_tools or frozenset()) | names
+        logger.info("%s grupo de ferramentas habilitado sob demanda: %s", self.log_prefix, group)
+        return json.dumps({"habilitado": group, "ferramentas": sorted(names)}, ensure_ascii=False)
+
+    def _dispatch_tool(self, name: str, args: dict[str, Any], decision_callback: Callable[[str], None] | None) -> str:
+        if name == ENABLE_TOOL_GROUP and name in self._allowed_tools:
+            return self._enable_tool_group(str(args.get("group", "")))
+        return run_local_tool(name, args, self.clarify_callback, decision_callback, allowed_tools=self._allowed_tools)
+
     def _get_api_tools(self) -> list[dict[str, Any]]:
         """
         Constrói a lista de ferramentas no formato esperado pelo OpenAI, xAI e Ollama.
@@ -634,7 +668,7 @@ class AIAgent:
         for tset in self.enabled_toolsets:
             tnames = registry.get_tool_names_for_toolset(tset)
             for name in tnames:
-                if name in registry.tools and name in self._allowed_tools:
+                if name in registry.tools and name in self._allowed_tools and self._is_offered(name):
                     schema = registry.tools[name]["schema"]
                     # Copia profunda para não mutar o schema original do registry
                     params = copy.deepcopy(
@@ -724,7 +758,9 @@ class AIAgent:
         from backend.src.config.settings import get_settings
 
         with execution_scope(get_settings().agent_timeout_seconds):
-            return self._run_conversation_inner(user_message, task_id)
+            result = self._run_conversation_inner(user_message, task_id)
+            record_call(self.log_prefix.strip("[] ") or "agente", self.provider, self.model, result.get("usage"))
+            return result
 
     def _run_conversation_inner(self, user_message: str, task_id: str | None = None) -> dict[str, Any]:
         """
@@ -931,11 +967,7 @@ class AIAgent:
         if len(calls) <= 1 or needs_user_gate:
             results: dict[str, str] = {}
             for tool_id, name, args in calls:
-                result = run_local_tool(
-                    name, args, self.clarify_callback,
-                    _decision_callback(tool_id),
-                    allowed_tools=self._allowed_tools,
-                )
+                result = self._dispatch_tool(name, args, _decision_callback(tool_id))
                 if self.tool_complete_callback:
                     self.tool_complete_callback(tool_id, name, args, result)
                 agent_hooks.fire(agent_hooks.POST_TOOL_CALL, tool_id, name, args, result)
@@ -945,11 +977,7 @@ class AIAgent:
 
         def _run_one(call: tuple[str, str, dict[str, Any]]) -> tuple[str, str]:
             tool_id, name, args = call
-            result = run_local_tool(
-                name, args, self.clarify_callback,
-                _decision_callback(tool_id),
-                allowed_tools=self._allowed_tools,
-            )
+            result = self._dispatch_tool(name, args, _decision_callback(tool_id))
             if self.tool_complete_callback:
                 self.tool_complete_callback(tool_id, name, args, result)
             agent_hooks.fire(agent_hooks.POST_TOOL_CALL, tool_id, name, args, result)
@@ -1078,6 +1106,7 @@ class AIAgent:
         usage_total = _empty_usage()
 
         for _iteration in self._iterations():
+            tools = self._get_response_tools()  # um grupo habilitado na rodada anterior entra aqui
             if self.steer_check:
                 steer_msg = self.steer_check()
                 if steer_msg:
@@ -1288,6 +1317,8 @@ class AIAgent:
         no_tool_call_nudge_used = False
         any_tool_called = False
         for _iteration in self._iterations():
+            tools = self._get_api_tools()  # um grupo habilitado na rodada anterior entra aqui
+            tools_arg = tools if tools else None
             # Long-Horizon: comprime historico se ultrapassar o limite de contexto
             messages = self._compress_history_if_needed(messages)
             if self.steer_check:
@@ -1614,6 +1645,8 @@ class AIAgent:
         any_tool_called = False
 
         for _iteration in self._iterations():
+            tools = self._get_api_tools()  # um grupo habilitado na rodada anterior entra aqui
+            tools_arg = tools if tools else None
             messages = self._compress_history_if_needed(messages)
             if self.steer_check:
                 steer_msg = self.steer_check()
@@ -1753,6 +1786,38 @@ class AIAgent:
             return {}
         return {"thinking": {"type": "enabled", "budget_tokens": budget}}
 
+    def _gemini_tools(self) -> list[dict[str, Any]]:
+        """Ferramentas no formato da Interactions API do Gemini (sem `strict`), só as oferecidas."""
+        return [
+            {key: value for key, value in tool.items() if key != "strict"}
+            for tool in self._get_response_tools()
+        ]
+
+    def _anthropic_tools(self) -> list[dict[str, Any]]:
+        """Ferramentas no formato da Anthropic, só as oferecidas e concedidas."""
+        from tools.registry import registry
+
+        tools: list[dict[str, Any]] = []
+        for tset in self.enabled_toolsets:
+            for name in registry.get_tool_names_for_toolset(tset):
+                if name in registry.tools and name in self._allowed_tools and self._is_offered(name):
+                    schema = registry.tools[name]["schema"]
+                    tools.append({
+                        "name": name,
+                        "description": schema.get("description", ""),
+                        "input_schema": schema.get("parameters", {"type": "object", "properties": {}}),
+                    })
+        if tools:
+            # Os schemas de ferramenta são estáticos enquanto a lista não muda -- mesmo
+            # tratamento de cache do system prompt, marcado no último bloco (a API cacheia
+            # o prefixo acumulado até o breakpoint marcado).
+            tools[-1] = {**tools[-1], "cache_control": {"type": "ephemeral"}}
+        # Busca web nativa (Anthropic server tool, docs 2026): em paralelo com tavily_search/exa_search.
+        # Adicionada DEPOIS da marcação de cache (não faz parte do prefixo cacheável).
+        if self.enable_native_web_search and self.provider == "anthropic":
+            tools.append({"type": "web_search_20260209", "name": "web_search"})
+        return tools
+
     def _anthropic_max_tokens(self) -> int:
         """A API da Anthropic exige um número; sem pedido explícito usa um padrão alto,
         corrigido para o limite real do modelo quando o próprio provider o informa."""
@@ -1845,32 +1910,7 @@ class AIAgent:
             messages.append({"role": m["role"], "content": m["content"]})
         messages.append({"role": "user", "content": self._anthropic_user_content(user_message)})
 
-        # Mapeia as ferramentas para o formato do Anthropic
-        tools = []
-        from tools.registry import registry
-        for tset in self.enabled_toolsets:
-            tnames = registry.get_tool_names_for_toolset(tset)
-            for name in tnames:
-                if name in registry.tools:
-                    schema = registry.tools[name]["schema"]
-                    tools.append({
-                        "name": name,
-                        "description": schema.get("description", ""),
-                        "input_schema": schema.get("parameters", {"type": "object", "properties": {}})
-                    })
-        if tools:
-            # Os schemas de ferramenta tambem sao estaticos por toolset -- mesmo
-            # tratamento de cache do system prompt, marcado no ultimo bloco (a
-            # API cacheia o prefixo acumulado até o breakpoint marcado).
-            tools[-1] = {**tools[-1], "cache_control": {"type": "ephemeral"}}
-
-        # Busca web nativa (Anthropic server tool, docs 2026): roda EM PARALELO
-        # com tavily_search/exa_search, o modelo escolhe qual usar. Adicionado
-        # DEPOIS da marcacao de cache acima (nao faz parte do prefixo cacheavel
-        # das function tools). Ver AIAgent.__init__ pra escopo/motivo completo.
-        if self.enable_native_web_search and self.provider == "anthropic":
-            tools.append({"type": "web_search_20260209", "name": "web_search"})
-
+        tools = self._anthropic_tools()
         tools_arg = tools if tools else None
         model_info = get_model_info(self.provider, self.model)
         is_reasoning_model = bool(model_info and model_info.reasoning)
@@ -1878,6 +1918,8 @@ class AIAgent:
         final_response = ""
         usage_total = _empty_usage()
         for _iteration in self._iterations():
+            tools = self._anthropic_tools()  # um grupo habilitado na rodada anterior entra aqui
+            tools_arg = tools if tools else None
             # Long-Horizon: comprime historico se ultrapassar o limite de contexto
             messages = self._compress_history_if_needed(messages)
             if self.steer_check:
@@ -2095,10 +2137,7 @@ class AIAgent:
         # read_local_project_files, etc.) inteiro, nao so a busca. Ver
         # AIAgent.__init__ pra escopo completo -- _get_response_tools() ja so
         # adiciona o tool nativo pra provider in {"openai", "xai"}.
-        tools = [
-            {key: value for key, value in tool.items() if key != "strict"}
-            for tool in self._get_response_tools()
-        ]
+        tools = self._gemini_tools()
         if self.previous_provider_response_id:
             next_input: Any = self._gemini_user_parts(user_message) if self.images else user_message
         else:
@@ -2143,6 +2182,7 @@ class AIAgent:
         usage_total = _empty_usage()
 
         for _iteration in self._iterations():
+            tools = self._gemini_tools()  # um grupo habilitado na rodada anterior entra aqui
             if _iteration and self.steer_check:
                 steer_msg = self.steer_check()
                 if steer_msg:

@@ -1767,3 +1767,30 @@ class TestCrossBrowserDistingueInstalacaoDeRuntime:
         assert r["engines_succeeded"] == ["chromium", "webkit"]
         assert r["engines_failed"] == ["firefox"]
         assert r["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_stream_chat_out_of_scope_answer_comes_from_the_model_not_from_canned_text(monkeypatch):
+    """Regra 3: sem mensagem pronta. O texto fixo de recusa no código foi trocado pela resposta do
+    clarificador, escrita pelo modelo no idioma da pessoa."""
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    clarifier_result = AgentResult(
+        agent="clarifier",
+        success=True,
+        data={
+            "intent": "out_of_scope",
+            "needs_clarification": False,
+            "question": "Isso foge do meu foco em acessibilidade, mas posso revisar o contraste da sua página.",
+        },
+    )
+    with patch(
+        "backend.src.agents.clarifier.run_clarifier",
+        new=AsyncMock(return_value=clarifier_result),
+    ), patch("backend.src.services.chat_runtime.AIAgent", new=_CapturingAgent):
+        events = [ev async for ev in stream_chat("qual a capital da França?")]
+
+    text = "".join(ev["text"] for ev in events if ev["type"] == "token")
+    assert text == "Isso foge do meu foco em acessibilidade, mas posso revisar o contraste da sua página."
+    assert events[-1]["type"] == "done"
+    assert events[-1]["final"] == text
+    assert "assistente especializado exclusivamente" not in text

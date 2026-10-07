@@ -222,3 +222,130 @@ async def test_invalid_bootstrap_output_is_recorded_and_repair_can_use_another_m
     assert used == ["a", "b"]
     assert outcomes == [False, True]
     assert advice.source == "ia"
+
+
+def test_router_input_keeps_start_end_and_total_size_instead_of_the_whole_task():
+    from backend.src.services.route_advisor import _TASK_HEAD_CHARS, _TASK_TAIL_CHARS, compact_task
+
+    short = "pedido curto"
+    assert compact_task(short) == short  # nada a cortar: nada muda
+    long_task = "INICIO" + "x" * 20000 + "FIM-DO-PEDIDO"
+    compact = compact_task(long_task)
+    assert compact.startswith("INICIO") and compact.endswith("FIM-DO-PEDIDO")
+    assert len(compact) < _TASK_HEAD_CHARS + _TASK_TAIL_CHARS + 200
+    assert str(len(long_task)) in compact  # o roteador ainda sabe quão grande a tarefa é
+
+
+@pytest.mark.asyncio
+async def test_control_plane_step_does_not_ask_the_router_again_for_a_different_text():
+    """Etapa interna (triagem, reranking): a decisão não muda com o texto de cada pedido."""
+    ask = AsyncMock(return_value=answer())
+    await rank_candidates(candidates(), task="primeiro pedido", step_type="kb-rerank", ask=ask, cache_by_step=True)
+    await rank_candidates(candidates(), task="outro texto totalmente diferente", step_type="kb-rerank", ask=ask,
+                          cache_by_step=True)
+    assert ask.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_user_facing_step_still_asks_again_when_the_text_changes():
+    ask = AsyncMock(return_value=answer())
+    await rank_candidates(candidates(), task="primeiro pedido", step_type="chat", ask=ask)
+    await rank_candidates(candidates(), task="outro pedido", step_type="chat", ask=ask)
+    assert ask.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_different_steps_never_share_a_cached_decision():
+    ask = AsyncMock(return_value=answer())
+    await rank_candidates(candidates(), task="t", step_type="kb-rerank", ask=ask, cache_by_step=True)
+    await rank_candidates(candidates(), task="t", step_type="clarifier", ask=ask, cache_by_step=True)
+    assert ask.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_control_plane_cache_survives_the_live_telemetry_of_the_candidates_changing():
+    """Regressão (e2e real 2026-10-07): a chave incluía confiabilidade/latência/tentativas, que mudam a
+    cada chamada, então o cache de etapas internas nunca acertava e cada turno pagava 3 consultas."""
+    ask = AsyncMock(return_value=answer())
+    first = candidates()
+    await rank_candidates(first, task="t1", step_type="kb-rerank-telemetria", ask=ask, cache_by_step=True)
+    after_a_call = [RouteCandidate(c.provider, c.model, c.context_window, c.capabilities, c.cost_input,
+                                   c.cost_output, c.reliability - .1, c.latency_score + .1, c.attempts + 7)
+                    for c in first]
+    await rank_candidates(after_a_call, task="t2", step_type="kb-rerank-telemetria", ask=ask, cache_by_step=True)
+    assert ask.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_control_plane_cache_is_not_reused_when_the_set_of_models_changes():
+    ask = AsyncMock(return_value=answer())
+    await rank_candidates(candidates(), task="t", step_type="kb-rerank-conjunto", ask=ask, cache_by_step=True)
+    fewer = candidates()[:2]
+    ask_fewer = AsyncMock(return_value=json.dumps(dict(
+        ranking=["ollama-cloud::b", "ollama-cloud::a"], complexity="low", preference="cost",
+        compare_models=[], judge="", reason="dois modelos")))
+    await rank_candidates(fewer, task="t", step_type="kb-rerank-conjunto", ask=ask_fewer, cache_by_step=True)
+    assert ask.await_count == 1 and ask_fewer.await_count == 1  # conjunto diferente: nova consulta
+
+
+@pytest.mark.asyncio
+async def test_router_gets_compact_candidate_facts_without_repeating_provider_and_model_name():
+    seen = {}
+
+    async def ask(system, payload, schema):
+        seen["payload"] = json.loads(payload)
+        return answer()
+
+    await rank_candidates(candidates(), task="t-fatos", step_type="chat-fatos", ask=ask)
+    first = seen["payload"]["candidates"][0]
+    assert first["id"] == "ollama-cloud::a"
+    assert "provider" not in first and "model" not in first  # já estão no id
+    assert set(first) >= {"capabilities", "context_window", "cost_input", "cost_output",
+                          "reliability", "latency_score", "attempts"}
+    assert first["reliability"] == round(first["reliability"], 2)
+
+
+@pytest.mark.asyncio
+async def test_router_may_rank_only_the_best_and_the_harness_completes_the_order():
+    """Pedir todos os candidatos custa tokens de saída; o resto vem da confiabilidade observada."""
+    from backend.src.services.route_advisor import _SYSTEM
+
+    assert "no máximo 5" in _SYSTEM
+    partial = json.dumps(dict(ranking=["ollama-cloud::c"], complexity="low", preference="cost",
+                              compare_models=[], judge="", reason="só o melhor"))
+    advice = await rank_candidates(candidates(), task="t-parcial", step_type="chat-parcial",
+                                   ask=AsyncMock(return_value=partial))
+    assert advice.ranking[0] == "ollama-cloud::c"
+    assert set(advice.ranking) == {"ollama-cloud::a", "ollama-cloud::b", "ollama-cloud::c"}
+
+
+@pytest.mark.asyncio
+async def test_knowledge_rerank_is_a_cheap_control_step():
+    from backend.src.services import a11y_knowledge
+
+    seen = {}
+
+    async def fake_call(**kwargs):
+        seen.update(kwargs)
+        return "[0, 1]"
+
+    items = [a11y_knowledge.KnowledgeChunk(str(i), "fonte", f"titulo {i}", "texto") for i in range(2)]
+    with patch("backend.src.services.llm_client.call_llm", new=fake_call):
+        await a11y_knowledge.rerank_chunks("pergunta", items, top_k=2)
+    assert seen["model_tier"] == "fast"
+
+
+def test_router_is_told_that_reasoning_is_the_biggest_hidden_cost():
+    """Regressão (e2e real 2026-10-07): o revisor pensou ~22 mil tokens para devolver 900. O roteador
+    decide o esforço pela complexidade, então precisa saber o que cada nível custa."""
+    from backend.src.services.route_advisor import _SYSTEM
+
+    assert "maior custo escondido" in _SYSTEM
+    assert "Use low para triagem" in _SYSTEM
+
+
+def test_low_complexity_means_no_extra_reasoning_because_the_low_level_is_not_cheap():
+    """Medido ao vivo: nos modelos de raciocínio o nível "low" gastou 6.372 tokens e pensar zero gastou 169."""
+    from backend.src.services.llm_client import _EFFORT_FOR_COMPLEXITY
+
+    assert _EFFORT_FOR_COMPLEXITY == {"low": "none", "medium": "medium", "high": "high"}

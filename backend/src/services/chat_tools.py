@@ -25,6 +25,7 @@ from typing import Any
 
 from backend.src.config.settings import get_settings
 from backend.src.services import chat_progress
+from backend.src.services.tool_groups import ENABLE_TOOL_GROUP, GROUP_DESCRIPTIONS, TOOL_GROUPS
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ async def _consult_squad(args: dict[str, Any]) -> str:
 
 
 _CONSULT_SQUAD_SCHEMA: dict[str, Any] = {
-    "description": "Consult members of the accessibility squad in the order YOU choose from the current context. Use before work for scope/approach, after actual results for evidence/review, or when impediments or scope changes call for replanning. No default sequence; do not call everyone mechanically. Role consultation does not execute inspections, certify conformance, or grant tool approval. Analysis specialists belong to this same squad and run through analysis tools.",
+    "description": "Consult members of the accessibility squad in the order YOU choose from the current context. Use before work for scope/approach, after actual results for evidence/review, or when impediments or scope changes call for replanning. No default sequence; do not call everyone mechanically. Each role consulted is a separate model call of about 6,000 to 10,000 tokens that the person pays for: consult only the roles whose answer changes what you do next, and do not repeat a role whose earlier answer is still valid. Role consultation does not execute inspections, certify conformance, or grant tool approval. Analysis specialists belong to this same squad and run through analysis tools.",
     "parameters": {
         "type": "object",
         "properties": {
@@ -397,6 +398,25 @@ def analyze_page(args: dict[str, Any], **_kw: Any) -> str:
     squad_plan_store.save_squad_plan(squad.plan.to_dict())
     chat_progress.emit(event)
     return json.dumps(summary, ensure_ascii=True)
+
+
+_ENABLE_TOOL_GROUP_SCHEMA: dict[str, Any] = {
+    "description": (
+        "Habilita um grupo de ferramentas que não veio na sua lista atual, quando o pedido da pessoa exigir. "
+        "Grupos: " + "; ".join(f"{name} ({text})" for name, text in GROUP_DESCRIPTIONS.items()) + ". "
+        "Use só quando precisar de uma ferramenta que você não tem; ela fica disponível na sua próxima chamada."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {"group": {"type": "string", "enum": list(TOOL_GROUPS)}},
+        "required": ["group"],
+    },
+}
+
+
+def enable_tool_group_without_agent(args: dict[str, Any], **_kw: Any) -> str:
+    """Só o agente que está conversando pode habilitar um grupo: sem ele não há o que habilitar."""
+    return json.dumps({"error": "Habilitar grupos de ferramentas só é possível dentro de uma conversa com o agente."})
 
 
 _ANALYZE_PAGE_SCHEMA: dict[str, Any] = {
@@ -4097,7 +4117,10 @@ def _cache_remote_test_result_for_deliverables(runner: str, target_url: str, raw
 _RUN_DEEP_RESEARCH_SCHEMA: dict[str, Any] = {
     "description": (
         "Executa uma pesquisa normativa profunda de acessibilidade (WCAG 2.2, WAI-ARIA APG, "
-        "Section 508, EN 301 549, PDF/UA) investigando fontes primárias e trazendo citações completas."
+        "Section 508, EN 301 549, PDF/UA) investigando fontes primárias e trazendo citações completas. "
+        "CUSTO ALTO: costuma gastar centenas de milhares de tokens (medido: 570 mil). Use só quando a "
+        "pessoa pedir aprofundamento ou uma citação que você não consegue dar; para dúvidas comuns responda "
+        "direto ou use uma busca simples."
     ),
     "parameters": {
         "type": "object",
@@ -4168,6 +4191,14 @@ def register_chat_tools() -> None:
         logger.warning("[a11y_chat] tools.registry indisponivel: %s", exc)
         return
 
+    registry.register(
+        name=ENABLE_TOOL_GROUP,
+        toolset=A11Y_CHAT_TOOLSET,
+        schema=_ENABLE_TOOL_GROUP_SCHEMA,
+        handler=enable_tool_group_without_agent,
+        is_async=False,
+        emoji="",
+    )
     registry.register(
         name="consult_squad",
         toolset=A11Y_CHAT_TOOLSET,
@@ -4493,6 +4524,7 @@ def register_chat_tools() -> None:
         handler=run_deep_research_tool,
         is_async=False,
         emoji="",
+        requires_approval=True,  # gastar muito é ação de alto impacto: segue a configuração de aprovação
     )
     logger.info("[a11y_chat] toolset '%s' registrado (run_deep_research)", A11Y_CHAT_TOOLSET)
 

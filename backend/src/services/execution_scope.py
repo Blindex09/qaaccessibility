@@ -27,7 +27,7 @@ import time
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 from backend.src.services import chat_progress
 
@@ -73,6 +73,8 @@ class ExecutionBudget:
     # teto de trabalho que existe: escolha dela, nunca um número embutido no código.
     token_limit: int | None = None
     tokens_used: int = 0
+    # Registro de custo por chamada ao modelo (regra 9: medir antes de afirmar economia).
+    calls: list[dict[str, Any]] = field(default_factory=list, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -90,6 +92,35 @@ class ExecutionBudget:
     def add_tokens(self, count: int) -> None:
         with self._lock:
             self.tokens_used += max(0, int(count))
+
+    def record_call(self, label: str, provider: str, model: str, usage: dict[str, int] | None) -> None:
+        usage = usage or {}
+        with self._lock:
+            self.calls.append({
+                "label": label, "provider": provider, "model": model,
+                "input": int(usage.get("input_tokens", 0)), "output": int(usage.get("output_tokens", 0)),
+                "total": int(usage.get("total_tokens", 0)),
+            })
+
+    def cost_summary(self) -> dict[str, Any]:
+        """Tokens e chamadas por tipo de chamada e por modelo, para provar (ou refutar) economia."""
+        with self._lock:
+            calls = list(self.calls)
+        by_label: dict[str, dict[str, int]] = {}
+        by_model: dict[str, dict[str, int]] = {}
+        for call in calls:
+            for table, key in ((by_label, call["label"]), (by_model, f"{call['provider']}::{call['model']}")):
+                row = table.setdefault(key, {"calls": 0, "total": 0, "input": 0, "output": 0})
+                row["calls"] += 1
+                row["total"] += call["total"]
+                row["input"] += call["input"]
+                row["output"] += call["output"]
+        return {
+            "total_tokens": sum(call["total"] for call in calls),
+            "calls": len(calls),
+            "by_label": dict(sorted(by_label.items(), key=lambda item: -item[1]["total"])),
+            "by_model": dict(sorted(by_model.items(), key=lambda item: -item[1]["total"])),
+        }
 
     @property
     def token_budget_reached(self) -> bool:
@@ -158,6 +189,13 @@ def budgeted(function: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R
 
 def current_budget() -> ExecutionBudget | None:
     return _budget.get()
+
+
+def record_call(label: str, provider: str, model: str, usage: dict[str, int] | None) -> None:
+    """Registra no orçamento do turno atual quanto uma chamada ao modelo custou."""
+    budget = _budget.get()
+    if budget is not None:
+        budget.record_call(label, provider, model, usage)
 
 
 def add_tokens(count: int) -> None:

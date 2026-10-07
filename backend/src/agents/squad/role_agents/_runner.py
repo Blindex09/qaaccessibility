@@ -138,6 +138,9 @@ async def run_role(
             temperature=0.2,
             agent_label=f"squad_{role.value}",
             model_tier=model_tier,
+            # Papéis irmãos da squad reaproveitam a decisão de rota: cada um pagar uma consulta
+            # ao roteador custaria mais do que decidir uma vez para o grupo.
+            route_family="squad",
             public_update_callback=updates.feed,
         )
     except Exception as exc:

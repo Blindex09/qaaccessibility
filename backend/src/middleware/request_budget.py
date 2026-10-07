@@ -6,9 +6,14 @@ jeito que vale no chat. É um middleware ASGI puro: o orçamento fica visível p
 também durante respostas em streaming.
 """
 
+import json
+import logging
+
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from backend.src.services.execution_scope import execution_scope
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_WINDOW_SECONDS = 90.0
 
@@ -32,5 +37,13 @@ class RequestBudgetMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        with execution_scope(_window_seconds()):
-            await self.app(scope, receive, send)
+        with execution_scope(_window_seconds()) as budget:
+            try:
+                await self.app(scope, receive, send)
+            finally:
+                summary = budget.cost_summary()
+                if summary["calls"]:
+                    logger.info(
+                        "[Custo] %s %s %s", scope.get("method", ""), scope.get("path", ""),
+                        json.dumps(summary, ensure_ascii=False),
+                    )

@@ -77,6 +77,11 @@ ISSUES_RESPONSE_SCHEMA: dict[str, Any] = {
 }
 
 
+# Esforço de raciocínio pedido ao modelo a partir da complexidade que o roteador declarou (a IA decide a
+# complexidade; aqui só se traduz o contrato). Baixa = não pensar.
+_EFFORT_FOR_COMPLEXITY: dict[str, str] = {"low": "none", "medium": "medium", "high": "high"}
+
+
 def _reasoning_effort_for_tradeoff(tradeoff: int) -> str:
     """Traduz o dial de tradeoff custo/qualidade (0-10, decidido pelo
     classificador real de complexidade em complexity_router.py) pro nível de
@@ -308,6 +313,7 @@ async def call_llm(
     toolsets: list[str] | None = None,
     max_iterations: int = 1,
     model_tier: str = "alto",
+    route_family: str | None = None,
     response_schema: dict[str, Any] | None = None,
     public_update_callback: Callable[[str], None] | None = None,
 ) -> str:
@@ -446,10 +452,11 @@ async def call_llm(
         )
         route_advice = await advise_route(
             settings.llm_provider, settings.llm_model, task=route_task,
-            step_type=label, api_key=api_key, base_url=base_url,
+            step_type=route_family or label, api_key=api_key, base_url=base_url,
             output_tokens=max_tokens or _EXPECTED_OUTPUT_TOKENS, needs_tools=bool(enabled_toolsets), needs_vision=needs_vision,
             max_candidates=settings.a11y_model_arbitration_max_candidates,
             comparison_allowed=model_tier != "fast",
+            reuse_decision=route_family is not None,
         )
         if not route_advice.ranking:
             raise ValueError("Nenhum modelo elegível comporta o contexto e as capacidades desta tarefa.")
@@ -459,7 +466,14 @@ async def call_llm(
         api_key, base_url = route_credentials(provider, settings.llm_provider, api_key, base_url)
         candidates = [(provider, model, api_key, base_url)]
         if route_advice.source == "ia":
-            initial_reasoning_effort = {"low": "low", "medium": "medium", "high": "high"}[route_advice.complexity]
+            # Complexidade baixa = nenhum raciocínio extra. Medido ao vivo (2026-10-07, deepseek-v4.1-flash,
+            # revisão de 2 achados): sem pensar 169 tokens; "low" 6.372; "medium" 1.593; "high" 916. O
+            # nível "low" NÃO é barato, então só "sem pensar" é previsível para o que é mecânico.
+            initial_reasoning_effort = _EFFORT_FOR_COMPLEXITY[route_advice.complexity]
+            logger.info(
+                "[Effort] agent_label=%s complexidade do roteador=%s -> reasoning_effort=%s",
+                label_lower or "leaf", route_advice.complexity, initial_reasoning_effort,
+            )
 
     async def _attempt(
         cand_provider: str,
@@ -768,6 +782,7 @@ async def call_llm_structured(
     agent_label: str = "",
     response_schema: dict[str, Any] | None = None,
     model_tier: str | None = None,
+    route_family: str | None = None,
     public_update_callback: Callable[[str], None] | None = None,
 ) -> T:
     """
@@ -809,6 +824,7 @@ async def call_llm_structured(
                 agent_label=agent_label,
                 response_schema=response_schema,
                 model_tier=model_tier or "alto",
+                route_family=route_family,
                 public_update_callback=public_update_callback,
             )
         except ValueError as exc:
