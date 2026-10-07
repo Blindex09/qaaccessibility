@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
 from backend.src.services import agent_hooks
-from backend.src.services.execution_scope import check_execution, current_budget, remaining_seconds
+from backend.src.services.execution_scope import check_execution, current_budget, note_progress, remaining_seconds
 from backend.src.services.telemetry import agent_span
 
 logger = logging.getLogger(__name__)
@@ -261,11 +261,23 @@ def run_local_tool(
         schema = schema.get("function", schema).get("parameters", {})
         if schema:
             Draft202012Validator(schema).validate(clean_args)
-    except Exception as exc:
+    except (TimeoutError, InterruptedError) as exc:
         logger.warning("[ToolValidation] blocked tool=%s reason=%s", name, type(exc).__name__)
         if approval_decision_callback:
             approval_decision_callback("invalid_arguments")
-        return json.dumps({"error": "A chamada foi bloqueada: argumentos inválidos ou execução encerrada."}, ensure_ascii=False)
+        return json.dumps({"error": "A chamada foi bloqueada: a execução foi encerrada."}, ensure_ascii=False)
+    except Exception as exc:
+        # O modelo precisa saber QUAL campo violou o contrato para se corrigir;
+        # um erro genérico o faz repetir a mesma chamada às cegas.
+        detail = str(getattr(exc, "message", "") or exc)[:300]
+        field = ".".join(str(part) for part in getattr(exc, "absolute_path", []) or []) or "argumentos"
+        logger.warning("[ToolValidation] blocked tool=%s reason=%s field=%s", name, type(exc).__name__, field)
+        if approval_decision_callback:
+            approval_decision_callback("invalid_arguments")
+        return json.dumps(
+            {"error": f"A chamada foi bloqueada: argumentos inválidos em '{field}': {detail}. Corrija e chame de novo."},
+            ensure_ascii=False,
+        )
     if tool.get("requires_approval"):
         # O mesmo snapshot alimenta o cartão e o handler. Uma alteração
         # enquanto se espera a resposta não troca o alvo aprovado.
@@ -308,6 +320,18 @@ def run_local_tool(
         return res
     except Exception as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
+
+def _progress_aware(callback: Callable[[str], None] | None) -> Callable[[str], None] | None:
+    """Envolve um callback de streaming para também sinalizar progresso ao turno."""
+    if callback is None:
+        return None
+
+    def wrapped(text: str) -> None:
+        note_progress()
+        callback(text)
+
+    return wrapped
+
 
 class AIAgent:
     def __init__(
@@ -389,9 +413,11 @@ class AIAgent:
         self.enable_native_web_search = enable_native_web_search
         self.prefill_messages = prefill_messages or []
 
-        self.stream_delta_callback = stream_delta_callback
-        self.thinking_callback = thinking_callback
-        self.reasoning_callback = reasoning_callback
+        # Cada pedaço recebido do modelo é progresso real: desliza a janela de
+        # silêncio do turno (regra 8) sem mudar o que o callback faz.
+        self.stream_delta_callback = _progress_aware(stream_delta_callback)
+        self.thinking_callback = _progress_aware(thinking_callback)
+        self.reasoning_callback = _progress_aware(reasoning_callback)
         self.tool_start_callback = tool_start_callback
         self.tool_complete_callback = tool_complete_callback
         self.clarify_callback = clarify_callback
@@ -419,6 +445,8 @@ class AIAgent:
         self.context_drift_callback = context_drift_callback
         self._tool_call_signatures: list[str] = []
         self._drift_reflected = False
+        self._drift_stalled = False
+        self._drift_repeats_after_reflection = 0
         # Multimodal (2026): imagens do turno atual, cada uma
         # {"media_type": "image/png", "data": "<base64 sem prefixo data URI>"}.
         # So o TURNO ATUAL carrega imagem -- nao faz parte do historico
@@ -534,8 +562,13 @@ class AIAgent:
             check_execution()
             if self.cancel_check and self.cancel_check():
                 raise InterruptedError("Execução interrompida pelo usuário.")
+            if self._drift_stalled:
+                # A mesma chamada voltou a repetir depois da reflexão: não há
+                # mais nada útil a fazer, encerra com o que já está provado.
+                return
             if (not self.enabled_toolsets or current_budget() is None) and iteration >= self.max_iterations:
                 return
+            note_progress()  # nova rodada do modelo = progresso real
             yield iteration
             iteration += 1
 
@@ -767,6 +800,12 @@ class AIAgent:
         fallback_result["used_fallback"] = True
         return fallback_result
 
+    def _loop_exit_error(self, pending: str) -> str:
+        """Mensagem honesta de por que o laço de ferramentas terminou sem conclusão."""
+        if self._drift_stalled:
+            return f"O agente repetiu a mesma chamada sem mudar o resultado e foi encerrado enquanto {pending}."
+        return f"O limite de iterações foi atingido enquanto {pending}."
+
     def _check_context_drift(self, name: str, args: dict[str, Any], result: str) -> str | None:
         """Registra a assinatura (tool+args+resultado) e detecta repeticao sem
         progresso. Retorna a nota de reflexao a anexar ao resultado, ou None.
@@ -777,7 +816,15 @@ class AIAgent:
         ).hexdigest()
         self._tool_call_signatures.append(sig)
         self._tool_call_signatures = self._tool_call_signatures[-_CONTEXT_DRIFT_WINDOW:]
-        if self._drift_reflected or self._tool_call_signatures.count(sig) < _CONTEXT_DRIFT_REPEAT_THRESHOLD:
+        if self._tool_call_signatures.count(sig) < _CONTEXT_DRIFT_REPEAT_THRESHOLD:
+            return None
+        if self._drift_reflected:
+            # Depois da reflexão a mesma chamada continuou repetindo sem mudar
+            # o resultado: sem progresso, o laço é encerrado (nunca infinito).
+            self._drift_repeats_after_reflection += 1
+            if self._drift_repeats_after_reflection >= _CONTEXT_DRIFT_REPEAT_THRESHOLD:
+                self._drift_stalled = True
+                logger.warning("%s Repetição persistente após a reflexão: encerrando o laço de ferramentas.", self.log_prefix)
             return None
         self._drift_reflected = True
         reason = f"tool '{name}' repetida {_CONTEXT_DRIFT_REPEAT_THRESHOLD}x com os mesmos argumentos e resultado, sem progresso"
@@ -876,6 +923,7 @@ class AIAgent:
             drift_note = self._check_context_drift(name_by_id[tool_id], args_by_id[tool_id], result)
             if drift_note:
                 results[tool_id] = result + drift_note
+        note_progress()  # ferramentas concluídas = progresso real
         return results
 
     def _openai_user_content(self, user_message: str) -> Any:
@@ -1113,7 +1161,7 @@ class AIAgent:
 
         return {
             "failed": True,
-            "error": "O limite de iterações foi atingido enquanto ainda havia ferramentas pendentes.",
+            "error": self._loop_exit_error("ainda havia ferramentas pendentes"),
         }
 
     def _chat_completions_create(self, client: Any, **kwargs: Any) -> Any:
@@ -2155,5 +2203,5 @@ class AIAgent:
 
         return {
             "failed": True,
-            "error": "O limite de iterações foi atingido enquanto o Gemini ainda solicitava ferramentas.",
+            "error": self._loop_exit_error("o Gemini ainda solicitava ferramentas"),
         }

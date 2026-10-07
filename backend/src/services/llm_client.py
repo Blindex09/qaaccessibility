@@ -12,7 +12,7 @@ from pydantic import ValidationError
 import backend.src.services.a11y_domain_tools  # noqa: F401 -- side-effect import, registra o toolset de dominio (a11y_tools) no tools/registry.py
 from backend.src.config.settings import get_settings
 from backend.src.services import agent_hooks, batch_collector
-from backend.src.services.execution_scope import budgeted
+from backend.src.services.execution_scope import budgeted, run_until_stalled
 from backend.src.services.response_cache import (
     get_cached_response,
     make_cache_key,
@@ -544,9 +544,12 @@ async def call_llm(
                 user_message=cur_user_prompt,
                 task_id=cand_task_id,
             )
-            if call_deadline is not None:
-                return await asyncio.wait_for(work, timeout=remaining_seconds(max(0.001, call_deadline - time.monotonic())))
-            return await work
+            # Com orçamento do turno a chamada espera enquanto a execução avança
+            # (regra 8); só sem orçamento vale o prazo legado da chamada isolada.
+            return await run_until_stalled(
+                work,
+                fallback_timeout=max(0.001, call_deadline - time.monotonic()) if call_deadline is not None else None,
+            )
 
         apply_temperature = True
         reasoning_effort: str | None = initial_reasoning_effort

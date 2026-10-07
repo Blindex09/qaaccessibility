@@ -46,6 +46,7 @@ from backend.src.services.adaptive_budget import AdaptiveExecutionBudget, create
 from backend.src.services.audit_observability import audited_orchestrator
 from backend.src.services.complexity_router import classify_and_set_tradeoff, get_current_tradeoff
 from backend.src.services.contrast_verifier import verify_contrast_issues
+from backend.src.services.execution_scope import run_until_stalled
 from backend.src.services.lessons_store import get_known_false_positive_patterns
 from backend.src.shared.i18n.criteria_pt import translate_issues
 from backend.src.shared.models import (
@@ -269,14 +270,14 @@ async def _timed(name: str, coro_factory) -> tuple[AgentResult, float]:
         result = AgentResult(agent=name, success=False, data={}, error="Cancelado pelo usuário")
     else:
         try:
-            result = await asyncio.wait_for(coro_factory(), timeout=timeout)
+            result = await run_until_stalled(coro_factory(), fallback_timeout=timeout)
         except asyncio.TimeoutError:
             logger.warning(
-                "[Orchestrator] Agente '%s' atingiu o orçamento de %.0fs; seguindo com resultado parcial.",
+                "[Orchestrator] Agente '%s' ficou sem progresso (janela de %.0fs); seguindo com resultado parcial.",
                 name,
                 timeout,
             )
-            result = AgentResult(agent=name, success=False, data={}, error=f"Timeout after {timeout}s")
+            result = AgentResult(agent=name, success=False, data={}, error=f"Timeout: sem progresso por {timeout:.0f}s")
         except Exception as exc:
             result = AgentResult(agent=name, success=False, data={}, error=str(exc))
     duration_ms = (loop.time() - start) * 1000
@@ -682,7 +683,7 @@ async def _run_analysis_pipeline(
         tradeoff=tradeoff,
     )
     logger.info(
-        "[Orchestrator] Orçamento adaptativo: %.0fs restantes, %d agente(s), concorrência=%d, tradeoff=%d",
+        "[Orchestrator] Janela adaptativa: %.0fs restantes, %d agente(s), concorrência=%d, tradeoff=%d",
         budget.remaining_seconds,
         len(agents),
         budget.parallelism,
@@ -693,13 +694,18 @@ async def _run_analysis_pipeline(
     if batch_collect:
         collect_token = batch_collector.enable()
         try:
-            tuples = await asyncio.wait_for(
-                asyncio.gather(*[_run_with_semaphore(name, func) for name, func in agents]),
-                timeout=budget.remaining_seconds,
+            gathered = asyncio.ensure_future(
+                asyncio.gather(*[_run_with_semaphore(name, func) for name, func in agents])
             )
-        except asyncio.TimeoutError:
-            logger.warning("[Orchestrator] Coleta batch atingiu o deadline adaptativo; autosubmit das chamadas coletadas.")
-            tuples = []
+            while not gathered.done() and not budget.expired:
+                await asyncio.wait({gathered}, timeout=budget.remaining_seconds)
+            if gathered.done():
+                tuples = gathered.result()
+            else:
+                gathered.cancel()
+                await asyncio.gather(gathered, return_exceptions=True)
+                logger.warning("[Orchestrator] Coleta batch ficou sem progresso; autosubmit das chamadas coletadas.")
+                tuples = []
         finally:
             batch_collector.disable(collect_token)
     else:
@@ -721,7 +727,9 @@ async def _run_analysis_pipeline(
                 return_when=asyncio.FIRST_COMPLETED,
             )
             if not done:
-                break
+                # A janela pode ter deslizado com o progresso de outro
+                # especialista; o `while` encerra se de fato travou.
+                continue
             for task in done:
                 _name, result, duration = await task
                 tuples.append((result, duration))
@@ -735,7 +743,7 @@ async def _run_analysis_pipeline(
                 task.cancel()
             await asyncio.gather(*pending, return_exceptions=True)
             logger.info(
-                "[Orchestrator] Autosubmit do resultado parcial: %d/%d especialista(s) concluíram dentro do orçamento.",
+                "[Orchestrator] Autosubmit do resultado parcial: %d/%d especialista(s) concluíram antes de a execução parar de avançar.",
                 completed,
                 len(agents),
             )

@@ -1,6 +1,17 @@
-"""A single execution deadline, inherited by routing, repairs and workers.
+"""A single stall window, inherited by routing, repairs and workers.
 
-Only model-supplied complexity changes the allowance. Retries never reset it.
+Regra 8 (CLAUDE.md): nenhum relógio fixo encerra trabalho que continua
+avançando. Por isso o `deadline` deste módulo NÃO é um teto de duração total: é
+o instante em que a execução seria considerada TRAVADA se nada novo acontecesse.
+Todo progresso real (evento publicado, token recebido, ferramenta concluída,
+nova rodada do modelo, especialista concluído) desliza esse instante para
+frente (`note_progress`). Uma tarefa grande leva o tempo que precisar enquanto
+avança; só a falta de progresso por toda a janela (`patience`) a encerra, com
+entrega parcial honesta.
+
+A janela é adaptada pela complexidade que a IA declarou (`adapt`) e pelo que a
+fase em andamento precisa (`extend_patience`); nunca é uma conta sobre o
+tamanho do trabalho. Retries nunca reiniciam o que já foi provado.
 ContextVars isolate simultaneous turns and propagate through asyncio.to_thread.
 
 User gates (approval cards, agent questions) PAUSE the clock while they wait:
@@ -8,6 +19,7 @@ the deadline is shifted forward by the exact time the user takes, so a slow
 click never consumes work budget. The next real task pays full price again.
 """
 
+import asyncio
 import contextvars
 import functools
 import time
@@ -33,6 +45,13 @@ class ExecutionBudget:
     # only user waiting (no machine work) extends it.
     paused_since: float | None = None
     paused_total: float = 0.0
+    # Janela de silêncio tolerada: quanto tempo sem NENHUM progresso significa
+    # "travado". Começa igual à folga inicial e só cresce.
+    patience: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.patience <= 0:
+            self.patience = max(1.0, self.deadline - self.started_at)
 
     def _paused_now(self) -> float:
         return self.paused_total + (time.monotonic() - self.paused_since if self.paused_since is not None else 0.0)
@@ -40,15 +59,28 @@ class ExecutionBudget:
     def effective_deadline(self) -> float:
         return self.deadline + self._paused_now()
 
+    def note_progress(self) -> None:
+        """Registra progresso real: a janela de silêncio recomeça a partir de agora.
+
+        Nunca encurta o prazo já calculado e é ignorado enquanto um portão do
+        usuário está aberto (espera humana não é progresso de máquina).
+        """
+        if self.paused_since is not None:
+            return
+        self.deadline = max(self.deadline, time.monotonic() - self.paused_total + self.patience)
+
+    def extend_patience(self, seconds: float) -> None:
+        """A fase em andamento precisa de uma janela maior. Nunca encolhe."""
+        self.patience = max(self.patience, float(seconds))
+        self.note_progress()
+
     def adapt(self, complexity: str) -> None:
         # Contract enum, not a semantic classifier or a keyword heuristic.
         multiplier = {"low": 2, "medium": 4, "high": 8}[complexity]
-        # Complexidade declarada move o fim teórico a partir do início
-        # original (a pausa do humano não é consumo de trabalho). Pausas já
-        # acumuladas continuam valendo: o deadline real segue descontando-as.
-        # Uma chamada auxiliar simples não reduz a reserva já calculada para
-        # as ondas da auditoria em andamento.
-        self.deadline = max(self.deadline, self.started_at + self.unit_seconds * multiplier)
+        # A complexidade que a IA declarou define quanto silêncio é normal para
+        # esta tarefa. Uma chamada auxiliar simples (complexidade baixa) nunca
+        # reduz a janela já reservada para trabalho maior em andamento.
+        self.extend_patience(self.unit_seconds * multiplier)
 
     def pause(self) -> None:
         """Abre a pausa (portão do usuário esperando). Nunca acumula pausa dupla."""
@@ -71,12 +103,10 @@ def budgeted(function: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R
     """Every entry point adopts its caller's budget, including structured retries."""
     @functools.wraps(function)
     async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-        import asyncio
-
         from backend.src.config.settings import get_settings
 
         with execution_scope(get_settings().agent_timeout_seconds):
-            return await asyncio.wait_for(function(*args, **kwargs), timeout=remaining_seconds())
+            return await run_until_stalled(function(*args, **kwargs))
 
     return wrapped
 
@@ -85,12 +115,45 @@ def current_budget() -> ExecutionBudget | None:
     return _budget.get()
 
 
+def note_progress() -> None:
+    """Sinaliza progresso real ao orçamento do turno atual, se houver um."""
+    budget = _budget.get()
+    if budget is not None:
+        budget.note_progress()
+
+
+async def run_until_stalled(awaitable: Awaitable[_R], *, fallback_timeout: float | None = None) -> _R:
+    """Espera o trabalho enquanto a execução avança; só desiste se ela travar.
+
+    Substitui `asyncio.wait_for(..., timeout=<segundos fixos>)`. A cada volta o
+    tempo até o travamento é reavaliado, porque o progresso (de qualquer parte
+    do turno) desliza a janela para frente. Cancelamento do usuário continua
+    sendo checado de forma determinística. Sem orçamento (rotas fora do chat),
+    cai no `fallback_timeout` legado, se houver.
+    """
+    if current_budget() is None:
+        if fallback_timeout is None:
+            return await awaitable
+        return await asyncio.wait_for(awaitable, timeout=fallback_timeout)
+    task = asyncio.ensure_future(awaitable)
+    try:
+        while True:
+            check_execution()
+            done, _pending = await asyncio.wait({task}, timeout=min(remaining_seconds(), 1.0))
+            if done:
+                return task.result()
+    finally:
+        if not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+
 def check_execution() -> None:
     if chat_progress.is_cancelled():
         raise InterruptedError("Execução interrompida pelo usuário.")
     budget = current_budget()
     if budget and time.monotonic() >= budget.effective_deadline():
-        raise TimeoutError("O orçamento desta execução terminou; os resultados disponíveis são parciais.")
+        raise TimeoutError("A execução parou de avançar e foi encerrada; os resultados disponíveis são parciais.")
 
 
 def remaining_seconds(limit: float | None = None) -> float:

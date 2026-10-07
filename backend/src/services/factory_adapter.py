@@ -166,7 +166,9 @@ def run_factory(
 
         task = asyncio.create_task(invoke())
         try:
-            async with asyncio.timeout(remaining_seconds(timeout)):
+            # Com orçamento do turno, quem encerra é a falta de progresso
+            # (check_execution); o prazo fixo só vale fora do chat.
+            async with asyncio.timeout(remaining_seconds(timeout) if current_budget() is None else None):
                 while not task.done():
                     check_execution()
                     if cancel_check and cancel_check():

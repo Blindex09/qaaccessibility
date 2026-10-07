@@ -56,14 +56,22 @@ class TestClarifyRegistry:
     def test_answer_then_wait_returns_value(self):
         rid, ev = chat_progress.new_clarify()
         assert chat_progress.answer_clarify(rid, "https://exemplo.com") is True
-        assert chat_progress.wait_clarify(rid, ev, timeout=1.0) == "https://exemplo.com"
+        assert chat_progress.wait_clarify(rid, ev) == "https://exemplo.com"
 
     def test_answer_unknown_id_returns_false(self):
         assert chat_progress.answer_clarify("naoexiste", "x") is False
 
-    def test_wait_timeout_returns_empty(self):
+    def test_wait_cancelled_returns_empty_without_any_clock(self):
+        import threading
+
+        cancelado = threading.Event()
+        token = chat_progress.set_cancel_check(cancelado.is_set)
         rid, ev = chat_progress.new_clarify()
-        assert chat_progress.wait_clarify(rid, ev, timeout=0.05) == ""
+        threading.Timer(0.05, cancelado.set).start()
+        try:
+            assert chat_progress.wait_clarify(rid, ev) == ""
+        finally:
+            chat_progress.reset_cancel_check(token)
 
 
 class TestCancelRegistry:

@@ -178,3 +178,25 @@ def test_approval_prompt_redacts_nested_secrets(monkeypatch):
     assert "cancelada" in json.loads(result)["error"]
     assert '"target": "issue-42"' in prompts[0]
     assert "nested-private-key" not in prompts[0]
+
+
+def test_invalid_arguments_tell_the_model_which_field_broke_the_contract(monkeypatch):
+    """Regressão (2026-10-07): o erro genérico fazia o modelo repetir a mesma chamada
+    inválida oito vezes, sem saber o que corrigir. O motivo precisa voltar a ele."""
+    from tools.registry import registry
+
+    called = []
+    monkeypatch.setitem(registry.tools, "strict_probe", {
+        "schema": {"parameters": {
+            "type": "object",
+            "properties": {"only_agents": {"type": "array", "minItems": 1, "items": {"type": "string"}}},
+            "required": ["only_agents"],
+        }},
+        "handler": lambda args: called.append(args) or "executed",
+    })
+    result = json.loads(run_local_tool("strict_probe", {"only_agents": []}))
+    assert "only_agents" in result["error"]
+    assert "Corrija" in result["error"]
+    missing = json.loads(run_local_tool("strict_probe", {}))
+    assert "only_agents" in missing["error"]
+    assert called == []

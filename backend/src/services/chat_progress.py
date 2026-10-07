@@ -82,7 +82,15 @@ def is_cancelled() -> bool:
 
 
 def emit(event: dict[str, Any]) -> None:
-    """Empurra um evento de progresso ao chat, se houver sink. No-op caso contrario."""
+    """Empurra um evento de progresso ao chat, se houver sink. No-op caso contrario.
+
+    Todo evento publicado é progresso real: a janela de silêncio do turno
+    recomeça (regra 8, sem relógio fixo). O sinal vale mesmo sem sink.
+    """
+    with contextlib.suppress(Exception):
+        from backend.src.services.execution_scope import note_progress
+
+        note_progress()
     fn = _sink.get()
     if fn is None:
         return
@@ -121,39 +129,30 @@ def new_clarify() -> tuple[str, threading.Event]:
     return rid, ev
 
 
-def wait_clarify(rid: str, ev: threading.Event, timeout: float = 300.0) -> str:
-    """Bloqueia ate o usuário responder (ou timeout). Retorna a resposta ("" se não veio).
+def wait_clarify(rid: str, ev: threading.Event) -> str:
+    """Bloqueia ate o usuário responder ou cancelar. Retorna a resposta ("" se não veio).
 
     A espera é de HUMANO, nao de máquina: o orçamento do turno fica em pausa
     enquanto o cartão (de aprovação da tool, de clarify, etc.) está aberto --
-    o tempo que o usuário demora para clicar não consome o teto e não termina
-    o turno com entrega parcial. Cancelamento e continue funcionando (a rota
-    /chat/cancel independe desse loop)."""
-    import time
-
+    o tempo que o usuário demora para clicar não consome a janela e não termina
+    o turno com entrega parcial. Não existe relógio fixo sobre a pessoa (regra 8):
+    a espera só termina com a resposta ou com o cancelamento, que independe
+    deste loop (rota /chat/cancel)."""
     from backend.src.services.execution_scope import (
         current_budget,
         pause_for_user_gate,
-        remaining_seconds,
     )
 
-    # Log de auditoria: abre/fecha da espera humana e quanto orçamento ela NÃO gastou.
     budget = current_budget()
     logger.info(
-        "[UserGate] esperando usuario (rid=%s, pausa=%s, restante=%.0fs)",
-        rid[:8], "sim" if budget is not None else "sem-budget",
-        remaining_seconds(timeout) if budget is not None else -1.0,
+        "[UserGate] esperando usuario (rid=%s, pausa=%s)", rid[:8], "sim" if budget is not None else "sem-budget"
     )
     try:
         with pause_for_user_gate():
-            deadline = time.monotonic() + remaining_seconds(timeout)
-            while not ev.is_set() and not is_cancelled() and time.monotonic() < deadline:
-                ev.wait(timeout=min(.1, max(0.0, deadline - time.monotonic())))
+            while not ev.is_set() and not is_cancelled():
+                ev.wait(timeout=0.1)
         if budget is not None:
-            logger.info(
-                "[UserGate] pausa fechada (rid=%s, espera=%.1fs, restante=%.0fs)",
-                rid[:8], budget.paused_total, remaining_seconds(timeout),
-            )
+            logger.info("[UserGate] pausa fechada (rid=%s, espera=%.1fs)", rid[:8], budget.paused_total)
         return _answers.pop(rid, "")
     finally:
         _pending.pop(rid, None)

@@ -472,12 +472,17 @@ A complexidade declarada pela IA adapta o orçamento do turno; retry não reinic
 contagem. Planejamento gerencial depende de uma decisão estruturada da IA, não da
 presença de URL/anexo ou de palavras no pedido.
 
-Divergência conhecida com a regra 8 (a corrigir no código, não na regra): `execution_scope.py`
-e `adaptive_budget.py` ainda calculam um prazo (deadline) a partir do início do turno, com orçamento de
-tempo e de tokens, e o tratam como teto. A regra vigente é a 8: nenhum relógio e nenhum limite fixo de tokens,
-chamadas ou etapas encerra trabalho que continua avançando; quem decide quanto a tarefa precisa é a IA.
-Encerram a falta de progresso, a repetição, o cancelamento e o orçamento de custo que a pessoa configurou
-de forma explícita. Ao mexer nesses módulos, convergir para a regra 8 e registrar aqui o que mudou.
+Convergência com a regra 8 (2026-10-07): o orçamento do turno em `execution_scope.py` deixou de ser
+um teto de duração. O `deadline` passou a ser o instante em que a execução seria considerada TRAVADA:
+todo progresso real (evento publicado, token recebido, ferramenta concluída, nova rodada do modelo,
+especialista concluído) desliza esse instante, e a janela de silêncio se adapta à complexidade que a IA
+declarou. `run_until_stalled` substitui os `wait_for` de prazo fixo no orquestrador, no `llm_client` e no
+factory; a espera por aprovação do usuário não tem mais relógio; a repetição persistente de uma chamada
+depois da reflexão encerra o laço de ferramentas. Limites que ainda existem e são honestos: rotas fora do
+chat (sem orçamento herdado) mantêm o prazo legado por chamada; `max_tokens` por chamada continua sendo
+parâmetro exigido pelo provider (com escalonamento quando o JSON vem truncado); `route_advisor` ainda usa
+uma janela fixa curta para a consulta de roteamento. Ao mexer nesses pontos, convergir para a regra 8 e
+registrar aqui o que mudou.
 
 Cada instância de `AIAgent` captura suas concessões de ferramentas ao nascer.
 O dispatcher verifica concessão, schema e aprovação antes de chamar o handler.

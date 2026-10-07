@@ -89,7 +89,7 @@ def test_wait_clarify_abre_pausa_e_recebe_resposta():
 
     threading.Thread(target=responder, daemon=True).start()
     with execution_scope(10) as budget:
-        resposta = chat_progress.wait_clarify(rid, ev, timeout=5.0)
+        resposta = chat_progress.wait_clarify(rid, ev)
     assert resposta == "ok"
     # A pausa foi fechada e contabilizada.
     assert budget.paused_since is None
@@ -97,16 +97,23 @@ def test_wait_clarify_abre_pausa_e_recebe_resposta():
 
 
 def test_wait_clarify_cancelamento_continua_funcionando_durante_a_pausa():
-    token_cancel = chat_progress.new_cancel_token()
+    """Sem relógio fixo sobre a pessoa, só a resposta ou o cancelamento encerram a espera.
+
+    O cancelamento precisa estar ligado ao turno (cancel_check), como o chat
+    faz; antes este teste só passava porque a espera expirava sozinha.
+    """
+    cancelado = threading.Event()
+    token = chat_progress.set_cancel_check(cancelado.is_set)
     rid, ev = chat_progress.new_clarify()
 
     def cancelar():
         time.sleep(0.05)
-        chat_progress.request_cancel(token_cancel)
+        cancelado.set()
 
     threading.Thread(target=cancelar, daemon=True).start()
-    with execution_scope(10):
-        resposta = chat_progress.wait_clarify(rid, ev, timeout=5.0)
-    chat_progress.clear_cancel_token(token_cancel)
-    # Cancelado: resposta vazia e sem pendurar a espera ate o timeout.
+    try:
+        with execution_scope(10):
+            resposta = chat_progress.wait_clarify(rid, ev)
+    finally:
+        chat_progress.reset_cancel_check(token)
     assert resposta == ""

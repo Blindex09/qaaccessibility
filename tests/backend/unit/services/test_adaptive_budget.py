@@ -18,15 +18,28 @@ def test_budget_remaining_is_never_negative():
     assert budget.remaining_seconds >= 0
 
 
-def test_selected_waves_extend_shared_budget_without_resetting_start():
+def test_more_specialists_do_not_create_a_longer_ceiling_inside_a_turn():
+    """Regra 8: dentro do turno a janela é de silêncio, não soma das ondas."""
     from backend.src.services.execution_scope import execution_scope
 
     with execution_scope(10) as parent:
-        original_start = parent.started_at
-        budget = create_analysis_budget(selected_agents=22, parallelism=3, per_agent_timeout=10, tradeoff=3)
-        assert parent.deadline - original_start > 80
-        assert budget.deadline == parent.effective_deadline()
-        reserved = parent.deadline
-        parent.adapt("low")
-        assert parent.deadline == reserved
-        assert parent.started_at == original_start
+        few = create_analysis_budget(selected_agents=3, parallelism=3, per_agent_timeout=10, tradeoff=3)
+        patience_few = parent.patience
+        many = create_analysis_budget(selected_agents=22, parallelism=3, per_agent_timeout=10, tradeoff=3)
+        assert parent.patience == patience_few
+        assert few.scope is parent and many.scope is parent
+        assert parent.patience < 80  # 22 agentes em 8 ondas não viram 80+ s de teto
+
+
+def test_phase_budget_is_a_live_view_of_the_turn_window():
+    import time
+
+    from backend.src.services.execution_scope import execution_scope
+
+    with execution_scope(10) as parent:
+        budget = create_analysis_budget(selected_agents=6, parallelism=3, per_agent_timeout=10, tradeoff=3)
+        parent.deadline = time.monotonic() + 0.05
+        assert budget.remaining_seconds <= 0.05
+        parent.note_progress()  # um especialista terminou: a janela desliza
+        assert budget.remaining_seconds > 5
+        assert not budget.expired
