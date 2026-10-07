@@ -113,7 +113,7 @@ class TestAnalyzePageTool:
 
         assert out["total_issues"] == 1
         assert out["counts_by_severity"]["high"] == 1
-        assert out["score"] == 90
+        assert "score" not in out  # sem nota numérica (regra 11)
         fetch_mock.assert_awaited_once_with("https://example.com")
 
     def test_counts_by_severity_matches_top_issues_when_severity_is_enum_member(self):
@@ -148,7 +148,7 @@ class TestAnalyzePageTool:
         assert out["counts_by_severity"]["low"] == 1
         assert out["counts_by_severity"]["critical"] == 1
         assert out["top_issues"][0]["severity"] == "low"
-        assert out["score"] == 78
+        assert "score" not in out  # sem nota numérica (regra 11)
 
 
 class TestAnalyzePageRegressionVsPreviousScan:
@@ -258,7 +258,7 @@ class TestAnalyzeSiteTool:
         orch_mock.assert_awaited_once()
         assert out["total_pages"] == 1
         assert out["total_issues"] == 1
-        assert out["score"] == 90
+        assert "score" not in out  # sem nota numérica (regra 11)
 
     def test_list_urls_path_analyzes_each(self):
         issues = [{"id": "p-1", "criterion": "1.1.1", "severity": "low",
@@ -283,7 +283,7 @@ class TestAnalyzeSiteTool:
         assert out["total_pages"] == 2
         assert out["pages_ok"] == 2
         assert out["total_issues"] == 2
-        assert out["score"] == 96
+        assert "score" not in out  # sem nota numérica (regra 11)
         store_mock.assert_called_once()
 
     def test_registered_in_hermes(self):

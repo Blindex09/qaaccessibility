@@ -19,7 +19,7 @@ def test_partial_analysis_never_has_conformance_score():
         output = json.loads(analyze_page({"html": "<html/>"}))
     assert output["warning"] == "Revisor falhou"
     assert output["complete"] is False
-    assert output["score"] is None
+    assert "score" not in output  # nenhuma nota numérica, nem em análise completa
     assert output["agent_metrics"][0]["success"] is False
 
 

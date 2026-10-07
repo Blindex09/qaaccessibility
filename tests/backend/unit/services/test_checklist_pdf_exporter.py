@@ -151,3 +151,21 @@ class TestExportChecklistPdf:
         pdf_bytes = export_checklist_pdf(_ITEMS, "https://example.com")
         reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
         assert len(reader.pages) >= 1
+
+
+class TestPassedItemsDoNotClaimAutomatedTests:
+    """Regressão (2026-10-07, PDF ao vivo): o rótulo fixo dizia "Aprovado nos Testes
+    Automatizados" para um item cuja única base era a leitura do HTML pela IA. Nenhum
+    teste automatizado havia rodado, e nada no PDF certifica conformidade."""
+
+    def test_passed_item_is_described_as_observation_not_as_automated_approval(self):
+        html = render_checklist_html(_ITEMS, "https://example.com")
+        assert "Aprovado nos Testes Automatizados" not in html
+        assert "Aprovados nos Testes Automatizados" not in html
+        assert "scanners" not in html
+        assert "Sem não conformidade observada" in html
+
+    def test_passed_item_does_not_promise_conformance(self):
+        html = render_checklist_html(_ITEMS, "https://example.com")
+        assert "Critério em conformidade" not in html
+        assert "Não certifica" in html or "não certifica" in html

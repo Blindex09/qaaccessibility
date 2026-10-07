@@ -292,7 +292,7 @@ def _get_priority_info(priority_val: str, level: str, status_key: str) -> tuple[
     elif status_key == "pass":
         return (
             "Prioridade 4 — Monitoramento",
-            "Critério em conformidade. Manter práticas nos próximos desenvolvimentos.",
+            "Nenhuma não conformidade observada nesta análise. Continuar monitorando nos próximos desenvolvimentos.",
         )
     return ("Não Prioritário", "Critério não aplicável a esta interface.")
 
@@ -307,7 +307,7 @@ _STATUS_LABELS = {
 _STATUS_HUMAN = {
     "fail": "Não Conforme (Correção Necessária)",
     "manual": "Verificação Manual com Leitor de Tela",
-    "pass": "Conforme (Aprovado nos Testes Automatizados)",
+    "pass": "Sem não conformidade observada nesta análise",
     "not_applicable": "Não Aplicável ao Contexto",
 }
 
@@ -753,7 +753,7 @@ def _build_summary_table_html(by_status: dict[str, list[ChecklistItem]], total: 
         action = {
             "fail": "Correção prioritária de código",
             "manual": "Validação guiada com Leitor de Tela (NVDA / JAWS)",
-            "pass": "Critério atendido (manter conformidade)",
+            "pass": "Nenhuma ação corretiva indicada; continuar monitorando",
             "not_applicable": "Nenhuma ação necessária",
         }.get(st_key, "")
 
@@ -959,8 +959,8 @@ def render_checklist_html(items: list[ChecklistItem], url: str) -> str:
         },
         {
             "id": "capitulo-criterios-conformes",
-            "title": "Critérios Conformes (Aprovados nos Testes Automatizados)",
-            "description": "Critérios de sucesso onde nenhuma não-conformidade foi identificada pelos especialistas e scanners na página avaliada.",
+            "title": "Critérios sem Não Conformidade Observada",
+            "description": "Critérios de sucesso em que a análise apresentada não observou não conformidade, com a base indicada em cada item. Isso não certifica conformidade com o WCAG: a ausência de achados não é prova de conformidade.",
             "status_key": "pass",
             "items": by_status.get("pass", []),
         },

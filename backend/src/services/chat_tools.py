@@ -81,7 +81,6 @@ _CONSULT_SQUAD_SCHEMA: dict[str, Any] = {
     },
 }
 
-_SEVERITY_DEDUCTION = {"critical": 20, "high": 10, "medium": 5, "low": 2}
 
 
 def _diagnose_analysis_failure(exc: Exception) -> dict[str, str]:
@@ -156,7 +155,6 @@ def _safe_async_run(coro: Any) -> Any:
 def _summarize_issues(issues: list[dict[str, Any]]) -> dict[str, Any]:
     """Resumo compacto para o modelo narrar (sem estourar contexto)."""
     counts: dict[str, int] = {"critical": 0, "high": 0, "medium": 0, "low": 0}
-    score = 100
     for issue in issues:
         # NAO usar str(...) aqui: severity pode vir como Severity(str, Enum) (model_dump
         # em modo python preserva o membro do enum, nao o valor). Enum.__str__ e sobrescrito
@@ -165,7 +163,6 @@ def _summarize_issues(issues: list[dict[str, Any]]) -> dict[str, Any]:
         sev = (issue.get("severity") or "").lower()
         if sev in counts:
             counts[sev] += 1
-        score -= _SEVERITY_DEDUCTION.get(sev, 0)
     top = [
         {
             "criterion": i.get("criterion_pt") or i.get("criterion", ""),
@@ -177,7 +174,6 @@ def _summarize_issues(issues: list[dict[str, Any]]) -> dict[str, Any]:
     ]
     return {
         "total_issues": len(issues),
-        "score": max(0, score),
         "counts_by_severity": counts,
         "top_issues": top,
     }
@@ -362,7 +358,7 @@ def analyze_page(args: dict[str, Any], **_kw: Any) -> str:
     summary["deliverable"] = bool(result.data.get("deliverable", not partial))
     if partial:
         warning = result.data.get("warning") or "Análise incompleta: um ou mais especialistas falharam."
-        summary.update(warning=warning, score=None, agent_metrics=result.data.get("agent_metrics", []))
+        summary.update(warning=warning, agent_metrics=result.data.get("agent_metrics", []))
         chat_progress.emit({"type": "phase", "text": warning})
 
     # "Shift-right" sob demanda (decisão do usuário 2026-08-11): se essa MESMA
@@ -407,8 +403,9 @@ _ANALYZE_PAGE_SCHEMA: dict[str, Any] = {
     "description": (
         "Analyze the accessibility of a web page against WCAG 2.2, WAI-ARIA and "
         "Section 508. Runs a selective specialist pipeline plus deterministic contrast "
-        "verification. Returns a compact summary: total issues, accessibility score "
-        "(0-100), counts by severity, and the top issues. Call this whenever the user "
+        "verification. Returns a compact summary: total issues, counts by severity, "
+        "and the top issues. There is no numeric score: never invent one or present any "
+        "number as WCAG conformance. Call this whenever the user "
         "asks to analyze, audit, or check accessibility. Provide EITHER `url` (the page "
         "is fetched with JS rendering) OR `html` (raw content, e.g. an attached file or "
         "a whole project concatenated). After this tool succeeds, do not call web extraction "
@@ -466,8 +463,9 @@ _ANALYZE_SITE_SCHEMA: dict[str, Any] = {
         "Provide EITHER `url` (to crawl internal links starting from the root URL) "
         "OR `urls` (a list of specific URLs to analyze directly). "
         "Optional `max_pages` limits the crawler (default 3, max 50). "
-        "Returns a consolidated summary: total issues, accessibility score (0-100), "
-        "counts by severity, top issues, and audited page counts. "
+        "Returns a consolidated summary: total issues, counts by severity, top issues, "
+        "and audited page counts (no numeric score: never invent one or present any "
+        "number as WCAG conformance). "
         "Call this whenever the user wants to audit multiple URLs, a domain, or crawl a site."
     ),
     "parameters": {
