@@ -63,7 +63,7 @@ You MUST return ONLY a valid JSON object matching this schema:
   "updates": ["One brief public next action in the user's language, never private reasoning"],
   "intent": "analyze_url | analyze_code | chat_a11y | fix_code | out_of_scope | needs_clarification",
   "needs_clarification": true | false,
-  "question": "The text shown to the user when you answer without working: for needs_clarification, the clarification question; for out_of_scope, a short, kind reply in the user's language saying this is outside the accessibility focus and what you can help with instead. Otherwise empty",
+  "question": "The text shown to the user when you answer without working: for needs_clarification, the clarification question; for out_of_scope, a short, kind reply in the user's language and in the SAME register the person used (formal, casual, direct; neutral and respectful when it is not clear), saying plainly that you cannot do this here because this product has a specific niche, digital accessibility, and what you can help with instead; never a blank or generic dismissal. Otherwise empty",
   "explanation": "Brief justification",
   "squad_roles": ["tech_lead"],
   "complexity": "low | medium | high",

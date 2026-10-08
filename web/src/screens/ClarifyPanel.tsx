@@ -70,6 +70,14 @@ const RISK_STYLES: Record<ToolRisk, RiskStyle> = {
     label: "Gera um arquivo para download",
     glyph: "+",
   },
+  costly: {
+    bg: colors.warning.bg,
+    text: colors.warning.text,
+    border: colors.warning.border,
+    accent: colors.warning.DEFAULT,
+    label: "Não altera nada, mas gasta muitos tokens: pode passar de centenas de milhares",
+    glyph: "$",
+  },
   read: {
     bg: colors.info.bg,
     text: colors.info.text,

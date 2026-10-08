@@ -75,6 +75,22 @@ significa nenhum raciocínio extra.
    de leitura dos clientes passou a ser a janela de silêncio do turno, que se adapta à complexidade: uma
    geração que continua enviando dados nunca é cortada, uma conexão sem nenhum byte é.
 
+8. Pedido fora do nicho. Decisão do dono do projeto em 08/10/2026: o produto tem um nicho específico, então
+   o pedido fora dele não é atendido, mas a recusa é educada, explica o motivo (produto de nicho), oferece o
+   que dá para fazer e acompanha o jeito de falar da pessoa. Testado ao vivo com três pedidos: o formal recebeu
+   resposta formal, o descontraído recebeu resposta descontraída e o direto recebeu resposta objetiva, cada um
+   em uma chamada de cerca de 2 mil tokens. Enquanto o jeito da pessoa não está claro, o assistente fica neutro e
+   respeitoso, sem gíria nem intimidade presumida. A regra entrou no CLAUDE.md dos dois projetos. Antes o
+   chat tinha um tom fixo descontraído no prompt, o que contrariava isso.
+9. O cartão de aprovação da pesquisa profunda dizia "Apenas consulta informação" e não avisava o custo. Agora
+   existe o nível de risco "custoso", e o cartão diz: não altera nada, mas gasta muitos tokens, pode passar de
+   centenas de milhares. Conferido pela interface.
+10. Ao fim de um turno bem-sucedido a tela dizia "Execução interrompida. Os resultados já recebidos foram
+    preservados". As buscas internas da pesquisa abrem cartões que nunca recebem o "terminou", e o cliente
+    marcava como cancelado todo cartão ainda em execução. Agora o fim normal conclui esses cartões, e só o
+    cancelamento de verdade ou um fim parcial, que o servidor passa a marcar com partial, os deixa como
+    interrompidos. Isso importava para quem usa leitor de tela, que ouvia uma informação falsa.
+
 ## Testes e verificação
 
 - Testes novos: `test_tool_groups.py` (23), `test_squad_route_family.py` (2), mais casos novos em
@@ -82,20 +98,30 @@ significa nenhum raciocínio extra.
 - Suíte completa do backend: 1.834 passados e 41 pulados. Ruff e mypy sem erros.
 - Ao vivo, pelo navegador e pela rota de streaming que o navegador usa, com Ollama Cloud em modo Alto.
 
-## O que ainda não está provado ou ainda pode piorar
+## Provas ao vivo feitas depois da primeira versão
 
-- A pesquisa profunda com aprovação e com as 3 ferramentas de busca foi coberta por testes, mas não foi
-  repetida ao vivo depois da correção.
-- O nível médio de raciocínio ainda pode gastar dezenas de milhares de tokens em uma chamada. O único freio
-  contra isso é o limite de tokens que a pessoa pode escolher nas Configurações; por padrão ele não existe.
-- O chat ainda custa cerca de 9 mil tokens de entrada só de instruções e conhecimento, e o histórico é
-  reenviado a cada rodada de ferramentas. Não verifiquei se o Ollama Cloud reaproveita esse prefixo.
-- O cache de respostas por prompt idêntico faz um segundo pedido igual parecer mais barato do que é.
-- A análise de sites com muitas páginas (`analyze_site`) também gasta muito e não pede aprovação. Fica para o
+Pesquisa profunda pela interface, com Tavily e Exa configurados. O roteador escolheu o grupo de pesquisa, o
+cartão pediu aprovação com o aviso de custo, e depois de aprovada a pesquisa trouxe o texto literal do critério
+com 2 e 4 fontes primárias. Custo do turno inteiro: 45.491 e 63.289 tokens (a pesquisa em si gastou 7.768 e
+9.110), contra 790.028 tokens no turno que antes rodou sem aprovação e com as 33 ferramentas.
+
+Reaproveitamento do início do prompt no Ollama Cloud, medido com um prefixo de 38 mil tokens. Primeira palavra em
+0,66 a 1,08 segundo quando o início é igual e 1,03 a 1,25 segundo quando é diferente. Existe um reaproveitamento
+pequeno e automático. É normal e não há opção na API para forçar. O provedor sempre informa o tamanho total do
+prompt (38 mil), então os tokens que o projeto registra não mostram a economia de tempo. Como o início do prompt
+já é estável dentro de um turno, não há mais nada a fazer aqui.
+
+Variação do raciocínio no deepseek-v4.1-flash, mesma revisão repetida 6 vezes. Sem pensar: 142 a 161 tokens.
+No nível médio: 1.093 a 4.208 tokens, mediana de cerca de 2 mil. O nível médio é imprevisível, e chegou a 23 mil e
+45 mil tokens em revisões maiores. O que mantém isso sob controle é o roteador decidir complexidade baixa para o
+mecânico e o limite de tokens opcional das Configurações.
+
+## O que ainda pode piorar
+
+- O nível médio de raciocínio ainda pode gastar dezenas de milhares de tokens em uma chamada.
+- O chat ainda custa cerca de 9 mil tokens de entrada só de instruções e conhecimento, e o histórico é reenviado a
+  cada rodada de ferramentas.
+- O cache de respostas por prompt idêntico faz um segundo pedido igual parecer mais barato do que é. Para medir,
+  use textos diferentes.
+- A análise de sites com muitas páginas (analyze_site) também gasta muito e não pede aprovação. Fica para o
   módulo de rastreamento.
-
-## Decisão que depende da pessoa dona do projeto
-
-Pedido inofensivo fora do foco, como receita de bolo, hoje é recusado com educação pelo modelo. A regra 5 diz
-que nunca se rejeita pedido inofensivo. O produto se apresenta como especialista em acessibilidade. É preciso
-decidir qual das duas vale.

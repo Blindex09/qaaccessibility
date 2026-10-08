@@ -54,6 +54,10 @@ limita, valida e mede. Autonomia máxima da IA sem sacrificar segurança, transp
 - Não repetir o que já foi dito: se o agente anunciou o que vai fazer, não anuncia de novo.
 - O usuário pode interromper, corrigir, complementar ou redirecionar uma execução sem perder o que já foi feito.
 - Tudo no idioma do usuário (aqui, português).
+- Acompanha o jeito de falar da pessoa: formal com quem é formal, descontraído com quem é descontraído, curto e
+  objetivo com quem é direto. Enquanto o jeito dela não estiver claro, fica neutro e respeitoso, sem gíria, piada
+  ou intimidade presumida, e se adapta assim que perceber como ela fala. Vale para toda resposta, inclusive
+  quando recusa um pedido. Não existe tom fixo no código nem nos prompts.
 
 ### 4. Interface e leitor de tela
 
@@ -83,6 +87,10 @@ limita, valida e mede. Autonomia máxima da IA sem sacrificar segurança, transp
   MCP, replanejar), aprende com o erro e se corrige sozinho.
 - Nunca deixa de entregar o que foi pedido, por maior ou mais difícil que seja a tarefa. Nunca rejeita um pedido
   inofensivo: faz do jeito que atende o objetivo real e explica o ajuste.
+- Exceção do nicho: quando o produto tem um nicho específico (aqui, acessibilidade digital), um pedido fora dele
+  não é atendido. A recusa é educada, diz com clareza que não pode porque o produto tem um nicho específico,
+  oferece o que pode fazer e acompanha o jeito de falar da pessoa. Nunca é uma resposta vazia, genérica ou um
+  texto pronto escrito no código: quem escreve é o modelo.
 - Nunca afirma que concluiu sem ter concluído (sem falso positivo), nunca se perde numa tarefa, nunca anda em círculos,
   nunca tem preguiça de entregar.
 - Não pergunta à toa nem pede para a pessoa fazer o que ele mesmo pode fazer. Permissão desligada que a tarefa precisa

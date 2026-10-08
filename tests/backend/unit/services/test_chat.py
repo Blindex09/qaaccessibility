@@ -1794,3 +1794,31 @@ async def test_stream_chat_out_of_scope_answer_comes_from_the_model_not_from_can
     assert events[-1]["type"] == "done"
     assert events[-1]["final"] == text
     assert "assistente especializado exclusivamente" not in text
+
+
+def test_chat_prompt_matches_the_persons_register_and_explains_why_it_declines():
+    """Decisão do dono do projeto (2026-10-07): pedido fora do nicho é recusado com educação, dizendo POR QUÊ
+    (produto de nicho específico) e no mesmo jeito de falar da pessoa; nunca com resposta vazia ou genérica."""
+    from backend.src.services.chat_runtime import SYSTEM_PROMPT
+
+    assert "Match the person's way of speaking" in SYSTEM_PROMPT
+    assert "descontraído" not in SYSTEM_PROMPT  # o tom fixo foi trocado por acompanhar a pessoa
+    assert "WHY: this product has a specific niche" in SYSTEM_PROMPT
+    assert "Never answer with a blank or generic dismissal" in SYSTEM_PROMPT
+
+
+def test_clarifier_out_of_scope_reply_mirrors_the_register_and_gives_the_reason():
+    from backend.src.agents.clarifier.clarifier import SYSTEM_PROMPT as CLARIFIER_PROMPT
+
+    assert "SAME register the person used" in CLARIFIER_PROMPT
+    assert "specific niche, digital accessibility" in CLARIFIER_PROMPT
+
+
+def test_until_the_register_is_clear_the_assistant_stays_neutral_and_respectful():
+    """Decisão do dono do projeto (2026-10-08): na dúvida, neutro e respeitoso, sem gíria nem intimidade presumida."""
+    from backend.src.agents.clarifier.clarifier import SYSTEM_PROMPT as CLARIFIER_PROMPT
+    from backend.src.services.chat_runtime import SYSTEM_PROMPT
+
+    assert "stay neutral and respectful" in SYSTEM_PROMPT
+    assert "no slang" in SYSTEM_PROMPT
+    assert "neutral and respectful when it is not clear" in CLARIFIER_PROMPT

@@ -49,7 +49,7 @@ export type ChatEvent =
   | { type: "squad_decision"; task_id: string; role: string; summary: string; decisions: string[]; blockers: string[] }
   | { type: "squad_blocked"; task_id: string; reason: string }
   | { type: "clarify"; request_id: string; question: string; choices: string[] }
-  | { type: "done"; final: string; usage?: TokenUsage }
+  | { type: "done"; final: string; usage?: TokenUsage; partial?: boolean }
   | { type: "cancelled" }
   | { type: "error"; error: string };
 

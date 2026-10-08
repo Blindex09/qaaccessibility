@@ -17,7 +17,8 @@
 import type { ToolResultSummary } from "./chat";
 
 /** Nível de risco derivado do `requires_approval` + reversibilidade do efeito. */
-export type ToolRisk = "read" | "artifact" | "mutating";
+// "costly": não altera nada, mas gasta muito (centenas de milhares de tokens); a pessoa precisa saber antes de aprovar.
+export type ToolRisk = "read" | "artifact" | "mutating" | "costly";
 
 interface ToolMeta {
   /** Rótulo curto para crachá/etiqueta na UI. */
@@ -136,7 +137,7 @@ const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   },
   run_deep_research: {
     label: "Pesquisa normativa",
-    risk: "read",
+    risk: "costly",
     start: "Investigando as normas a fundo nas fontes oficiais...",
     end: "Pesquisa normativa concluída",
   },

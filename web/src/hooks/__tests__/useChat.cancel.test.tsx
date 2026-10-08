@@ -89,7 +89,7 @@ describe("useChat — interromper um turno em andamento", () => {
     const { chat } = mountChat();
     startTurn(chat);
     send({ type: "tool_start", name: "analyze_page" });
-    send({ type: "done", final: "O orçamento terminou; análise parcial." });
+    send({ type: "done", final: "A execução parou de avançar; análise parcial.", partial: true });
     await act(async () => {
       resolveStream();
       await Promise.resolve();

@@ -165,3 +165,17 @@ def test_call_without_usage_is_recorded_as_zero_not_invented():
     with execution_scope.execution_scope(10) as budget:
         execution_scope.record_call("a11y:x", "p", "m", None)
         assert budget.cost_summary()["total_tokens"] == 0 and budget.cost_summary()["calls"] == 1
+
+
+@pytest.mark.asyncio
+async def test_a_turn_cut_short_says_so_in_the_done_event_so_the_screen_does_not_call_it_complete(monkeypatch):
+    """O cliente conclui os cartões em um fim normal e os deixa interrompidos em um fim parcial."""
+
+    async def fake_impl(*_args):
+        raise TokenBudgetReachedError(5399, 3000)
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(chat_runtime, "_stream_chat_impl", fake_impl)
+    monkeypatch.setattr(chat_runtime.chat_history_store, "append_message", lambda *a, **k: None)
+    events = [e async for e in chat_runtime.stream_chat("Analise", conversation_id="token-limit-partial")]
+    assert events[-1]["type"] == "done" and events[-1]["partial"] is True

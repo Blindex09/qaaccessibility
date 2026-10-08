@@ -14,7 +14,7 @@ Eventos emitidos (dict):
    "ok": bool, "error": str | None,
    "result_summary": {...} | None}      fim de uma tool -- ver _extract_result_summary
                                         (contagem real + fontes, quando aplicavel)
-  {"type": "done", "final": str,
+  {"type": "done", "final": str, "partial": bool (só quando o turno foi cortado),
    "usage": {"input_tokens": int,
              "output_tokens": int,
              "total_tokens": int}}      resposta final + tokens do turno
@@ -126,13 +126,13 @@ SYSTEM_PROMPT = (
     "Section 508, the European Accessibility Act (EAA), and EN 301 549. You are strictly specialized in digital accessibility, including auditing web pages, code, and documents (DOCX, PDF, PPTX, EPUB, XLSX) to make them accessible.\n\n"
     "CRITICAL ROLE CONSTRAINT:\n"
     "- Your only focus and purpose is accessibility auditing, identifying accessibility violations, and remediating files (HTML, CSS, JS, TSX, DOCX, PDF, PPTX, EPUB, XLSX) to make them accessible.\n"
-    "- You MUST reject any requests for general development help, general project structure, or legal/content analysis that do not concern accessibility. Politely refuse and state that you only specialize in accessibility.\n"
+    "- You MUST reject any requests for general development help, general project structure, or legal/content analysis that do not concern accessibility. Politely decline and say plainly WHY: this product has a specific niche, digital accessibility, so you cannot do that here. Never answer with a blank or generic dismissal; briefly offer what you can do instead, and speak in the same register as the person (see the communication rules).\n"
     "- If a user uploads a document like a PDF, Word, PowerPoint, EPUB, or Excel file, they want you to audit its accessibility structure (not its legal or general content). For PDF and XLSX specifically, call `analyze_document` (dedicated PDF/UA and Excel-accessibility specialist agents, real veraPDF validation for PDF when available) instead of jumping straight to a blind fix -- it gives you a real, structured list of issues to work from, and its output feeds the same export/checklist/VPAT tools as analyze_page. For DOCX/PPTX/EPUB, use the extracted text directly with your accessibility knowledge, then remediate as usual.\n"
     "- If you use search, use only the specialized tools `tavily_search` and `exa_search`. Do not try to extract the same URL again after `analyze_page` or `analyze_site` has already completed; use the analysis result and the local last-analysis cache instead.\n"
     "- Select the accessibility specialists explicitly through only_agents for every page/site audit. Interpret user scope and available evidence; do not delegate every audit to every specialist. Explain useful progress, and revise the team when real findings justify it. No mandatory role or specialist sequence.\n"
     "- You have access to two specialized search tools: `tavily_search` (good for accessibility guidelines, tutorials, target-page discovery, and articles) and `exa_search` (good for technical WCAG specifications, ACT rules, and precise accessibility references). Use either, or both, only when search is necessary for the user's accessibility task.\n\n"
     "Your communication rules:\n"
-    "1. Speak in a natural, simple, human, and relaxed tone (conversa simples de um humano descontraído).\n"
+    "1. Match the person's way of speaking: formal with someone formal, casual and relaxed with someone casual, short and objective with someone direct. Until the person's register is clear, stay neutral and respectful (no slang, no jokes, no assumed intimacy) and adapt as soon as you can tell how they speak. This applies to every answer, including when you decline a request.\n"
     "2. Speak the user's language (Portuguese if they write in Portuguese).\n"
     "3. Keep the response comfortable to read with assistive technology; emojis are optional and should be used sparingly and only when they help the user's context.\n"
     "4. Keep private reasoning internal. Communicate only concise, observable progress and final conclusions.\n"
@@ -486,11 +486,11 @@ async def stream_chat(
                 task.cancel()
                 text = "\n\nA execução foi interrompida. O que já apareceu permanece disponível, mas a análise está incompleta."
                 if stop not in done:
-                    text = "\n\nO orçamento desta execução terminou. Os resultados disponíveis são parciais; não concluí toda a análise."
+                    text = "\n\nA execução parou de avançar e foi encerrada. Os resultados disponíveis são parciais; não concluí toda a análise."
                 yield {"type": "token", "text": text}
                 chat_history_store.append_message("assistant", "".join(partial) + text, session_id=conversation_id)
                 terminal = True
-                yield {"type": "cancelled"} if stop in done else {"type": "done", "final": "".join(partial) + text}
+                yield {"type": "cancelled"} if stop in done else {"type": "done", "final": "".join(partial) + text, "partial": True}
                 break
             event = get.result()
             if event is None:
@@ -509,7 +509,7 @@ async def stream_chat(
                 yield {"type": "token", "text": text}
                 chat_history_store.append_message("assistant", "".join(partial) + text, session_id=conversation_id)
                 terminal = True
-                yield {"type": "done", "final": "".join(partial) + text}
+                yield {"type": "done", "final": "".join(partial) + text, "partial": True}
                 break
             if event.get("type") == "token":
                 partial.append(str(event.get("text", "")))

@@ -334,6 +334,16 @@ export function useChat() {
     [],
   );
 
+  // Fim normal do turno: um cartão que ficou "em execução" (as buscas internas da pesquisa nunca recebem
+  // o "terminou") conclui junto com o turno. Só cancelamento de verdade o marca como interrompido.
+  const completeRunningTools = useCallback(() => {
+    setMessages((current) => current.map((message) => {
+      if (message.toolCall?.status !== "running") return message;
+      const toolCall: ToolCallData = { ...message.toolCall, status: "complete" };
+      return { ...message, toolCall, content: toolStatusText(toolCall) };
+    }));
+  }, []);
+
   const clearCancelledPresentation = useCallback((clearAnnouncement = true) => {
     if (clearAnnouncement) {
       if (announceTimerRef.current) clearTimeout(announceTimerRef.current);
@@ -673,6 +683,8 @@ export function useChat() {
                 announce(clarifyAnnouncement(event.question));
                 break;
               case "done":
+                // Fim normal conclui os cartões; fim parcial (cortado) os deixa interrompidos.
+                if (!event.partial) completeRunningTools();
                 if (event.final) setAssistant(event.final);
                 // Custo do turno: fica preso ao balão que ele produziu e soma-se
                 // ao acumulado da conversa.
@@ -744,7 +756,7 @@ export function useChat() {
         }
       }
     },
-    [announce, messages, streaming, clearCancelledPresentation],
+    [announce, messages, streaming, clearCancelledPresentation, completeRunningTools],
   );
 
   // Responde a pergunta do agente: envia ao backend e some com o prompt.
