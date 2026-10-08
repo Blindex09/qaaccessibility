@@ -716,7 +716,10 @@ def _read_docx_text(file_like) -> str:
     try:
         import docx
 
-        doc = docx.Document(io.BytesIO(file_like.read()))
+        from backend.src.services.document_facts import docx_facts
+
+        raw = file_like.read()
+        doc = docx.Document(io.BytesIO(raw))
         lines = []
         for p in doc.paragraphs:
             if p.text.strip():
@@ -727,7 +730,7 @@ def _read_docx_text(file_like) -> str:
             for row in t.rows:
                 row_txt = " | ".join(cell.text.strip() for cell in row.cells)
                 lines.append(f"| {row_txt} |")
-        return "\n".join(lines)
+        return docx_facts(raw) + "\n".join(lines)
     except Exception as e:
         logger.error("[a11y_chat] Erro ao ler DOCX: %s", e)
         return f"[Erro ao extrair texto do DOCX: {e}]"
@@ -794,6 +797,8 @@ def _read_pdf_text(file_like) -> str:
         import pypdf
 
         # Leitura dos bytes originais para pypdf e arquivo temporário (veraPDF)
+        from backend.src.services.document_facts import pdf_facts
+
         pdf_bytes = file_like.read()
 
         reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
@@ -835,7 +840,7 @@ def _read_pdf_text(file_like) -> str:
             page_text = page.extract_text() or ""
             text_pages.append(f"--- Page {idx + 1} ---\n{page_text}")
 
-        prefix = ""
+        prefix = pdf_facts(pdf_bytes)
         if form_info:
             prefix += "[Campos de Formulário Interativos Nativos Detectados no PDF]\n" + "\n".join(form_info) + "\n\n"
         if verapdf_violations:
@@ -988,7 +993,10 @@ def _read_epub_text(file_like) -> str:
         import zipfile
         from urllib.parse import unquote
 
+        from backend.src.services.document_facts import epub_facts
+
         data = file_like.read() if hasattr(file_like, "read") else file_like
+        facts = epub_facts(data)
 
         with zipfile.ZipFile(io.BytesIO(data)) as epub:
             # Encontra o arquivo de manifesto (.opf)
@@ -1005,7 +1013,7 @@ def _read_epub_text(file_like) -> str:
                         with epub.open(name) as f:
                             html_content = f.read().decode("utf-8", errors="ignore")
                             text_parts.append(re.sub(r"<[^>]+>", " ", html_content))
-                return "\n\n".join(text_parts)
+                return facts + "\n\n".join(text_parts)
 
             # Lê o XML do OPF
             opf_dir = os.path.dirname(opf_name)
@@ -1055,7 +1063,7 @@ def _read_epub_text(file_like) -> str:
                                     if clean_text:
                                         text_parts.append(clean_text)
 
-            return "\n\n".join(text_parts)
+            return facts + "\n\n".join(text_parts)
     except Exception as e:
         logger.error("[a11y_chat] Erro ao ler EPUB: %s", e)
         return f"[Erro ao extrair texto do EPUB: {e}]"
@@ -1065,7 +1073,10 @@ def _read_pptx_text(file_like) -> str:
     try:
         from pptx import Presentation
 
-        prs = Presentation(io.BytesIO(file_like.read()))
+        from backend.src.services.document_facts import pptx_facts
+
+        raw = file_like.read()
+        prs = Presentation(io.BytesIO(raw))
         lines = []
         for idx, slide in enumerate(prs.slides):
             lines.append(f"--- Slide {idx + 1} ---")
@@ -1081,7 +1092,7 @@ def _read_pptx_text(file_like) -> str:
                     for row in shape.table.rows:
                         row_txt = " | ".join(cell.text.strip() for cell in row.cells)
                         lines.append(f"| {row_txt} |")
-        return "\n".join(lines)
+        return pptx_facts(raw) + "\n".join(lines)
     except Exception as e:
         logger.error("[a11y_chat] Erro ao ler PPTX: %s", e)
         return f"[Erro ao extrair texto do PPTX: {e}]"
