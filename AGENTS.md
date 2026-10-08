@@ -264,7 +264,12 @@ Engenharia de contexto (vale para todo módulo, toda interface e todo laço que 
 
 - Testar na interface real, como um usuário iniciante usaria, nas duas interfaces. Testes baratos (lint, tipos,
   unitários) antes; o teste ao vivo confirma.
-- Um módulo de cada vez: nunca começar outro sem o atual funcionando por completo.
+- Um módulo de cada vez: nunca começar outro sem o atual funcionando por completo. Um módulo só está
+  concluído quando: o que ele promete foi testado de verdade, ao vivo, na interface real; todo defeito achado foi
+  corrigido com teste de regressão ou ficou registrado como pendência explícita; existe um README do módulo em
+  `docs/modules/` explicando tudo o que ele entrega, o que foi medido, o que foi corrigido e o que ainda não está
+  provado; a suíte e o lint passam; e o trabalho foi commitado. Pendência que depende de decisão da pessoa é
+  perguntada e registrada antes de seguir. Nunca passar ao módulo seguinte com o anterior em aberto.
 - Antes de codar, ver o que já existe no código, nos commits e nas docs.
 - Documentar tudo o que foi feito e corrigido na pasta de cada módulo, e commitar ao final. Nunca fazer merge sem
   autorização.
