@@ -17,6 +17,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.src.services.execution_scope import observed_facts as observed_facts_now
 from backend.src.services.execution_scope import run_until_stalled
 
 logger = logging.getLogger(__name__)
@@ -87,7 +88,12 @@ mecânicas; medium só quando há uma decisão difícil de verdade; high só qua
 é difícil. Respeite a preferência do usuário.
 Decida também se consultar respostas independentes e julgá-las oferece ganho
 provável suficiente para justificar custo e tempo. Normalmente compare_models
-é vazio. Se necessário, escolha os participantes e o judge somente entre os
+é vazio. Comparar custa caro: multiplica a etapa por 3 ou 4 e soma minutos, porque o julgador relê o
+pedido inteiro e todas as respostas (num teste real isso levou uma auditoria de 7 para mais de 40 minutos).
+Toda etapa técnica parece de alto risco, então esse argumento sozinho não basta. Compare só quando houver
+desacordo real provável entre modelos, não existir outra forma de verificar (os especialistas e o revisor já
+verificam contra o código-fonte capturado) e a etapa não se repetir em lotes nem for a redação final.
+observed_facts, quando presente, mostra quantas chamadas, tokens e comparações já foram gastos neste pedido. Se necessário, escolha os participantes e o judge somente entre os
 ids fornecidos; prefira um julgador diferente do autor principal quando viável.
 Quando compare_models for vazio, judge também deve ser vazio. Quando houver
 comparação, inclua o primeiro modelo do ranking entre os participantes.
@@ -241,6 +247,7 @@ async def rank_candidates(
     ask: Callable[[str, str, dict[str, Any]], Awaitable[str]],
     cache_by_step: bool = False,
     tool_catalog: dict[str, str] | None = None,
+    observed_facts: dict[str, int] | None = None,
 ) -> RouteAdvice:
     if len(candidates) <= 1:
         return _fallback(candidates, "único candidato elegível" if candidates else "nenhum candidato elegível")
@@ -249,6 +256,8 @@ async def rank_candidates(
                                         candidates=[c.facts() for c in candidates])
     if tool_catalog:
         payload_data["tool_groups_catalog"] = tool_catalog
+    if observed_facts:
+        payload_data["observed_facts"] = observed_facts
     payload = json.dumps(payload_data, ensure_ascii=False, sort_keys=True)
     system = _SYSTEM + _TOOLS_SYSTEM if tool_catalog else _SYSTEM
     # Etapa interna de controle (triagem, reranking...): a decisão não muda com o texto de cada
@@ -393,7 +402,8 @@ async def advise_route(
         task = "Operational contract: this control-plane step permits ONE answer, no comparison or judge.\n" + task
     advice = await rank_candidates(candidates, task=task, step_type=step_type,
                                    max_candidates=max_candidates, ask=ask,
-                                   cache_by_step=(not comparison_allowed) or reuse_decision, tool_catalog=tool_catalog)
+                                   cache_by_step=(not comparison_allowed) or reuse_decision, tool_catalog=tool_catalog,
+                                   observed_facts=observed_facts_now() or None)
     if not comparison_allowed:
         advice = advice.model_copy(update={"compare_models": [], "judge": ""})
     return advice

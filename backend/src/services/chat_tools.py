@@ -164,10 +164,15 @@ def _summarize_issues(issues: list[dict[str, Any]]) -> dict[str, Any]:
         sev = (issue.get("severity") or "").lower()
         if sev in counts:
             counts[sev] += 1
+    levels: dict[str, int] = {"high": 0, "medium": 0, "low": 0, "unknown": 0}
+    for issue in issues:
+        level = str(getattr(issue.get("confidence"), "value", issue.get("confidence")) or "unknown").lower()
+        levels[level if level in levels else "unknown"] += 1
     top = [
         {
             "criterion": i.get("criterion_pt") or i.get("criterion", ""),
             "severity": i.get("severity", ""),
+            "evidence": str(getattr(i.get("confidence"), "value", i.get("confidence")) or "unknown").lower(),
             "element": (i.get("element", "") or "")[:120],
             "description": (i.get("description", "") or "")[:200],
         }
@@ -176,6 +181,7 @@ def _summarize_issues(issues: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "total_issues": len(issues),
         "counts_by_severity": counts,
+        "counts_by_evidence": levels,
         "top_issues": top,
     }
 
@@ -1629,6 +1635,19 @@ _READ_LOCAL_PROJECT_FILES_SCHEMA: dict[str, Any] = {
         "required": ["pre_exec_msg", "project_dir"],
     },
 }
+
+
+def _precheck_local_path(args: dict[str, Any]) -> str | None:
+    """Um caminho de disco só é lido se a pessoa o escreveu na conversa (fato verificável, antes da aprovação)."""
+    from backend.src.services.request_context import user_wrote
+
+    path = str(args.get("project_dir") or "").strip()
+    if path and user_wrote(path) is False:
+        return (
+            "Esse caminho não foi informado pela pessoa nesta conversa, então não é lido. Se o pedido traz uma URL, "
+            "analise a página; se falta um caminho, pergunte à pessoa."
+        )
+    return None
 
 
 def read_local_project_files(args: dict[str, Any], **_kw: Any) -> str:
@@ -4247,6 +4266,7 @@ def register_chat_tools() -> None:
         # Lê arquivos reais de um caminho no disco que o usuário informou: efeito
         # real (acesso a filesystem fora da sandbox de HTML), exige confirmação.
         requires_approval=True,
+        precheck=_precheck_local_path,
     )
     logger.info("[a11y_chat] toolset '%s' registrado (read_local_project_files)", A11Y_CHAT_TOOLSET)
 
@@ -4260,6 +4280,7 @@ def register_chat_tools() -> None:
         # Sobrescreve arquivos reais no disco do usuário: efeito destrutivo, exige
         # confirmação explícita (mesmo com backup automático).
         requires_approval=True,
+        precheck=_precheck_local_path,
     )
     logger.info("[a11y_chat] toolset '%s' registrado (fix_local_project_files)", A11Y_CHAT_TOOLSET)
 

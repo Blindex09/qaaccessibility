@@ -28,6 +28,11 @@ logger = logging.getLogger(__name__)
 #   4. Detecta padrões sistemicos - agrupa issues com a mesma causa raiz
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Cada lote reenvia o HTML capturado inteiro (cerca de 8 mil tokens). O lote de 6 achados existia por causa do
+# antigo teto de saída, que já não existe; medido ao vivo em 61 achados: 11 lotes de 6 gastaram 165 mil tokens
+# só de entrada. Com 15 por lote são 5 lotes e o HTML é reenviado 5 vezes em vez de 11.
+_REVIEW_BATCH_SIZE = 15
+
 SYSTEM_PROMPT = """
 You are a senior accessibility expert with deep expertise in WCAG 2.1/2.2,
 WAI-ARIA 1.2, Section 508, EN 301 549, and real-world assistive technology
@@ -60,6 +65,15 @@ Ensure genuine W3C specification violations are preserved and highlighted:
 - MEDIUM: Reduces quality but task can be completed
 - LOW: Best practice violation with minimal real-world impact
 
+### Step 2.5 - Evidence level (the `confidence` field)
+For EVERY issue you keep, set `confidence` by what the captured source actually proves, not by how plausible it sounds:
+- "high": the source document itself shows the violation (an <html> with no lang, an <img> with no alt, a form
+  control with no label, a link whose only content is generic text).
+- "medium" or "low": the claim depends on something the source cannot show: rendered size or contrast, whether an
+  image with alt="" is decorative or informative, how an assistive technology really announces it, or a pattern that is
+  often valid (the link to the current page without href, several h1 in HTML5, aria-current absent on a plain current-page item).
+Remove the issue instead when the pattern is valid and nothing in the source shows a barrier.
+
 ### Step 3 - AT-Specific Enrichment (from accessibility-specialist.toml)
 Enrich why_technical with specific AT failure modes when missing:
 - "NVDA + Firefox: announces the element as clickable without action label"
@@ -77,7 +91,7 @@ Enrich the 'description' field to specify the exact location of the element on t
 
 ## Output rules
 - REMOVE false positives (do not include them)
-- MODIFY severity, why_technical, description when needed
+- MODIFY severity, confidence, why_technical, description when needed
 - ADD systemic pattern notes to description when applicable
 - KEEP all other fields unchanged
 - NEVER add new issues
@@ -127,11 +141,9 @@ async def run_a11y_expert_reviewer(
         len(issues),
     )
 
-    # Enriched output is substantially longer than the input: bound both.
-    BATCH_SIZE = 6
-    if len(issues) > BATCH_SIZE:
+    if len(issues) > _REVIEW_BATCH_SIZE:
         return await _review_in_batches(
-            issues, batch_size=BATCH_SIZE, known_false_positive_patterns=known_false_positive_patterns,
+            issues, batch_size=_REVIEW_BATCH_SIZE, known_false_positive_patterns=known_false_positive_patterns,
             source_document=source_document,
         )
 
@@ -190,6 +202,9 @@ async def _review_single_batch(
             temperature=0.1,
             response_schema=ISSUES_RESPONSE_SCHEMA,
             agent_label="a11y_expert_reviewer",
+            # Os lotes do revisor são irmãos: uma decisão de rota para todos, em vez de uma consulta ao
+            # roteador por lote (8 lotes pagavam 8 consultas de cerca de 3,7 mil tokens).
+            route_family="expert_review",
         )
 
         reviewed_dicts = extract_json_array(raw)
@@ -229,7 +244,7 @@ async def _review_single_batch(
 
 async def _review_in_batches(
     issues: list[AccessibilityIssue],
-    batch_size: int = 6,
+    batch_size: int = _REVIEW_BATCH_SIZE,
     known_false_positive_patterns: list[dict] | None = None,
     *,
     source_document: str = "",

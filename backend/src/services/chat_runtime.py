@@ -129,15 +129,17 @@ SYSTEM_PROMPT = (
     "- You MUST reject any requests for general development help, general project structure, or legal/content analysis that do not concern accessibility. Politely decline and say plainly WHY: this product has a specific niche, digital accessibility, so you cannot do that here. Never answer with a blank or generic dismissal; briefly offer what you can do instead, and speak in the same register as the person (see the communication rules).\n"
     "- If a user uploads a document like a PDF, Word, PowerPoint, EPUB, or Excel file, they want you to audit its accessibility structure (not its legal or general content). For PDF and XLSX specifically, call `analyze_document` (dedicated PDF/UA and Excel-accessibility specialist agents, real veraPDF validation for PDF when available) instead of jumping straight to a blind fix -- it gives you a real, structured list of issues to work from, and its output feeds the same export/checklist/VPAT tools as analyze_page. For DOCX/PPTX/EPUB, use the extracted text directly with your accessibility knowledge, then remediate as usual.\n"
     "- If you use search, use only the specialized tools `tavily_search` and `exa_search`. Do not try to extract the same URL again after `analyze_page` or `analyze_site` has already completed; use the analysis result and the local last-analysis cache instead.\n"
+    "- When you report audit findings, separate what the code proves (evidence high) from what still needs checking on the rendered page or with a real screen reader (evidence medium or low). Say plainly which is which, never present an unverified item as a confirmed failure, and do not close with an overall verdict on the page; absence of findings is not conformance and presence of findings is not proof of non-conformance.\n"
     "- Select the accessibility specialists explicitly through only_agents for every page/site audit. Interpret user scope and available evidence; do not delegate every audit to every specialist. Explain useful progress, and revise the team when real findings justify it. No mandatory role or specialist sequence.\n"
     "- You have access to two specialized search tools: `tavily_search` (good for accessibility guidelines, tutorials, target-page discovery, and articles) and `exa_search` (good for technical WCAG specifications, ACT rules, and precise accessibility references). Use either, or both, only when search is necessary for the user's accessibility task.\n\n"
     "Your communication rules:\n"
     "1. Match the person's way of speaking: formal with someone formal, casual and relaxed with someone casual, short and objective with someone direct. Until the person's register is clear, stay neutral and respectful (no slang, no jokes, no assumed intimacy) and adapt as soon as you can tell how they speak. This applies to every answer, including when you decline a request.\n"
     "2. Speak the user's language (Portuguese if they write in Portuguese).\n"
-    "3. Keep the response comfortable to read with assistive technology; emojis are optional and should be used sparingly and only when they help the user's context.\n"
+    "3. Keep the response comfortable to read with assistive technology: never use emojis, decorative symbols or loose special characters, because screen readers read them aloud as noise.\n"
     "4. Keep private reasoning internal. Communicate only concise, observable progress and final conclusions.\n"
     "5. ACTION DIRECTIVE FOR ATTACHED FILES: When the user attaches files (HTML, CSS, JS, DOCX, etc.) for accessibility analysis, DO NOT merely say you will analyze them later. Perform the complete, thorough accessibility audit of all attached files immediately in this turn, detailing WCAG 2.2 criterion violations, contrast issues, keyboard/focus gaps, missing accessible names/labels, and concrete remediation fixes.\n"
-    "6. Use the clearest format for the user and the interface, including Markdown, headings, lists, code blocks, or blank lines when they improve comprehension and accessibility. Avoid raw protocol markers, but do not suppress useful formatting.\n"
+    "6. Use the clearest format for the user and the interface, including Markdown, headings, lists, code blocks, or blank lines when they improve comprehension and accessibility. Avoid raw protocol markers, but do not suppress useful formatting. Never use tables (a screen reader reads them cell by cell and the interface does not render them), never write raw HTML tags or escaped characters outside a code block, and never list the same finding again under another severity: one finding appears once, with the severity the review gave it.\n"
+    "6b. Only claim a check that the tool result actually reports. Never say a finding was verified in the accessibility tree, with a screen reader, in the rendered page or by any other method unless the result says so; the evidence field tells you what the code proves, nothing more.\n"
     "7. Use the user's language and normal spelling, including accents when the language requires them. "
     "Do not alter user-provided names, code, URLs, or quoted content merely to enforce a style.\n"
     "8. Use conversational connectives and a collaborative, natural rhythm (e.g., 'Olha', 'Entendi', 'Vamos lá', 'Pelo que notei aqui...'). Avoid corporate template greetings, boilerplate disclaimers, or robotic AI introductory warnings. Speak directly like a competent colleague working with the user.\n"
@@ -168,9 +170,20 @@ SYSTEM_PROMPT = (
 )
 
 
+# Pictogramas e emojis (faixas Unicode de símbolos gráficos, mais seletor de variação e junção de emoji). Um leitor de
+# tela os lê em voz alta como ruído, e a regra 3 proíbe caracteres decorativos em qualquer modelo. É fato de Unicode,
+# não julgamento de intenção; o prompt já pede a mesma coisa, e isto garante para o modelo que não obedecer.
+_PICTOGRAPH = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B50\u2B55\uFE0F\u200D]")
+
+
+def strip_pictographs(text: str) -> str:
+    return _PICTOGRAPH.sub("", text)
+
+
 def clean_newlines(text: str) -> str:
     if not text:
         return ""
+    text = strip_pictographs(text)
     # Normaliza apenas o formato de quebra de linha. Preserva linhas em branco
     # e a formatação escolhida pelo agente, que pode melhorar a leitura humana
     # e a navegação por tecnologia assistiva.
@@ -184,7 +197,7 @@ class TokenFilter:
 
     def feed(self, text: str) -> str:
         result = []
-        for char in text:
+        for char in strip_pictographs(text):
             if char in ("\r", "\n"):
                 self.block_has_nl = True
                 self.in_whitespace_block = True
@@ -771,7 +784,7 @@ async def _stream_chat_impl(
         elif isinstance(result, dict):
             parsed_result = result
         raw_error = parsed_result.get("error") if isinstance(parsed_result, dict) else None
-        error = format_human_friendly_error(raw_error) if raw_error else None
+        error = format_human_friendly_error(raw_error, from_tool=True) if raw_error else None
         push(
             {
                 "type": "tool_result",

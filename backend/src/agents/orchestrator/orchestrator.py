@@ -47,7 +47,12 @@ from backend.src.services.adaptive_budget import AdaptiveExecutionBudget, create
 from backend.src.services.audit_observability import audited_orchestrator
 from backend.src.services.complexity_router import classify_and_set_tradeoff, get_current_tradeoff
 from backend.src.services.contrast_verifier import verify_contrast_issues
-from backend.src.services.execution_scope import budgeted, run_until_stalled, token_limit_note
+from backend.src.services.execution_scope import (
+    budgeted,
+    route_family_scope,
+    run_until_stalled,
+    token_limit_note,
+)
 from backend.src.services.lessons_store import get_known_false_positive_patterns
 from backend.src.shared.i18n.criteria_pt import translate_issues
 from backend.src.shared.models import (
@@ -271,7 +276,8 @@ async def _timed(name: str, coro_factory) -> tuple[AgentResult, float]:
         result = AgentResult(agent=name, success=False, data={}, error="Cancelado pelo usuário")
     else:
         try:
-            result = await run_until_stalled(coro_factory())
+            with route_family_scope("specialist"):
+                result = await run_until_stalled(coro_factory())
         except asyncio.TimeoutError:
             logger.warning(
                 "[Orchestrator] Agente '%s' ficou sem progresso (janela de %.0fs); seguindo com resultado parcial.",

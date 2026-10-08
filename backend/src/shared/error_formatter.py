@@ -11,8 +11,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def format_human_friendly_error(raw_error: object) -> str:
-    """Converte qualquer exceção ou string de erro técnico em mensagem amigável em Português."""
+def format_human_friendly_error(raw_error: object, *, from_tool: bool = False) -> str:
+    """Converte qualquer exceção ou string de erro técnico em mensagem amigável em Português.
+
+    `from_tool=True`: o erro veio de uma ferramenta (página fora do ar, arquivo ausente...), não do provedor de IA.
+    As mensagens de chave, cota e modelo não se aplicam a ele; o que a ferramenta falhou quem explica é o modelo,
+    na resposta, com o contexto do pedido.
+    """
     err_str = str(raw_error or "").strip()
     if not err_str:
         return "Ocorreu um erro inesperado ao se comunicar com o servidor de IA."
@@ -37,6 +42,9 @@ def format_human_friendly_error(raw_error: object) -> str:
             "Isso não confirma um bloqueio do site nem permite afirmar sua causa. "
             "A página não foi auditada; verifique a conexão e as configurações de navegação."
         )
+
+    if from_tool:
+        return "A ferramenta não conseguiu concluir esta etapa. Os detalhes técnicos ficam nos registros do servidor."
 
     # 402 / Quota / Balance Empty / Payment Required
     if any(

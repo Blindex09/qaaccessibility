@@ -319,6 +319,13 @@ def run_local_tool(
             {"error": f"A chamada foi bloqueada: argumentos inválidos em '{field}': {detail}. Corrija e chame de novo."},
             ensure_ascii=False,
         )
+    precheck = tool.get("precheck")
+    if precheck is not None:
+        refusal = precheck(clean_args)
+        if refusal:
+            if approval_decision_callback:
+                approval_decision_callback("invalid_arguments")
+            return json.dumps({"error": refusal}, ensure_ascii=False)
     if tool.get("requires_approval"):
         # O mesmo snapshot alimenta o cartão e o handler. Uma alteração
         # enquanto se espera a resposta não troca o alvo aprovado.

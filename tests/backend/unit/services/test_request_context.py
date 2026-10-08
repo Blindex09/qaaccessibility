@@ -68,3 +68,29 @@ async def test_scope_and_prior_updates_reach_actual_leaf_agent(multimodal, monke
     assert "Examine apenas idioma e títulos" in sent
     assert "Recebi o documento." in sent
     assert "captured evidence" in sent
+
+
+def test_local_path_must_be_written_by_the_person():
+    from backend.src.services.chat_tools import _precheck_local_path
+    from backend.src.services.request_context import request_context
+
+    with request_context("Analise https://exemplo.com/pagina", [{"role": "user", "content": r"meu projeto: C:\app\site"}]):
+        assert _precheck_local_path({"project_dir": "C:/Users/x/AppData/Local/Temp"})
+        assert _precheck_local_path({"project_dir": "c:/app/site"}) is None
+
+
+def test_unapproved_invented_path_never_reaches_the_approval_card():
+    import json
+
+    from backend.src.services.request_context import request_context
+    from run_agent import run_local_tool
+
+    asked = []
+    with request_context("Analise https://exemplo.com/pagina", []):
+        answer = run_local_tool(
+            "read_local_project_files",
+            {"pre_exec_msg": "ler", "project_dir": "C:/Temp/inventado"},
+            lambda summary, options: asked.append(summary) or "Aprovar",
+        )
+    assert asked == []
+    assert "não foi informado" in json.loads(answer)["error"]

@@ -22,6 +22,7 @@ click never consumes work budget. The next real task pays full price again.
 import asyncio
 import contextvars
 import functools
+import logging
 import threading
 import time
 from collections.abc import Awaitable, Callable, Iterator
@@ -30,6 +31,8 @@ from dataclasses import dataclass, field
 from typing import Any, ParamSpec, TypeVar
 
 from backend.src.services import chat_progress
+
+logger = logging.getLogger(__name__)
 
 
 class TokenBudgetReachedError(Exception):
@@ -75,6 +78,7 @@ class ExecutionBudget:
     tokens_used: int = 0
     # Registro de custo por chamada ao modelo (regra 9: medir antes de afirmar economia).
     calls: list[dict[str, Any]] = field(default_factory=list, repr=False)
+    comparisons: int = 0  # comparações entre modelos já feitas neste pedido (fato para o roteador)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -95,12 +99,28 @@ class ExecutionBudget:
 
     def record_call(self, label: str, provider: str, model: str, usage: dict[str, int] | None) -> None:
         usage = usage or {}
+        entry = {
+            "label": label, "provider": provider, "model": model,
+            "input": int(usage.get("input_tokens", 0)), "output": int(usage.get("output_tokens", 0)),
+            "total": int(usage.get("total_tokens", 0)),
+        }
         with self._lock:
-            self.calls.append({
-                "label": label, "provider": provider, "model": model,
-                "input": int(usage.get("input_tokens", 0)), "output": int(usage.get("output_tokens", 0)),
-                "total": int(usage.get("total_tokens", 0)),
-            })
+            self.calls.append(entry)
+        # Uma linha por chamada, na hora: uma execução longa (ou que nunca termina) continua mensurável.
+        logger.info("[Custo] chamada %s %s::%s entrada=%d saida=%d", label, provider, model, entry["input"], entry["output"])
+
+    def note_comparison(self) -> None:
+        with self._lock:
+            self.comparisons += 1
+
+    def observed_facts(self) -> dict[str, int]:
+        """Fatos já ocorridos neste pedido, para o roteador decidir com custo à vista."""
+        with self._lock:
+            return {
+                "model_calls_so_far": len(self.calls),
+                "tokens_so_far": self.tokens_used,
+                "model_comparisons_so_far": self.comparisons,
+            }
 
     def cost_summary(self) -> dict[str, Any]:
         """Tokens e chamadas por tipo de chamada e por modelo, para provar (ou refutar) economia."""
@@ -198,6 +218,18 @@ def record_call(label: str, provider: str, model: str, usage: dict[str, int] | N
         budget.record_call(label, provider, model, usage)
 
 
+def note_comparison() -> None:
+    """Conta uma comparação entre modelos no pedido atual."""
+    budget = _budget.get()
+    if budget is not None:
+        budget.note_comparison()
+
+
+def observed_facts() -> dict[str, int]:
+    budget = _budget.get()
+    return budget.observed_facts() if budget is not None else {}
+
+
 def add_tokens(count: int) -> None:
     """Soma os tokens de uma chamada ao orçamento do turno atual, se houver um."""
     budget = _budget.get()
@@ -221,6 +253,27 @@ def token_limit_note() -> dict[str, int | bool] | None:
     if budget is None or not budget.token_budget_reached:
         return None
     return {"reached": True, "used": budget.tokens_used, "limit": int(budget.token_limit or 0)}
+
+
+_default_route_family: contextvars.ContextVar[str | None] = contextvars.ContextVar("default_route_family", default=None)
+
+
+@contextmanager
+def route_family_scope(family: str) -> Iterator[None]:
+    """Chamadas ao modelo feitas aqui dentro, sem família própria, dividem uma decisão de rota.
+
+    Etapas irmãs (os especialistas de uma auditoria) pagavam uma consulta ao roteador cada, cerca de
+    3,7 mil tokens por especialista; com a família, a primeira decide e as outras reaproveitam.
+    """
+    token = _default_route_family.set(family)
+    try:
+        yield
+    finally:
+        _default_route_family.reset(token)
+
+
+def default_route_family() -> str | None:
+    return _default_route_family.get()
 
 
 def note_progress() -> None:

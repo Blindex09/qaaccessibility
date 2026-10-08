@@ -349,3 +349,27 @@ def test_low_complexity_means_no_extra_reasoning_because_the_low_level_is_not_ch
     from backend.src.services.llm_client import _EFFORT_FOR_COMPLEXITY
 
     assert _EFFORT_FOR_COMPLEXITY == {"low": "none", "medium": "medium", "high": "high"}
+
+
+@pytest.mark.asyncio
+async def test_router_sees_what_was_already_spent_in_the_request_and_the_real_price_of_comparing():
+    """Regressão (e2e real 2026-10-08): o roteador comparava modelos em quase toda etapa porque não sabia o custo;
+    uma auditoria foi de 7 para mais de 40 minutos."""
+    from backend.src.services import execution_scope
+    from backend.src.services.route_advisor import _SYSTEM
+
+    assert "multiplica a etapa por 3 ou 4" in _SYSTEM
+    assert "mais de 40 minutos" in _SYSTEM
+    assert "observed_facts" in _SYSTEM
+    seen = {}
+
+    async def ask(system, payload, schema):
+        seen["payload"] = json.loads(payload)
+        return answer()
+
+    with execution_scope.execution_scope(10):
+        execution_scope.record_call("a11y:x", "p", "m", {"total_tokens": 900})
+        execution_scope.note_comparison()
+        await rank_candidates(candidates(), task="t-fatos-obs", step_type="chat-fatos-obs", ask=ask,
+                              observed_facts=execution_scope.observed_facts())
+    assert seen["payload"]["observed_facts"] == {"model_calls_so_far": 1, "tokens_so_far": 0, "model_comparisons_so_far": 1}

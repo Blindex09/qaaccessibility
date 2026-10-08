@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer import run_a11y_expert_reviewer
+from backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer import _REVIEW_BATCH_SIZE, run_a11y_expert_reviewer
 from backend.src.shared.models import AccessibilityIssue
 
 from .conftest_agents import assert_agent_contract, assert_issues_valid, make_issue
@@ -57,7 +57,7 @@ class TestA11yExpertReviewer:
             new=AsyncMock(return_value="[]"),
         ) as call:
             result = await run_a11y_expert_reviewer(
-                [AccessibilityIssue(**ISSUE_REAL) for _ in range(13)], source_document=source
+                [AccessibilityIssue(**ISSUE_REAL) for _ in range(_REVIEW_BATCH_SIZE * 2 + 1)], source_document=source
             )
         assert result.success
         assert call.await_count == 3
@@ -72,12 +72,13 @@ class TestA11yExpertReviewer:
             "backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer.call_llm",
             new=AsyncMock(return_value="[]"),
         ) as call:
-            result = await run_a11y_expert_reviewer([AccessibilityIssue(**ISSUE_REAL) for _ in range(13)])
+            result = await run_a11y_expert_reviewer([AccessibilityIssue(**ISSUE_REAL) for _ in range(_REVIEW_BATCH_SIZE * 2 + 1)])
         assert result.success is True
         assert call.await_count == 3
         for request in call.await_args_list:
             assert request.kwargs["response_schema"] == ISSUES_RESPONSE_SCHEMA
             assert request.kwargs["agent_label"] == "a11y_expert_reviewer"
+            assert request.kwargs["route_family"] == "expert_review"
         assert result.data["batch_count"] == 3
 
     async def test_contract_on_success(self):

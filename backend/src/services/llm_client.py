@@ -12,7 +12,7 @@ from pydantic import ValidationError
 import backend.src.services.a11y_domain_tools  # noqa: F401 -- side-effect import, registra o toolset de dominio (a11y_tools) no tools/registry.py
 from backend.src.config.settings import get_settings
 from backend.src.services import agent_hooks, batch_collector
-from backend.src.services.execution_scope import budgeted, run_until_stalled
+from backend.src.services.execution_scope import budgeted, default_route_family, run_until_stalled
 from backend.src.services.response_cache import (
     get_cached_response,
     make_cache_key,
@@ -335,6 +335,7 @@ async def call_llm(
     em config/settings.py::a11y_max_concurrent_agents).
     """
 
+    route_family = route_family or default_route_family()
     settings = get_settings()
     from backend.src.services.request_context import SCOPE_CONTRACT, context_payload
 
@@ -712,10 +713,12 @@ async def call_llm(
             and route_advice is not None
             and route_advice.compare_models
         ):
+            from backend.src.services.execution_scope import note_comparison
             from backend.src.services.model_arbitration import arbitrate_model_responses
 
             candidate_models = route_advice.compare_models
             if len(candidate_models) >= 2:
+                note_comparison()
                 responses: list[tuple[str, str]] = [(model, content)]
                 alternatives = [m for m in candidate_models if m != f"{provider}::{model}"][
                     : max(0, settings.a11y_model_arbitration_max_candidates - 1)

@@ -214,6 +214,31 @@ const TOOL_META: Readonly<Record<string, ToolMeta>> = {
     start: "Instalando os navegadores do Playwright nesta máquina...",
     end: "Instalação do Playwright concluída",
   },
+  // Só lê: abre a página num navegador e consulta a árvore de acessibilidade; não altera nada.
+  verify_screen_reader_announcements: {
+    label: "Verificação de leitor de tela",
+    risk: "read",
+    start: "Conferindo, na árvore de acessibilidade real do navegador, o que um leitor de tela anunciaria...",
+    end: "Verificação de leitor de tela concluída",
+  },
+  design_review: {
+    label: "Revisão de requisito",
+    risk: "read",
+    start: "Antecipando os riscos de acessibilidade do requisito...",
+    end: "Revisão do requisito concluída",
+  },
+  create_jira_issue: {
+    label: "Ticket no Jira",
+    risk: "mutating",
+    start: "Criando o ticket no Jira...",
+    end: "Ticket criado no Jira",
+  },
+  create_azure_devops_work_item: {
+    label: "Item no Azure DevOps",
+    risk: "mutating",
+    start: "Criando o item no Azure DevOps...",
+    end: "Item criado no Azure DevOps",
+  },
 };
 
 /**

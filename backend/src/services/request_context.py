@@ -50,6 +50,26 @@ def record_public_update(event: dict[str, Any]) -> None:
         del value.public_updates[:-20]
 
 
+def user_wrote(text: str) -> bool | None:
+    """O texto aparece literalmente no que a pessoa escreveu (pedido atual e mensagens dela no histórico)?
+
+    Fato objetivo, não julgamento: serve para um caminho de disco, que só pode ser lido se a pessoa o informou.
+    None quando não há contexto de pedido (o chamador decide; o chat sempre tem).
+    """
+    value = _context.get()
+    if value is None:
+        return None
+    written = [value.request] + [
+        str(item.get("content") or "") for item in value.history if isinstance(item, dict) and item.get("role") == "user"
+    ]
+
+    def norm(raw: str) -> str:
+        return raw.replace("\\", "/").lower().rstrip("/")
+
+    needle = norm(text.strip())
+    return bool(needle) and any(needle in norm(chunk) for chunk in written)
+
+
 def context_payload() -> str:
     value = _context.get()
     if value is None:

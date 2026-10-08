@@ -19,12 +19,16 @@ class Registry:
         emoji: str = "",
         requires_approval: bool = False,
         needs_clarify_callback: bool = False,
+        precheck: Callable[[dict[str, Any]], str | None] | None = None,
     ) -> None:
         """Register a tool.
 
         ``needs_clarify_callback`` marks tools whose handler takes a second
         argument: the clarify callback that asks the user a question and blocks
         until the answer arrives. ``run_local_tool`` supplies it.
+
+        ``precheck`` valida um fato objetivo dos argumentos ANTES de pedir aprovação: devolve a mensagem de
+        recusa ou None. Assim a pessoa não é chamada a aprovar uma ação que seria negada de qualquer jeito.
         """
         self.tools[name] = {
             "schema": schema,
@@ -33,6 +37,7 @@ class Registry:
             "emoji": emoji,
             "requires_approval": requires_approval,
             "needs_clarify_callback": needs_clarify_callback,
+            "precheck": precheck,
         }
         if toolset not in self.toolsets:
             self.toolsets[toolset] = []

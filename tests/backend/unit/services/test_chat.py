@@ -1822,3 +1822,55 @@ def test_until_the_register_is_clear_the_assistant_stays_neutral_and_respectful(
     assert "stay neutral and respectful" in SYSTEM_PROMPT
     assert "no slang" in SYSTEM_PROMPT
     assert "neutral and respectful when it is not clear" in CLARIFIER_PROMPT
+
+
+def test_system_prompt_forbids_emojis_for_screen_reader_users():
+    from backend.src.services.chat_runtime import SYSTEM_PROMPT
+
+    assert "never use emojis" in SYSTEM_PROMPT
+    assert "emojis are optional" not in SYSTEM_PROMPT
+
+
+def test_tool_error_is_never_mistaken_for_a_provider_error():
+    raw = 'DNS resolution failed: the domain does not exist (404)'
+    assert "modelo" not in format_human_friendly_error(raw, from_tool=True)
+    assert "modelo solicitado" in format_human_friendly_error(raw)
+
+
+def test_summary_carries_evidence_level_so_the_answer_can_separate_proven_from_unverified():
+    from backend.src.services.chat_tools import _summarize_issues
+    from backend.src.shared.models import Confidence
+
+    summary = _summarize_issues(
+        [
+            {"severity": "high", "criterion": "3.1.1", "confidence": Confidence.HIGH},
+            {"severity": "medium", "criterion": "2.5.8", "confidence": "low"},
+            {"severity": "low", "criterion": "1.3.1"},
+        ]
+    )
+    assert summary["counts_by_evidence"] == {"high": 1, "medium": 0, "low": 1, "unknown": 1}
+    assert [i["evidence"] for i in summary["top_issues"]] == ["high", "low", "unknown"]
+
+
+def test_prompts_ask_for_evidence_levels_and_no_overall_verdict():
+    from backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer import SYSTEM_PROMPT as REVIEWER
+    from backend.src.services.chat_runtime import SYSTEM_PROMPT
+
+    assert "Evidence level" in REVIEWER and "confidence" in REVIEWER
+    assert "separate what the code proves" in SYSTEM_PROMPT
+
+
+def test_pictographs_never_reach_the_screen_reader_user_in_stream_or_final_text():
+    from backend.src.services.chat_runtime import TokenFilter, clean_newlines, strip_pictographs
+
+    assert strip_pictographs("\U0001F6A8 Erros ⚠️ criticos → ok") == " Erros  criticos → ok"
+    assert "\U0001F7E1" not in clean_newlines("\U0001F7E1 Medios")
+    assert TokenFilter().feed("Alta \U0001F534 prioridade") == "Alta prioridade"
+
+
+def test_prompt_blocks_tables_repeated_findings_and_unreported_verification_claims():
+    from backend.src.services.chat_runtime import SYSTEM_PROMPT
+
+    assert "Never use tables" in SYSTEM_PROMPT
+    assert "never list the same finding again" in SYSTEM_PROMPT
+    assert "Only claim a check that the tool result actually reports" in SYSTEM_PROMPT

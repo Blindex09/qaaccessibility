@@ -179,3 +179,25 @@ async def test_a_turn_cut_short_says_so_in_the_done_event_so_the_screen_does_not
     monkeypatch.setattr(chat_runtime.chat_history_store, "append_message", lambda *a, **k: None)
     events = [e async for e in chat_runtime.stream_chat("Analise", conversation_id="token-limit-partial")]
     assert events[-1]["type"] == "done" and events[-1]["partial"] is True
+
+
+# ----------------------------------------------------------------- fatos observados para o roteador decidir com custo à vista
+def test_observed_facts_tell_the_router_how_much_was_already_spent_in_this_request():
+    with execution_scope.execution_scope(10) as budget:
+        assert execution_scope.observed_facts() == {"model_calls_so_far": 0, "tokens_so_far": 0, "model_comparisons_so_far": 0}
+        execution_scope.record_call("a11y:x", "p", "m", {"input_tokens": 5, "output_tokens": 5, "total_tokens": 10})
+        add_tokens(10)
+        execution_scope.note_comparison()
+        execution_scope.note_comparison()
+        assert budget.observed_facts() == {"model_calls_so_far": 1, "tokens_so_far": 10, "model_comparisons_so_far": 2}
+    assert execution_scope.observed_facts() == {}  # sem pedido em andamento não há fatos
+
+
+def test_every_model_call_is_logged_when_it_happens_not_only_at_the_end(caplog):
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="backend.src.services.execution_scope"), \
+            execution_scope.execution_scope(10):
+        execution_scope.record_call("a11y:revisor", "ollama-cloud", "kimi", {"input_tokens": 100, "output_tokens": 40,
+                                                                             "total_tokens": 140})
+    assert any("[Custo] chamada a11y:revisor ollama-cloud::kimi entrada=100 saida=40" in r.message for r in caplog.records)
