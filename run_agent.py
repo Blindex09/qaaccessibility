@@ -18,6 +18,7 @@ from backend.src.services.execution_scope import (
     check_execution,
     current_budget,
     execution_scope,
+    note_chunk,
     note_progress,
     record_call,
 )
@@ -1189,6 +1190,7 @@ class AIAgent:
                 with stream_cm as stream:
                     for event in stream:
                         check_execution()
+                        note_chunk()
                         event_type = str(getattr(event, "type", ""))
                         if event_type == "response.output_text.delta":
                             delta = str(getattr(event, "delta", ""))
@@ -1370,6 +1372,7 @@ class AIAgent:
 
                 for chunk in response_stream:
                     check_execution()
+                    note_chunk()
                     # O chunk final de usage vem sem choices.
                     _accumulate_usage(usage_total, getattr(chunk, "usage", None))
                     if not chunk.choices:
@@ -1673,6 +1676,7 @@ class AIAgent:
             captured_tool_calls: list[Any] = []
             for chunk in stream:
                 check_execution()
+                note_chunk()
                 if chunk.message.thinking:
                     if self.thinking_callback:
                         self.thinking_callback(chunk.message.thinking)
@@ -1981,6 +1985,7 @@ class AIAgent:
                 # Para streaming do Anthropic, processamos cada tipo de evento
                 for event in response_stream:
                     check_execution()
+                    note_chunk()
                     # message_start traz input_tokens; message_delta traz output_tokens.
                     if event.type == "message_start":
                         _accumulate_usage(usage_total, getattr(event.message, "usage", None))
@@ -2225,6 +2230,7 @@ class AIAgent:
                 interaction = None
                 for event in self._gemini_interactions_create(client, kwargs, stream=True):
                     check_execution()
+                    note_chunk()
                     event_type = getattr(event, "event_type", "")
                     delta = getattr(event, "delta", None)
                     if event_type == "content.delta":

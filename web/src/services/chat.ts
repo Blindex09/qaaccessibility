@@ -42,6 +42,7 @@ export type ChatEvent =
     }
   | { type: "phase"; text: string }
   | { type: "agent"; phase: "start" | "done"; agent: string; ok?: boolean; issues?: number }
+  | { type: "analysis_waiting"; agents: string[]; seconds: number }
   | { type: "analysis_partial"; page?: string; agent?: string; completed: number; total: number; issues?: number }
   | { type: "squad_plan"; plan: SquadPlan }
   | { type: "squad_task"; task_id: string; role: string; title: string; status: SquadTaskStatus }

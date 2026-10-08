@@ -731,12 +731,13 @@ class TestUnzipAndListFilesTool:
         zip_base64 = base64.b64encode(zip_buffer.getvalue()).decode("utf-8")
         out = json.loads(unzip_and_list_files({"zip_base64": zip_base64}))
 
-        assert isinstance(out, list)
-        assert len(out) == 2  # Apenas index.html e styles.css
-        paths = [item["path"] for item in out]
+        # Um arquivo de tipo não lido não some em silêncio: o resultado diz que ficou de fora.
+        assert len(out["files"]) == 2  # Apenas index.html e styles.css
+        paths = [item["path"] for item in out["files"]]
         assert "index.html" in paths
         assert "styles.css" in paths
         assert "invalid.exe" not in paths
+        assert "invalid.exe" in out["notes"][0]
 
 
 class TestFixAndZipFilesTool:
@@ -1874,3 +1875,72 @@ def test_prompt_blocks_tables_repeated_findings_and_unreported_verification_clai
     assert "Never use tables" in SYSTEM_PROMPT
     assert "never list the same finding again" in SYSTEM_PROMPT
     assert "Only claim a check that the tool result actually reports" in SYSTEM_PROMPT
+
+
+def _zip_attachment(files: dict[str, str], name: str = "projeto.zip") -> str:
+    import base64
+    import io
+    import zipfile
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        for path, body in files.items():
+            z.writestr(path, body)
+    return f"=== {name} ===\n{base64.b64encode(buffer.getvalue()).decode()}\n"
+
+
+def test_zip_attachment_is_extracted_by_the_system_not_copied_by_the_model():
+    from backend.src.services.chat_runtime import _preprocess_base64_attachments_impl
+
+    message = "Analise o projeto\n\n" + _zip_attachment({"loja/index.html": "<html></html>", "loja/app.js": "x=1"})
+    text, _images = _preprocess_base64_attachments_impl(message, extract_images=True)
+
+    assert "2 arquivo(s) já extraído(s)" in text
+    assert "--- loja/index.html ---\n<html></html>" in text
+    assert "UEsDB" not in text  # o base64 não chega ao modelo
+    assert text.startswith("Analise o projeto")
+
+
+def test_zip_attachment_tells_the_model_what_was_not_read():
+    from backend.src.services.chat_runtime import _preprocess_base64_attachments_impl
+
+    message = _zip_attachment({"a/index.html": "<html></html>", "a/leia.bin": "xx"})
+    text, _images = _preprocess_base64_attachments_impl(message, extract_images=True)
+
+    assert "extração parcial" in text
+    assert "a/leia.bin" in text
+
+
+def test_corrupt_zip_attachment_is_left_untouched_instead_of_failing_the_turn():
+    from backend.src.services.chat_runtime import _preprocess_base64_attachments_impl
+
+    message = "=== quebrado.zip ===\nQUJDREVGRw==\n"
+    text, _images = _preprocess_base64_attachments_impl(message, extract_images=True)
+
+    assert "QUJDREVGRw" in text
+
+
+def test_summary_lists_every_issue_so_a_high_finding_is_not_dropped_from_the_answer():
+    from backend.src.services.chat_tools import _summarize_issues
+
+    issues = [{"severity": "medium", "criterion": f"1.1.{n}", "description": f"d{n}"} for n in range(16)]
+    summary = _summarize_issues(issues)
+
+    assert len(summary["top_issues"]) == 16
+    assert summary["issues_omitted_from_list"] == 0
+
+
+def test_analyze_page_schema_gives_the_model_the_measured_cost_and_the_one_call_per_project_rule():
+    from backend.src.services.chat_tools import _ANALYZE_PAGE_SCHEMA
+
+    props = _ANALYZE_PAGE_SCHEMA["parameters"]["properties"]
+    assert "ONE call with all the relevant files" in props["html"]["description"]
+    assert "biggest cost of an audit" in props["only_agents"]["description"]
+
+
+def test_unzip_tool_description_tells_the_model_not_to_use_it_for_chat_attachments():
+    from backend.src.services.chat_tools import _UNZIP_AND_LIST_FILES_SCHEMA
+
+    text = _UNZIP_AND_LIST_FILES_SCHEMA["description"]
+    assert "already extracted by the system" in text
+    assert "never call this tool" in text

@@ -153,6 +153,12 @@ def _safe_async_run(coro: Any) -> Any:
     return asyncio.run(coro)
 
 
+# Cada achado resumido custa cerca de 60 tokens. Com só os 10 primeiros, o chat narrava 10 de 16 e um defeito
+# alto (imagem sem texto alternativo) sumia da resposta. O teto existe só para um resultado gigante, e o que fica
+# de fora é dito ao modelo em issues_omitted_from_list.
+_SUMMARY_ISSUE_LIMIT = 80
+
+
 def _summarize_issues(issues: list[dict[str, Any]]) -> dict[str, Any]:
     """Resumo compacto para o modelo narrar (sem estourar contexto)."""
     counts: dict[str, int] = {"critical": 0, "high": 0, "medium": 0, "low": 0}
@@ -176,10 +182,11 @@ def _summarize_issues(issues: list[dict[str, Any]]) -> dict[str, Any]:
             "element": (i.get("element", "") or "")[:120],
             "description": (i.get("description", "") or "")[:200],
         }
-        for i in issues[:10]
+        for i in issues[:_SUMMARY_ISSUE_LIMIT]
     ]
     return {
         "total_issues": len(issues),
+        "issues_omitted_from_list": max(0, len(issues) - _SUMMARY_ISSUE_LIMIT),
         "counts_by_severity": counts,
         "counts_by_evidence": levels,
         "top_issues": top,
@@ -456,7 +463,7 @@ _ANALYZE_PAGE_SCHEMA: dict[str, Any] = {
             },
             "html": {
                 "type": "string",
-                "description": "Raw HTML/code content to analyze (attached file or project).",
+                "description": "Raw HTML/code content to analyze (attached file or project). For a project with several files, send ONE call with all the relevant files in this field, each one preceded by a line `--- path ---`, so the specialists can attribute every finding to its file. One call per file repeats the whole specialist pipeline and the senior review for each file.",
             },
             "append": {
                 "type": "boolean",
@@ -476,7 +483,7 @@ _ANALYZE_PAGE_SCHEMA: dict[str, Any] = {
                     "react_framework", "angular_framework", "vue_framework", "svelte_framework",
                     "tailwind_css", "visual_a11y",
                 ]},
-                "description": "You MUST choose specialists for every audit, broad or narrow, using the current request, evidence available, prior results and each specialist's domain. Cover the requested criteria without redundant independent audits of the same facts. Do not select legal, XR, agentic-UI or framework specialists without contextual relevance. No fixed sequence or mandatory subset: this is your semantic judgment, not a harness keyword rule. You may revise the selection after obtaining new evidence. The senior reviewer still reviews the results.",
+                "description": "You MUST choose specialists for every audit, broad or narrow, using the current request, evidence available, prior results and each specialist's domain. Cover the requested criteria without redundant independent audits of the same facts. Measured cost: each specialist spends from 7 to 35 thousand tokens depending on the model, and the senior reviewer then reads every duplicate, which makes the review the biggest cost of an audit. Specialists with a broad scope overlap heavily (in a real run, one clickable div was reported by four of them), so prefer the few whose domains match the elements actually present in the material over adding broad specialists on top of narrow ones. Do not select legal, XR, agentic-UI or framework specialists without contextual relevance. No fixed sequence or mandatory subset: this is your semantic judgment, not a harness keyword rule. You may revise the selection after obtaining new evidence. The senior reviewer still reviews the results.",
             },
         },
         "required": ["pre_exec_msg", "only_agents"],
@@ -683,8 +690,10 @@ def analyze_site(args: dict[str, Any], **_kw: Any) -> str:
 _UNZIP_AND_LIST_FILES_SCHEMA = {
     "description": (
         "Unzip a base64-encoded ZIP file containing local files/folders and return their paths and contents. "
-        "Call this tool when the user uploads a zipped project/folder to audit. "
-        "Returns a list of objects with `path` and `content` for each text file."
+        "A ZIP attached in the chat is already extracted by the system and appears in the user's message as "
+        "`[Projeto compactado: N arquivo(s) já extraído(s) ...]` followed by every file: in that case never call this "
+        "tool, there is nothing left to extract. Use it only when you really hold the base64 of a ZIP that did not "
+        "come as a chat attachment. Returns a list of objects with `path` and `content` for each text file."
     ),
     "parameters": {
         "type": "object",
@@ -1402,6 +1411,8 @@ def unzip_and_list_files(args: dict[str, Any], **_kw: Any) -> str:
         chat_progress.emit_tool_progress(None, "unzip_and_list_files", "Decodificando o arquivo ZIP...")
         zip_data = base64.b64decode(zip_base64)
         extracted_files: list[dict[str, Any]] = []
+        skipped_by_type: list[str] = []
+        truncated: list[str] = []
         total_chars = 0
         max_chars = 100_000
         max_files = 30
@@ -1433,10 +1444,12 @@ def unzip_and_list_files(args: dict[str, Any], **_kw: Any) -> str:
             for idx, name in enumerate(namelist):
                 _, ext = os.path.splitext(name.lower())
                 if ext not in valid_extensions and ext not in image_extensions:
+                    skipped_by_type.append(name)
                     continue
 
                 if len(extracted_files) >= max_files:
                     logger.warning("[a11y_chat] Limite de %d arquivos atingido no unzip.", max_files)
+                    truncated.extend(namelist[idx:])
                     break
 
                 chat_progress.emit_tool_progress(
@@ -1490,6 +1503,7 @@ def unzip_and_list_files(args: dict[str, Any], **_kw: Any) -> str:
                             content = content[: (max_chars - total_chars)]
                             if content:
                                 extracted_files.append({"path": name, "content": content})
+                            truncated.extend(namelist[idx:])
                             break
 
                         total_chars += len(content)
@@ -1497,7 +1511,18 @@ def unzip_and_list_files(args: dict[str, Any], **_kw: Any) -> str:
                 except Exception as e:
                     logger.error("[a11y_chat] Falha ao extrair arquivo %s: %s", name, e)
 
-        return json.dumps(extracted_files, ensure_ascii=True)
+        notes: list[str] = []
+        if skipped_by_type:
+            notes.append(
+                f"{len(skipped_by_type)} arquivo(s) de tipo não lido foram ignorados: {', '.join(skipped_by_type[:10])}."
+            )
+        if truncated:
+            notes.append(
+                "O limite de tamanho da leitura foi atingido; arquivos ou trechos ficaram de fora: "
+                + ", ".join(truncated[:10])
+                + "."
+            )
+        return json.dumps(extracted_files if not notes else {"files": extracted_files, "notes": notes}, ensure_ascii=True)
     except Exception as exc:
         logger.error("[a11y_chat] unzip_and_list_files falhou: %s", exc)
         return json.dumps({"error": f"Falha ao descompactar arquivo: {exc}"}, ensure_ascii=True)
@@ -1651,18 +1676,11 @@ def _precheck_local_path(args: dict[str, Any]) -> str | None:
 
 
 def read_local_project_files(args: dict[str, Any], **_kw: Any) -> str:
-    from backend.src.services.local_project_guard import (
-        accessibility_scope_denial_message,
-        is_accessibility_project_dir,
-    )
-
     project_dir = str(args.get("project_dir") or "").strip()
     if not project_dir:
         return json.dumps({"error": "Parâmetro 'project_dir' é obrigatório."}, ensure_ascii=True)
     if not os.path.isdir(project_dir):
         return json.dumps({"error": f"Diretório não encontrado: {project_dir}"}, ensure_ascii=True)
-    if not is_accessibility_project_dir(project_dir):
-        return json.dumps({"error": accessibility_scope_denial_message(project_dir)}, ensure_ascii=True)
 
     try:
         chat_progress.emit_tool_progress(None, "read_local_project_files", f"Lendo arquivos de {project_dir}...")
@@ -2620,18 +2638,11 @@ _FIX_LOCAL_PROJECT_FILES_SCHEMA: dict[str, Any] = {
 
 
 def fix_local_project_files(args: dict[str, Any], **_kw: Any) -> str:
-    from backend.src.services.local_project_guard import (
-        accessibility_scope_denial_message,
-        is_accessibility_project_dir,
-    )
-
     project_dir = str(args.get("project_dir") or "").strip()
     if not project_dir:
         return json.dumps({"error": "Parâmetro 'project_dir' é obrigatório."}, ensure_ascii=True)
     if not os.path.isdir(project_dir):
         return json.dumps({"error": f"Diretório não encontrado: {project_dir}"}, ensure_ascii=True)
-    if not is_accessibility_project_dir(project_dir):
-        return json.dumps({"error": accessibility_scope_denial_message(project_dir)}, ensure_ascii=True)
 
     files = args.get("files")
     if files is not None and not isinstance(files, list):

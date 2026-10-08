@@ -805,3 +805,26 @@ class TestGapResearchGate:
 
         assert result.success is True
         gap_research_mock.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_slow_specialist_makes_the_person_see_who_is_still_pending(sample_html):
+    """Regressão (e2e real 2026-10-08): um especialista ficou 22 minutos sem resposta e a tela só dizia
+    "Processando". Agora o orquestrador avisa quem ainda falta; o aviso nunca encerra a execução."""
+    import asyncio
+
+    async def slow(*_a, **_k):
+        await asyncio.sleep(0.5)
+        return make_result("run_robustness")
+
+    patches = _patch_all_analysis_agents({"run_robustness": AsyncMock(side_effect=slow)})
+    emitted: list[dict] = []
+    with patch.multiple("backend.src.agents.orchestrator.orchestrator", **patches), patch(
+        "backend.src.agents.orchestrator.orchestrator._WAIT_NOTICE_INTERVAL", 0.1
+    ), patch(
+        "backend.src.agents.orchestrator.orchestrator.chat_progress.emit", side_effect=emitted.append
+    ):
+        result = await orchestrate(sample_html, TaskType.ANALYZE, only_agents=["perceiver", "robustness"])
+    waits = [event for event in emitted if event.get("type") == "analysis_waiting"]
+    assert result.success is True
+    assert waits and "robustness" in waits[0]["agents"]

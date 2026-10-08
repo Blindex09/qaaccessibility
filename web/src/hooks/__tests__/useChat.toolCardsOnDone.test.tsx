@@ -126,3 +126,19 @@ test("fim parcial (o servidor marca partial) deixa o cartão como interrompido, 
 
   expect(toolCards(chat())[0].status).toBe("cancelled");
 });
+
+test("o aviso de espera atualiza no lugar e some quando chega o próximo evento", async () => {
+  const { chat } = mountChat();
+  act(() => {
+    void chat().send("audite a página");
+  });
+  send({ type: "analysis_waiting", agents: ["robustness"], seconds: 20 } as ChatEvent);
+  send({ type: "analysis_waiting", agents: ["robustness"], seconds: 40 } as ChatEvent);
+
+  const waits = () => chat().messages.filter((message) => message.kind === "wait");
+  expect(waits()).toHaveLength(1);
+  expect(waits()[0].content).toBe("Ainda aguardando Estrutura e Tags ARIA há 40s.");
+
+  send({ type: "analysis_partial", agent: "robustness", completed: 9, total: 9 } as ChatEvent);
+  expect(waits()).toHaveLength(0);
+});

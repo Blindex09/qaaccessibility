@@ -52,7 +52,7 @@ export interface ChatMessage {
   content: string;
   /** Conteúdo original da mensagem (com base64 de anexos) para enviar ao backend. */
   rawContent?: string;
-  kind?: "agent" | "phase" | "squad" | "tool" | "clarify" | "steer";
+  kind?: "agent" | "phase" | "squad" | "tool" | "clarify" | "steer" | "wait";
   groupKey?: string;
   /** Estado estruturado da execução; evita inferir sucesso/falha a partir do texto visível. */
   toolCall?: ToolCallData;
@@ -69,8 +69,7 @@ export interface PendingClarify {
   choices: string[];
 }
 
-function _agentLine(ev: Extract<ChatEvent, { type: "agent" }>): string {
-  const friendlyNames: Record<string, string> = {
+const AGENT_FRIENDLY_NAMES: Record<string, string> = {
     perceiver: "Percepção e Mídia",
     operability: "Teclado e Operabilidade",
     understandability: "Formulários e Linguagem",
@@ -92,7 +91,13 @@ function _agentLine(ev: Extract<ChatEvent, { type: "agent" }>): string {
     tailwind_css: "Estilos Tailwind CSS",
     visual_a11y: "Análise Visual de Layout",
   };
-  const agentFriendlyName = friendlyNames[ev.agent] || "acessibilidade especializada";
+
+function agentLabelFor(agent: string): string {
+  return AGENT_FRIENDLY_NAMES[agent] || "acessibilidade especializada";
+}
+
+function _agentLine(ev: Extract<ChatEvent, { type: "agent" }>): string {
+  const agentFriendlyName = agentLabelFor(ev.agent);
   if (ev.phase === "start") return `Verificando ${agentFriendlyName}…`;
   if (!ev.ok) return `Falha ao analisar ${agentFriendlyName}`;
   return `Verificação de ${agentFriendlyName} concluída. ${ev.issues ?? 0} problema(s) encontrado(s)`;
@@ -428,6 +433,19 @@ export function useChat() {
       const pushStatus = (content: string, kind: ChatMessage["kind"], coalesce: boolean) => {
         setActivity(content);
         setMessages((m) => {
+          // Aviso de espera atualiza no lugar e sai quando chega qualquer outro evento (regra 4).
+          if (kind === "wait") {
+            const at = m.length - 1;
+            if (at >= 0 && m[at].role === "status" && m[at].kind === "wait") {
+              const copy = m.slice();
+              copy[at] = { ...m[at], content };
+              return copy;
+            }
+            return [...m, { role: "status", content, kind }];
+          }
+          if (m.length > 0 && m[m.length - 1].kind === "wait") {
+            m = m.slice(0, -1);
+          }
           const last = m[m.length - 1];
           // Evita adicionar mensagens de status idênticas consecutivamente no histórico
           if (last && last.role === "status" && last.content === content) {
@@ -591,6 +609,15 @@ export function useChat() {
               case "agent":
                 pushStatus(_agentLine(event), "agent", false);
                 break;
+              case "analysis_waiting": {
+                const names = event.agents.map((agent) => agentLabelFor(agent));
+                pushStatus(
+                  `Ainda aguardando ${names.join(", ")} há ${event.seconds}s.`,
+                  "wait",
+                  false,
+                );
+                break;
+              }
               case "analysis_partial":
                 pushStatus(
                   event.agent

@@ -260,6 +260,10 @@ async def _review_in_batches(
     )
 
     batches = [issues[i : i + batch_size] for i in range(0, len(issues), batch_size)]
+    # Cada lote reenvia o documento inteiro: um lote final pequeno custa quase o mesmo que um cheio, então
+    # a sobra (menos da metade de um lote) entra no lote anterior em vez de pagar outra chamada.
+    if len(batches) > 1 and len(batches[-1]) < batch_size // 2:
+        batches[-2].extend(batches.pop())
 
     # Processa lotes em paralelo (max 3 concorrentes)
     import asyncio

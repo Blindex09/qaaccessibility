@@ -132,17 +132,28 @@ def test_persistent_repetition_ends_the_tool_loop_instead_of_spinning():
         assert "repetiu a mesma chamada" in agent._loop_exit_error("havia pendências")
 
 
-def test_a_slow_provider_call_in_flight_is_not_a_stall():
-    """Regressão (teste ao vivo 2026-10-07): uma chamada ao provedor sem streaming passa mais
-    do que a janela em silêncio. Isso é espera legítima, não travamento; a chamada ganha
-    mais paciência e a janela só recomeça quando ela termina."""
+def test_a_slow_provider_call_that_keeps_delivering_data_is_not_a_stall():
+    """Regressão (teste ao vivo 2026-10-07): uma chamada longa ao provedor passa mais do que a janela.
+    Enquanto dado chega, é espera legítima; a janela só recomeça quando ela termina."""
     with execution_scope(10) as budget:
-        _tight_window(budget, 0.1)
+        _tight_window(budget, 0.2)
         budget.begin_call()
-        time.sleep(0.3)  # bem mais que a janela, com a chamada ainda em curso
+        for _ in range(3):
+            time.sleep(0.1)
+            budget.note_chunk()  # dado chegando dentro da janela
         assert budget.effective_deadline() > time.monotonic()
         budget.end_call()
         assert budget.effective_deadline() > time.monotonic()  # janela nova a partir do fim da chamada
+
+
+def test_a_provider_call_that_delivers_nothing_for_the_whole_window_is_a_stall():
+    """Regressão (e2e real 2026-10-08): um especialista ficou 29 minutos numa chamada sem erro e sem fim, e a
+    presença da chamada em andamento segurava o turno para sempre. Sem dado por toda a janela, é travamento."""
+    with execution_scope(10) as budget:
+        _tight_window(budget, 0.1)
+        budget.begin_call()
+        time.sleep(0.3)  # bem mais que a janela, sem nenhum dado
+        assert budget.effective_deadline() <= time.monotonic()
 
 
 def test_without_a_call_in_flight_silence_is_still_a_stall():
@@ -165,12 +176,14 @@ def test_agent_iteration_marks_the_provider_call_while_it_runs():
 
 
 @pytest.mark.asyncio
-async def test_slow_call_wrapped_by_run_until_stalled_is_not_cut():
+async def test_slow_call_that_keeps_delivering_wrapped_by_run_until_stalled_is_not_cut():
     async def slow_call():
         budget = current_budget()
         budget.begin_call()
         try:
-            await asyncio.sleep(0.5)
+            for _ in range(5):
+                await asyncio.sleep(0.1)
+                budget.note_chunk()
         finally:
             budget.end_call()
         return "pronto"
@@ -178,8 +191,26 @@ async def test_slow_call_wrapped_by_run_until_stalled_is_not_cut():
     from backend.src.services.execution_scope import current_budget
 
     with execution_scope(10) as budget:
-        _tight_window(budget, 0.15)
+        _tight_window(budget, 0.25)
         assert await run_until_stalled(slow_call()) == "pronto"
+
+
+@pytest.mark.asyncio
+async def test_silent_call_wrapped_by_run_until_stalled_is_given_up():
+    async def silent_call():
+        budget = current_budget()
+        budget.begin_call()
+        try:
+            await asyncio.sleep(5)
+        finally:
+            budget.end_call()
+
+    from backend.src.services.execution_scope import current_budget
+
+    with execution_scope(10) as budget:
+        _tight_window(budget, 0.2)
+        with pytest.raises(TimeoutError):
+            await run_until_stalled(silent_call())
 
 
 def test_dropping_stuck_specialists_gives_the_rest_of_the_pipeline_a_fresh_window():

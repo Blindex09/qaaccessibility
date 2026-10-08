@@ -492,8 +492,8 @@ especialista concluído) desliza esse instante, e a janela de silêncio se adapt
 declarou. `run_until_stalled` substitui os `wait_for` de prazo fixo no orquestrador, no `llm_client`, no
 `route_advisor` e no factory. Toda execução tem esse orçamento: `orchestrate` e `run_conversation` abrem
 o seu quando não há um do turno, então as rotas fora do chat seguem a mesma regra. A espera por
-aprovação do usuário não tem relógio. Uma chamada lenta ao provedor em curso nunca é "travamento": enquanto
-houver uma rodada do modelo em andamento a janela não esgota, e quando ela termina a janela recomeça; depois de largar
+aprovação do usuário não tem relógio. Uma chamada lenta ao provedor em curso não é "travamento" enquanto
+dado chega dentro da janela (cada pedaço recebido de uma chamada em fluxo a renova), e quando ela termina a janela recomeça; uma chamada que não entrega nada por toda a janela é travamento, mesmo sem erro (medido: 29 minutos presa no e2e de 2026-10-08), e o orquestrador segue com o parcial; depois de largar
 especialistas parados, o restante do pipeline segue com janela nova (entrega parcial, não falha total). O factory não tem mais máximo de chamadas de ferramenta, e o laço
 de um agente com ferramentas não é cortado por `max_iterations` (só a folha sem ferramentas é uma
 chamada única, por estrutura); a repetição persistente depois da reflexão encerra o laço.
@@ -532,8 +532,8 @@ que sempre abrem um) só o cancelamento encerra uma espera.
 
 Limites que ainda existem, e que são honestos: a consulta ao catálogo de modelos do Ollama Cloud
 (`ollama_cloud_adapter.py`) mantém timeouts curtos de 10 a 15 segundos, por ser metadado e não trabalho do
-modelo; uma conexão de leitura pendurada sem nenhum byte só é encerrada pelo cancelamento da pessoa ou pelo
-sistema operacional; o limite de tokens não cobre o servidor MCP por stdio nem o protocolo A2A, que não passam
+modelo; uma chamada de fluxo que não entrega dado por toda a janela deixa de segurar o turno, mas a conexão em si só
+é encerrada pelo limite de leitura do HTTP, pelo cancelamento da pessoa ou pelo sistema operacional; o limite de tokens não cobre o servidor MCP por stdio nem o protocolo A2A, que não passam
 pelo middleware HTTP, e uma rota que faz várias chamadas isoladas divide um único orçamento por pedido; o padrão de 32000 da
 Anthropic e a autocorreção pelo limite do provider foram cobertos só com mocks, sem chamada real. Ao mexer
 nesses pontos, convergir para a regra 8 e registrar aqui o que mudou.

@@ -2,6 +2,7 @@ import asyncio
 import functools
 import logging
 import re
+import time
 
 from backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer import run_a11y_expert_reviewer
 from backend.src.agents.agentic_ai_ui.agentic_ai_ui import run_agentic_ai_ui_agent
@@ -485,6 +486,11 @@ def _build_pipeline_graph(
     return {"nodes": nodes, "edges": edges}
 
 
+# De quanto em quanto tempo a pessoa é avisada de que ainda se espera por algum especialista. É só aviso: não
+# encerra nada (regra 8).
+_WAIT_NOTICE_INTERVAL = 20.0
+
+
 async def _run_gap_research_step(
     unique: list[AccessibilityIssue],
 ) -> tuple[list[AccessibilityIssue], AgentMetrics | None]:
@@ -725,18 +731,34 @@ async def _run_analysis_pipeline(
             result, duration = await _run_with_semaphore(name, func)
             return name, result, duration
 
-        pending = {asyncio.create_task(_run_named(name, func)) for name, func in agents}
+        task_names: dict[asyncio.Task, str] = {}
+        for name, func in agents:
+            task_names[asyncio.create_task(_run_named(name, func))] = name
+        pending = set(task_names)
         completed = 0
+        last_progress_at = time.monotonic()
         while pending and not budget.expired and not chat_progress.is_cancelled():
+            # O intervalo só serve para avisar a pessoa de quem ainda falta; quem decide se a execução travou
+            # continua sendo a janela de silêncio do orçamento, nunca este intervalo.
             done, pending = await asyncio.wait(
                 pending,
-                timeout=budget.remaining_seconds,
+                timeout=min(budget.remaining_seconds, _WAIT_NOTICE_INTERVAL),
                 return_when=asyncio.FIRST_COMPLETED,
             )
             if not done:
+                waited = time.monotonic() - last_progress_at
+                if completed and pending and waited >= _WAIT_NOTICE_INTERVAL:
+                    chat_progress.emit(
+                        {
+                            "type": "analysis_waiting",
+                            "agents": sorted(task_names[task] for task in pending),
+                            "seconds": int(waited),
+                        }
+                    )
                 # A janela pode ter deslizado com o progresso de outro
                 # especialista; o `while` encerra se de fato travou.
                 continue
+            last_progress_at = time.monotonic()
             for task in done:
                 _name, result, duration = await task
                 tuples.append((result, duration))

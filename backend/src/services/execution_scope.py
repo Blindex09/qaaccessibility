@@ -72,6 +72,10 @@ class ExecutionBudget:
     # chamada, nunca uma nova por cima). Quem encerra uma conexão pendurada é a camada
     # HTTP ou o cancelamento da pessoa.
     inflight: int = 0
+    # Quando chegou o último pedaço de dado de uma chamada em fluxo (ou quando a última chamada começou). Uma chamada
+    # em andamento só conta como progresso enquanto dado chega dentro da janela de paciência: sem isso uma chamada
+    # presa (29 minutos medidos no e2e real de 2026-10-08, sem erro e sem fim) segurava o turno para sempre.
+    last_chunk_at: float = field(default_factory=time.monotonic)
     # Orçamento de custo configurado pela pessoa, em tokens (None = sem limite). É o único
     # teto de trabalho que existe: escolha dela, nunca um número embutido no código.
     token_limit: int | None = None
@@ -89,8 +93,8 @@ class ExecutionBudget:
         return self.paused_total + (time.monotonic() - self.paused_since if self.paused_since is not None else 0.0)
 
     def effective_deadline(self) -> float:
-        if self.inflight > 0:
-            self.note_progress()  # esperar o provedor responder é espera legítima
+        if self.inflight > 0 and time.monotonic() - self.last_chunk_at < self.patience:
+            self.note_progress()  # esperar o provedor responder é espera legítima, enquanto dado chega
         return self.deadline + self._paused_now()
 
     def add_tokens(self, count: int) -> None:
@@ -149,6 +153,11 @@ class ExecutionBudget:
     def begin_call(self) -> None:
         with self._lock:
             self.inflight += 1
+            self.last_chunk_at = time.monotonic()
+
+    def note_chunk(self) -> None:
+        """Chegou dado de uma chamada em fluxo: ela está viva."""
+        self.last_chunk_at = time.monotonic()
 
     def end_call(self) -> None:
         with self._lock:
@@ -306,6 +315,12 @@ async def run_until_stalled(awaitable: Awaitable[_R]) -> _R:
         if not task.done():
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
+
+
+def note_chunk() -> None:
+    budget = current_budget()
+    if budget is not None:
+        budget.note_chunk()
 
 
 def check_execution() -> None:

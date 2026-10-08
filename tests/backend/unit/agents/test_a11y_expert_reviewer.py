@@ -57,7 +57,7 @@ class TestA11yExpertReviewer:
             new=AsyncMock(return_value="[]"),
         ) as call:
             result = await run_a11y_expert_reviewer(
-                [AccessibilityIssue(**ISSUE_REAL) for _ in range(_REVIEW_BATCH_SIZE * 2 + 1)], source_document=source
+                [AccessibilityIssue(**ISSUE_REAL) for _ in range(_REVIEW_BATCH_SIZE * 2 + _REVIEW_BATCH_SIZE // 2)], source_document=source
             )
         assert result.success
         assert call.await_count == 3
@@ -72,7 +72,7 @@ class TestA11yExpertReviewer:
             "backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer.call_llm",
             new=AsyncMock(return_value="[]"),
         ) as call:
-            result = await run_a11y_expert_reviewer([AccessibilityIssue(**ISSUE_REAL) for _ in range(_REVIEW_BATCH_SIZE * 2 + 1)])
+            result = await run_a11y_expert_reviewer([AccessibilityIssue(**ISSUE_REAL) for _ in range(_REVIEW_BATCH_SIZE * 2 + _REVIEW_BATCH_SIZE // 2)])
         assert result.success is True
         assert call.await_count == 3
         for request in call.await_args_list:
@@ -200,3 +200,14 @@ class TestA11yExpertReviewer:
 
         assert result.success is True
         assert len(result.data["issues"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_small_remainder_joins_previous_batch_instead_of_paying_another_call():
+    with patch(
+        "backend.src.agents.a11y_expert_reviewer.a11y_expert_reviewer.call_llm",
+        new=AsyncMock(return_value="[]"),
+    ) as call:
+        result = await run_a11y_expert_reviewer([AccessibilityIssue(**ISSUE_REAL) for _ in range(_REVIEW_BATCH_SIZE + 1)])
+    assert result.success
+    assert call.await_count == 1

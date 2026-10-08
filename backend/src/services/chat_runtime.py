@@ -234,6 +234,46 @@ _IMAGE_MEDIA_TYPES: dict[str, str] = {
 }
 
 
+def _expand_zip_attachment(filename: str, base64_str: str) -> str | None:
+    """Extrai um ZIP anexado e devolve o texto dos arquivos, com o nome de cada um.
+
+    Antes o modelo recebia só o base64 e tinha de copiá-lo inteiro para a ferramenta de descompactar: falhava
+    ("File is not a zip file") e, num projeto real, a cópia nem caberia. Extrair é fato objetivo (como já se faz
+    com PDF e Word), então é do sistema. O que a extração não trouxe (limite de tamanho, tipo não lido) é dito
+    ao modelo, para ele nunca tratar um projeto parcial como completo. None se o ZIP não puder ser lido.
+    """
+    import base64
+    import json
+
+    from backend.src.services.chat_tools import unzip_and_list_files
+
+    try:
+        padded = base64_str + "=" * (-len(base64_str) % 4)
+        base64.b64decode(padded, validate=True)
+        extracted = json.loads(unzip_and_list_files({"zip_base64": padded}))
+    except Exception:
+        return None
+    if isinstance(extracted, dict) and "error" in extracted:
+        return None
+    files = extracted.get("files", []) if isinstance(extracted, dict) else extracted
+    if not isinstance(files, list):
+        return None
+    blocks = []
+    for item in files:
+        if item.get("is_image"):
+            blocks.append(f"--- {item['path']} --- (imagem; não enviada em texto)")
+        else:
+            blocks.append(f"--- {item['path']} ---\n{item.get('content', '')}")
+    notes = list(extracted.get("notes", [])) if isinstance(extracted, dict) else []
+    head = (
+        f"=== {filename} ===\n[Projeto compactado: {len(files)} arquivo(s) já extraído(s) pelo sistema; "
+        "não é preciso descompactar]\n"
+    )
+    if notes:
+        head += "[ATENÇÃO, extração parcial: " + " ".join(notes) + "]\n"
+    return head + "\n".join(blocks) + "\n\n"
+
+
 def _preprocess_base64_attachments_impl(message: str, extract_images: bool) -> tuple[str, list[dict[str, str]]]:
     """Implementação compartilhada. `extract_images=True` remove imagens do
     texto e as devolve separadamente (turno atual); `extract_images=False` só
@@ -252,7 +292,7 @@ def _preprocess_base64_attachments_impl(message: str, extract_images: bool) -> t
         _read_xlsx_structure,
     )
 
-    pattern = r"===\s*([^\n\r=]+)\s*===\s*\n([^=]*)"
+    pattern = r"===\s*([^\n\r=]+)\s*===\s*\n([^=]*={0,2})"
     images: list[dict[str, str]] = []
 
     def replacer(match):
@@ -275,6 +315,10 @@ def _preprocess_base64_attachments_impl(message: str, extract_images: bool) -> t
                 images.append({"media_type": _IMAGE_MEDIA_TYPES[ext], "data": padded})
                 return f"=== {filename} ===\n[Imagem anexada -- analisada visualmente pelo modelo]\n\n"
             return f"=== {filename} ===\n[Imagem anexada em turno anterior -- não reenviada]\n\n"
+
+        if ext == ".zip" and base64_str:
+            expanded = _expand_zip_attachment(filename, base64_str)
+            return expanded if expanded is not None else match.group(0)
 
         if ext not in (".pdf", ".docx", ".pptx", ".epub", ".xlsx") or not base64_str:
             return match.group(0)

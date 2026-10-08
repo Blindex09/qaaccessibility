@@ -3,6 +3,10 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# ATUALIZAÇÃO (08/10/2026, decisão do dono do projeto): este guarda por NOME de pasta vale agora SÓ para executar
+# comandos locais (Cypress, Selenium, Playwright, em remote_runners). Para LER e CORRIGIR arquivos locais, a
+# autorização é o caminho que a pessoa escreveu na conversa (verificado antes do cartão) mais a aprovação no cartão;
+# o nome da pasta não decide, porque palavra-chave não é critério de escopo (regra 2 do CLAUDE.md).
 # ─────────────────────────────────────────────────────────────────────────────
 # Guarda de escopo pra execucao de comando/edicao de arquivo em diretorios
 # LOCAIS do usuario (fora do sandbox do proprio backend).

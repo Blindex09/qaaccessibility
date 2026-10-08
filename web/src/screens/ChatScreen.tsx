@@ -362,14 +362,178 @@ export function cleanAssistantMarkup(text: string): string {
     .replace(/```[\w-]*\s*\n?/g, "")
     .replace(/^\s{0,3}#{1,6}\s+/gm, "")
     .replace(/^\s*(?:[-*_]\s*){3,}$/gm, "")
-    .replace(/[*_~`]/g, "")
+    .replace(/[*~`]/g, "")
+    // Sublinhado só é marcação de ênfase quando não está entre duas letras ou números; no meio de uma palavra
+    // faz parte do nome (lojasol_local, aria_label) e apagá-lo mudaria o que a pessoa escreveu ou o que o
+    // leitor de tela lê.
+    .replace(/(?<![A-Za-z0-9\u00C0-\u024F])_+|_+(?![A-Za-z0-9\u00C0-\u024F])/g, "")
     .replace(/(^|\s)>(?=\s)/gm, "$1")
     .replace(/\uE000QAURL(\d+)\uE000/g, (_matched: string, index: string) => escapedUrls[Number(index)] ?? "")
     .trim();
   return cleaned;
 }
 
+export type TextSegment = { kind: "text" | "code"; content: string; lang: string };
+
+/**
+ * Separa o texto em trechos comuns e blocos de código cercados por três crases. Um bloco ainda não fechado (a
+ * resposta chega aos poucos) já conta como código, para não aparecer como texto solto e depois mudar de forma.
+ */
+export function splitCodeFences(text: string): TextSegment[] {
+  const segments: TextSegment[] = [];
+  const fence = /```([\w+-]*)[ \t]*\n?([\s\S]*?)(?:```|$)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = fence.exec(text)) !== null) {
+    if (match.index > last) segments.push({ kind: "text", content: text.slice(last, match.index), lang: "" });
+    segments.push({ kind: "code", content: match[2].replace(/\n$/, ""), lang: match[1] });
+    last = fence.lastIndex;
+    if (match[0].length === 0) fence.lastIndex++;
+  }
+  if (last < text.length) segments.push({ kind: "text", content: text.slice(last), lang: "" });
+  return segments;
+}
+
+/**
+ * Código em bloco próprio, com botão que copia de verdade e anuncia "código copiado" (regra 4 do CLAUDE.md).
+ * O bloco é focável para quem rola o código só pelo teclado.
+ */
+/** Reserva para contextos em que a API de área de transferência é negada: seleciona o texto e copia. */
+function copyBySelection(text: string): boolean {
+  try {
+    const doc = (globalThis as any).document;
+    const area = doc.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    doc.body.appendChild(area);
+    area.select();
+    const ok = doc.execCommand("copy") === true;
+    doc.body.removeChild(area);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+function CodeBlock({ code, lang }: { code: string; lang: string }) {
+  const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function copy() {
+    let done = false;
+    try {
+      await (globalThis as any).navigator.clipboard.writeText(code);
+      done = true;
+    } catch {
+      done = copyBySelection(code);
+    }
+    setFailed(!done);
+    setCopied(done);
+    if (done) setTimeout(() => setCopied(false), 3000);
+  }
+
+  if (Platform.OS !== "web") {
+    return (
+      <View style={{ marginVertical: 6, padding: 10, backgroundColor: colors.bg.root, borderRadius: 6 }}>
+        <Text selectable style={{ color: colors.text.primary, fontFamily: font.mono, fontSize: 13 }}>
+          {code}
+        </Text>
+      </View>
+    );
+  }
+  const label = lang ? `Código ${lang}` : "Código";
+  return React.createElement(
+    "div",
+    {
+      role: "group",
+      "aria-label": label,
+      style: {
+        margin: "8px 0",
+        border: `1px solid ${colors.border.strong}`,
+        borderRadius: 8,
+        backgroundColor: colors.bg.root,
+        overflow: "hidden",
+      },
+    },
+    React.createElement(
+      "div",
+      {
+        style: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "4px 8px",
+          backgroundColor: colors.bg.elevated,
+        },
+      },
+      React.createElement("span", { style: { color: colors.text.secondary, fontSize: 12, fontFamily: font.body } }, label),
+      React.createElement(
+        "button",
+        {
+          type: "button",
+          onClick: copy,
+          "aria-label": "Copiar código",
+          style: {
+            minHeight: a11y.minTarget,
+            minWidth: a11y.minTarget,
+            padding: "0 12px",
+            color: colors.text.onAccent,
+            backgroundColor: colors.accent.DEFAULT,
+            border: "none",
+            borderRadius: 6,
+            fontFamily: font.body,
+            fontSize: 13,
+            cursor: "pointer",
+          },
+        },
+        copied ? "Copiado" : "Copiar código"
+      )
+    ),
+    React.createElement(
+      "pre",
+      {
+        tabIndex: 0,
+        style: {
+          margin: 0,
+          padding: 12,
+          overflowX: "auto",
+          color: colors.text.primary,
+          fontFamily: font.mono,
+          fontSize: 13,
+          lineHeight: "20px",
+          whiteSpace: "pre",
+        },
+      },
+      React.createElement("code", null, code)
+    ),
+    React.createElement(
+      "span",
+      { role: "status", "aria-live": "polite", style: { ...a11y.srOnly } },
+      copied ? "código copiado" : failed ? "não foi possível copiar o código" : ""
+    )
+  );
+}
+
 function renderTextWithLinks(text: string) {
+  if (!text) return null;
+  const segments = splitCodeFences(text);
+  if (!segments.some((segment) => segment.kind === "code")) return renderProse(text);
+  return (
+    <React.Fragment>
+      {segments.map((segment, index) =>
+        segment.kind === "code" ? (
+          <CodeBlock key={`code-${index}`} code={segment.content} lang={segment.lang} />
+        ) : (
+          <React.Fragment key={`prose-${index}`}>{renderProse(segment.content)}</React.Fragment>
+        )
+      )}
+    </React.Fragment>
+  );
+}
+
+function renderProse(text: string) {
   if (!text) return null;
 
   const rawLines = cleanAssistantMarkup(text).split("\n");

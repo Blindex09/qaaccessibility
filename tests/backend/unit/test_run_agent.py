@@ -1995,3 +1995,22 @@ class TestSteerCheck:
         assert len(seen_messages) == 2
         assert {"role": "user", "content": "checa só o contraste"} in seen_messages[1]
         assert any(isinstance(m, dict) and m.get("role") == "tool" for m in seen_messages[1])
+
+
+class TestStreamedDataKeepsTheCallAlive:
+    """Regressão (e2e real 2026-10-08): uma chamada em andamento só conta como progresso enquanto dado chega.
+    O laço de fluxo precisa registrar cada pedaço recebido, senão uma chamada viva seria dada como presa."""
+
+    def test_every_streamed_chunk_marks_the_budget(self):
+        import time
+
+        from backend.src.services.execution_scope import execution_scope
+
+        agent = _build_agent("ollama-cloud", "deepseek-v4-pro:cloud")
+        mock_client = _mock_ollama_client(
+            lambda **_kwargs: [_ollama_chunk(thinking="pensando"), _ollama_chunk(content="ok", done=True)]
+        )
+        with execution_scope(10) as budget, patch("ollama.Client", return_value=mock_client):
+            budget.last_chunk_at = time.monotonic() - 1000  # calada há muito tempo
+            agent._run_openai("hello")
+            assert time.monotonic() - budget.last_chunk_at < 5
