@@ -84,29 +84,37 @@ tabela sem cabeçalhos, foco removido pelo CSS e contraste baixo. Todos aparecer
 10. Quando um especialista demora, a tela só dizia "Processando". Agora o orquestrador avisa a cada 20 segundos
     quem ainda falta, e a tela mostra uma única linha ("Ainda aguardando Estrutura e Tags ARIA há 40s") que se
     atualiza no lugar e some quando chega o próximo evento (regra 4). O aviso só informa: não encerra nada.
-11. Uma chamada ao provedor ficou 29,7 minutos presa sem erro. O orçamento do turno tratava qualquer chamada em
-    andamento como progresso, então nada a encerrava, e o limite de leitura do HTTP também não a encerrou.
-    Agora uma chamada em andamento só conta como progresso enquanto chega dado dentro da janela de paciência (cada
-    pedaço recebido nos cinco provedores renova a janela). Sem dado por toda a janela, é travamento: o orquestrador
-    segue com o parcial, como já fazia com um especialista parado. Não é um relógio sobre o trabalho: é o critério
-    de silêncio que o HTTP já tinha, aplicado também onde ele falhou. CLAUDE.md atualizado. A causa exata da chamada
-    presa não foi encontrada (a mesma análise isolada terminou em 31 segundos), então esta proteção cobre o
-    sintoma e não foi provada ao vivo contra uma nova chamada presa.
+11. Uma chamada ao provedor ficou 29,7 minutos presa, sem erro e sem fim, e só o cancelamento a encerrou. Duas coisas
+    seguravam o turno: o orçamento tratava qualquer chamada em andamento como progresso, e o limite de leitura do
+    HTTP não a encerrou. Investigação da causa:
+    - A chamada nunca registrou custo, então nunca terminou. A mesma análise isolada (mesmo modelo, mesmo projeto,
+      mesmo caminho do produto) terminou em 31 segundos, então o defeito é intermitente. O registro da rodada presa
+      foi sobrescrito quando reiniciei o servidor, e o limite semanal de uso da conta impediu repetir a medição.
+    - Hipótese mais forte, pelo código: a saída do especialista é restrita por esquema JSON, e esse tipo de geração
+      pode degenerar em espaços e quebras de linha sem fim. Os dados continuam chegando, então não é silêncio, e a
+      chamada nunca termina e nunca registra custo. Esta hipótese NÃO está provada.
+    Defesas feitas (todas com teste): (a) uma chamada em andamento só conta como progresso enquanto chega dado dentro
+    da janela de paciência (cobre a chamada muda); (b) um fluxo degenerado, mil pedaços seguidos vazios, só de espaço
+    ou repetidos, é encerrado como falha de provedor e o orquestrador segue com o parcial, sem refazer a mesma
+    geração por outro endpoint (cobre a hipótese); (c) uma chamada longa deixa no log, a cada 2 minutos, quantos
+    pedaços recebeu, quantos caracteres e o final do texto, para que a causa de uma nova ocorrência fique provada em
+    vez de adivinhada. A regra de buscar a causa raiz entrou no CLAUDE.md (regra 17) por causa deste caso.
 
 ## Testes e verificação
 
 - Testes novos: extração do ZIP anexado, aviso de extração parcial, ZIP corrompido sem derrubar o turno, resumo
   com todos os achados, sobra do revisor, orientação de custo, caminho local escrito pela pessoa e regra nova do
   guarda, sublinhado no meio de palavra, bloco de código e cerca ainda aberta.
-- Suíte completa no fim do módulo: backend 1.866 passados e 41 pulados, web 266 passados, ruff, mypy e tsc sem erros.
+- Suíte completa no fim do módulo: backend 1.872 passados e 41 pulados, web 266 passados, ruff, mypy e tsc sem erros.
 - Ao vivo pelo navegador: ZIP em quatro rodadas, projeto local com aprovação, arquivo de código anexado.
 
 ## O que ainda não está provado ou ainda pode piorar
 
-- O limite semanal de uso da conta do Ollama Cloud foi atingido durante os testes deste módulo. Novas rodadas ao
-  vivo ficam bloqueadas até o limite renovar ou entrar crédito, o que é decisão da pessoa. A proteção contra
-  chamada presa e o aviso de espera estão cobertos por testes, mas o aviso de espera não apareceu ao vivo (nenhum
-  especialista demorou o bastante na última rodada).
+- O limite semanal de uso da conta do Ollama Cloud foi atingido durante os testes deste módulo e continuava
+  atingido na verificação seguinte (uma chamada mínima recebeu o erro 429). Novas rodadas ao vivo ficam bloqueadas
+  até o limite renovar ou entrar crédito, o que é decisão da pessoa. As três defesas contra chamada presa (silêncio,
+  fluxo degenerado e diagnóstico no log) e o aviso de espera estão cobertos por testes, mas nenhum foi visto ao
+  vivo, e a causa da chamada presa continua sendo hipótese (problema 11).
 - A pesquisa automática do pipeline (etapa de verificação de lacuna) roda sem cartão de aprovação quando um
   especialista marca um achado como baixa confiança, e custou 69.831 tokens no componente React. É do módulo de
   pesquisa (14): decidir se continua automática, se pede aprovação ou se o revisor basta.

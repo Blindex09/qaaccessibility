@@ -22,6 +22,7 @@ from backend.src.services.execution_scope import (
     note_progress,
     record_call,
 )
+from backend.src.services.stream_guard import DegenerateStreamError, StreamGuard
 from backend.src.services.telemetry import agent_span
 from backend.src.services.tool_groups import ENABLE_TOOL_GROUP, TOOL_GROUPS, tools_of_group
 
@@ -1081,7 +1082,8 @@ class AIAgent:
             # nativa /api/chat, sem esse problema, e o caminho por padrao agora.
             try:
                 return self._run_ollama_native(user_message)
-            except (InterruptedError, TimeoutError):
+            except (InterruptedError, TimeoutError, DegenerateStreamError):
+                # Geração degenerada é do modelo, não da API: repetir pelo outro endpoint refaria a mesma geração.
                 raise
             except Exception as exc:
                 check_execution()
@@ -1188,10 +1190,12 @@ class AIAgent:
                     )
                     stream_cm = client.responses.stream(**kwargs)
                 with stream_cm as stream:
+                    guard = StreamGuard(f"{self.provider}/{self.model}")
                     for event in stream:
                         check_execution()
                         note_chunk()
                         event_type = str(getattr(event, "type", ""))
+                        guard.observe(str(getattr(event, "delta", "") or event_type))
                         if event_type == "response.output_text.delta":
                             delta = str(getattr(event, "delta", ""))
                             if delta and self.stream_delta_callback:
@@ -1370,6 +1374,7 @@ class AIAgent:
                 content_chunks = []
                 tool_calls_dict = {}
 
+                guard = StreamGuard(f"{self.provider}/{self.model}")
                 for chunk in response_stream:
                     check_execution()
                     note_chunk()
@@ -1378,6 +1383,11 @@ class AIAgent:
                     if not chunk.choices:
                         continue
                     delta = chunk.choices[0].delta
+                    guard.observe(
+                        str(getattr(delta, "content", "") or "")
+                        + str(getattr(delta, "reasoning_content", "") or getattr(delta, "reasoning", "") or "")
+                        + ("<tool>" if getattr(delta, "tool_calls", None) else "")
+                    )
 
                     # Captura eventos de pensamento/raciocínio (OpenAI, xAI, Ollama Cloud, DeepSeek, Kimi)
                     reasoning_chunk = (
@@ -1674,9 +1684,13 @@ class AIAgent:
 
             content_chunks: list[str] = []
             captured_tool_calls: list[Any] = []
+            guard = StreamGuard(f"{self.provider}/{self.model}")
             for chunk in stream:
                 check_execution()
                 note_chunk()
+                guard.observe(
+                    (chunk.message.thinking or "") + (chunk.message.content or "") + ("<tool>" if chunk.message.tool_calls else "")
+                )
                 if chunk.message.thinking:
                     if self.thinking_callback:
                         self.thinking_callback(chunk.message.thinking)

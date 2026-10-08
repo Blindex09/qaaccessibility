@@ -283,6 +283,18 @@ Engenharia de contexto (vale para todo módulo, toda interface e todo laço que 
   caminho no resto. Supervisão constante em ação de baixo risco é tão errado quanto autonomia total em ação de alto
   risco.
 
+### 17. Causa raiz, nunca só o sintoma
+
+- Todo problema real é investigado até a causa antes de ser dado como resolvido: reproduzir, ler o código e os
+  registros, formular a hipótese e prová-la. Corrigir só o sintoma, sem causa provada, é remendo e o problema volta.
+- Preservar a evidência antes de reiniciar, sobrescrever ou limpar qualquer coisa (registros, estado, arquivos): uma
+  causa perdida não se prova depois.
+- Quando a causa não puder ser provada na hora (falta de crédito, defeito intermitente, evidência perdida), a
+  correção cobre o mecanismo mais provável, o sistema passa a registrar o que provaria a causa na próxima ocorrência, e
+  a entrega diz que a causa NÃO está provada. Nunca se declara resolvido o que só foi contornado.
+- A mesma classe de falha ganha também a defesa contra a recorrência (teste de regressão, verificação ou alerta), para
+  não depender de alguém lembrar.
+
 ## Antes de declarar qualquer implementação concluída
 
 **Não é opcional.** Antes de dizer "pronto" pra qualquer mudança de código
@@ -493,7 +505,7 @@ declarou. `run_until_stalled` substitui os `wait_for` de prazo fixo no orquestra
 `route_advisor` e no factory. Toda execução tem esse orçamento: `orchestrate` e `run_conversation` abrem
 o seu quando não há um do turno, então as rotas fora do chat seguem a mesma regra. A espera por
 aprovação do usuário não tem relógio. Uma chamada lenta ao provedor em curso não é "travamento" enquanto
-dado chega dentro da janela (cada pedaço recebido de uma chamada em fluxo a renova), e quando ela termina a janela recomeça; uma chamada que não entrega nada por toda a janela é travamento, mesmo sem erro (medido: 29 minutos presa no e2e de 2026-10-08), e o orquestrador segue com o parcial; depois de largar
+dado chega dentro da janela (cada pedaço recebido de uma chamada em fluxo a renova), e quando ela termina a janela recomeça; uma chamada que não entrega nada por toda a janela é travamento, mesmo sem erro (medido: 29 minutos presa no e2e de 2026-10-08), e o orquestrador segue com o parcial; um fluxo degenerado (mil pedaços seguidos vazios, só de espaço ou repetidos, que nenhuma resposta legítima produz) é encerrado como falha de provedor por `stream_guard.py`, sem refazer a mesma geração por outro endpoint, e uma chamada longa deixa no log o que está recebendo, para a causa de uma nova chamada presa ficar provada; depois de largar
 especialistas parados, o restante do pipeline segue com janela nova (entrega parcial, não falha total). O factory não tem mais máximo de chamadas de ferramenta, e o laço
 de um agente com ferramentas não é cortado por `max_iterations` (só a folha sem ferramentas é uma
 chamada única, por estrutura); a repetição persistente depois da reflexão encerra o laço.
