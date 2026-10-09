@@ -11,6 +11,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _provider_said(raw: str) -> str:
+    """A explicação do próprio provedor, quando o erro a traz (campo message), para a pessoa saber a causa real.
+
+    Caso real (e2e de 2026-10-09): o Google respondeu 403 "Your API key was reported as leaked", e a tela dizia só para
+    verificar as permissões da chave, escondendo que a chave foi bloqueada. É extração de texto, não decisão de intenção.
+    """
+    import re
+
+    found = re.search(r"""['"]message['"]\s*:\s*(['"])(.+?)\1\s*[,}]""", raw)
+    if not found:
+        return ""
+    return "O provedor informou: " + found.group(2).strip()[:300] + "\n\n"
+
+
 def format_human_friendly_error(raw_error: object, *, from_tool: bool = False) -> str:
     """Converte qualquer exceção ou string de erro técnico em mensagem amigável em Português.
 
@@ -81,7 +95,8 @@ def format_human_friendly_error(raw_error: object, *, from_tool: bool = False) -
     ):
         return (
             "A chave de API (API Key) do provedor selecionado é inválida ou expirou.\n\n"
-            "Como resolver:\n"
+            + _provider_said(err_str)
+            + "Como resolver:\n"
             "1. Acesse as Configurações e verifique se a sua chave de API está correta.\n"
             "2. Ou troque de Provedor nas Configurações para um com chave válida."
         )
@@ -113,7 +128,8 @@ def format_human_friendly_error(raw_error: object, *, from_tool: bool = False) -
     if any(k in err_lower for k in ("403", "forbidden", "access denied", "permission_denied", "permission denied")):
         return (
             "Acesso negado pelo provedor de IA.\n\n"
-            "Como resolver:\n"
+            + _provider_said(err_str)
+            + "Como resolver:\n"
             "1. Verifique as permissões da sua chave de API no painel do provedor.\n"
             "2. Se estiver usando um modelo restrito, troque para o modo 'Alto' ou outro Provedor nas Configurações."
         )

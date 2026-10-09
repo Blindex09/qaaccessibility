@@ -125,3 +125,19 @@ mecânico e o limite de tokens opcional das Configurações.
   use textos diferentes.
 - A análise de sites com muitas páginas (analyze_site) também gasta muito e não pede aprovação. Fica para o
   módulo de rastreamento.
+
+## Teste com outro provedor: Gemini (09/10/2026), não executado
+
+Com o limite semanal do Ollama Cloud atingido, tentei repetir o roteiro deste módulo com o Gemini (provedor Gemini,
+modelo Alto, roteamento entre os modelos do Gemini). O que ficou provado:
+- O roteador montou os candidatos do Gemini pelo catálogo geral (seis modelos: gemini-3.1-flash-lite, gemini-3.5-flash,
+  gemini-3.6-flash, gemini-3.5-flash-lite, gemini-flash-latest e gemini-flash-lite-latest) e escolheu entre eles.
+- A primeira chamada recebeu do Google o erro 403 "Your API key was reported as leaked": a chave fornecida já tinha sido
+  bloqueada pelo Google por vazamento. Nenhuma resposta do modelo chegou, então nenhuma medição de tokens do Gemini foi feita.
+- A chave foi retirada das configurações (cofre e arquivo de ambiente restaurados ao estado anterior, Ollama Cloud em Alto).
+
+Defeito achado e corrigido: ao usuário, o erro 403 aparecia como "verifique as permissões da sua chave", escondendo a causa
+real que o Google informou. Agora a mensagem inclui o texto do próprio provedor ("O provedor informou: ..."). Teste de
+regressão em `tests/backend/unit/services/test_chat.py`.
+
+Para repetir o teste: uma chave nova do Gemini (gerada em aistudio.google.com/apikey) colocada nas Configurações.

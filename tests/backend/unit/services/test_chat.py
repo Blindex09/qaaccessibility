@@ -1944,3 +1944,15 @@ def test_unzip_tool_description_tells_the_model_not_to_use_it_for_chat_attachmen
     text = _UNZIP_AND_LIST_FILES_SCHEMA["description"]
     assert "already extracted by the system" in text
     assert "never call this tool" in text
+
+
+def test_access_denied_shows_what_the_provider_really_said():
+    """Regressão (e2e real 2026-10-09): chave do Gemini bloqueada por vazamento aparecia como "verifique as permissões"."""
+    raw = "Error code: 403 - {'error': {'message': 'Your API key was reported as leaked. Please use another API key.', 'code': 'permission_denied'}}"
+    text = format_human_friendly_error(raw)
+    assert "Acesso negado pelo provedor" in text
+    assert "O provedor informou: Your API key was reported as leaked." in text
+
+
+def test_invalid_key_error_without_a_provider_message_stays_unchanged():
+    assert "O provedor informou" not in format_human_friendly_error("401 Unauthorized")
