@@ -141,3 +141,24 @@ real que o Google informou. Agora a mensagem inclui o texto do próprio provedor
 regressão em `tests/backend/unit/services/test_chat.py`.
 
 Para repetir o teste: uma chave nova do Gemini (gerada em aistudio.google.com/apikey) colocada nas Configurações.
+
+## Correções feitas durante o teste com o Gemini (09/10/2026)
+
+Com a chave do Gemini funcionando (a terceira chave testada), o roteiro mostrou três defeitos que não dependem do provedor:
+
+1. O cofre guardava uma só chave de IA. Salvar a chave de um provedor apagava a de outro (a do Ollama Cloud foi
+   sobrescrita uma vez durante este teste e restaurada de uma cópia). Agora o cofre guarda uma chave por provedor
+   (`PROVIDER_KEY__LLM__<provedor>`, e `PROVIDER_KEY__CHAT_LLM__<provedor>` para o chat). Só a do provedor ativo é
+   espelhada em `LLM_API_KEY`, as outras não vão para o ambiente do processo (não vazam para subprocessos), e a chave
+   antiga de espaço único é adotada pelo provedor que estava ativo antes de qualquer troca. Trocar de provedor pela tela
+   mostra a chave guardada daquele provedor (mascarada), e só o campo limpo de propósito apaga a chave dele.
+   Seis testes de regressão em `tests/backend/unit/routes/test_settings_route.py`.
+2. A contingência do roteador (quando o consultor não responde) ordenava pela confiabilidade lida antes da falha, então
+   repetia o mesmo modelo que acabara de estourar a cota (mais três minutos de espera). Agora lê a telemetria atual.
+   Teste de regressão em `test_route_advisor.py`.
+3. Quando o provedor limita o ritmo (429), a tela só dizia "Processando há 97s". Agora, depois de 15 segundos sem
+   novidade e com uma chamada ao provedor em andamento, o chat avisa "Aguardando o provedor há Xs", em uma linha que se
+   atualiza no lugar e some no próximo evento (regra 4). Só informa, não encerra nada. Testes no backend e no front.
+
+Achado de ambiente: o `node_modules` do front usava atalhos para o caminho antigo `C:\qaaccessibility` e quebrou com a
+mudança de pasta; foi reinstalado com `npm ci`.

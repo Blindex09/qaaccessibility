@@ -376,3 +376,63 @@ class TestTurnTokenBudgetSetting:
 
     def test_negative_limit_is_rejected(self, client):
         assert client.post("/settings/", json={"llm_provider": "openai", "turn_token_budget": -1}).status_code == 422
+
+
+class TestOneKeyPerProvider:
+    """Pedido do dono do projeto (09/10/2026): salvar a chave de um provedor nunca apaga a de outro; o cofre guarda todas.
+
+    Antes havia um espaço único (LLM_API_KEY): colocar a chave do Gemini apagava a do Ollama Cloud."""
+
+    def _save(self, client, provider, key=None, **extra):
+        body = {"llm_provider": provider, "llm_model": "alto", **extra}
+        if key is not None:
+            body["llm_api_key"] = key
+        assert client.post("/settings/", json=body).status_code == 200
+
+    def test_saving_another_providers_key_keeps_the_first_one(self, client):
+        self._save(client, "ollama-cloud", "chave-ollama")
+        self._save(client, "gemini", "chave-gemini")
+        secrets = load_secrets()
+        assert secrets["PROVIDER_KEY__LLM__ollama-cloud"] == "chave-ollama"
+        assert secrets["PROVIDER_KEY__LLM__gemini"] == "chave-gemini"
+        assert sorted(client.get("/settings/").json()["llm_providers_with_key"]) == ["gemini", "ollama-cloud"]
+
+    def test_switching_back_without_typing_a_key_reactivates_that_providers_key(self, client):
+        self._save(client, "ollama-cloud", "chave-ollama")
+        self._save(client, "gemini", "chave-gemini")
+        assert os.environ["LLM_API_KEY"] == "chave-gemini"
+        self._save(client, "ollama-cloud")  # sem digitar chave
+        assert os.environ["LLM_API_KEY"] == "chave-ollama"
+        assert client.get("/settings/").json()["has_llm_api_key"] is True
+
+    def test_a_provider_without_a_key_never_inherits_another_providers_key(self, client):
+        self._save(client, "ollama-cloud", "chave-ollama")
+        self._save(client, "xai")  # xai nunca teve chave
+        assert "LLM_API_KEY" not in os.environ
+        assert client.get("/settings/").json()["has_llm_api_key"] is False
+        assert load_secrets()["PROVIDER_KEY__LLM__ollama-cloud"] == "chave-ollama"  # a do Ollama continua guardada
+
+    def test_clearing_the_field_deletes_only_that_providers_key(self, client):
+        self._save(client, "ollama-cloud", "chave-ollama")
+        self._save(client, "gemini", "chave-gemini")
+        self._save(client, "gemini", "")
+        secrets = load_secrets()
+        assert "PROVIDER_KEY__LLM__gemini" not in secrets
+        assert secrets["PROVIDER_KEY__LLM__ollama-cloud"] == "chave-ollama"
+
+    def test_the_old_single_slot_key_becomes_the_active_providers_key_before_any_switch(self, client):
+        from backend.src.security.secret_store import save_secret
+
+        self._save(client, "ollama-cloud")
+        save_secret("LLM_API_KEY", "chave-antiga")  # como era antes: espaço único
+        get_settings.cache_clear()
+        self._save(client, "gemini", "chave-gemini")
+        assert load_secrets()["PROVIDER_KEY__LLM__ollama-cloud"] == "chave-antiga"
+
+    def test_other_providers_keys_are_not_exported_to_the_process_environment(self, client):
+        from backend.src.security.secret_store import load_secrets_into_environment
+
+        self._save(client, "ollama-cloud", "chave-ollama")
+        self._save(client, "gemini", "chave-gemini")
+        load_secrets_into_environment()
+        assert not [name for name in os.environ if name.startswith("PROVIDER_KEY__")]

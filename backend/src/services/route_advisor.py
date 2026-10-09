@@ -196,7 +196,14 @@ def eligible_candidates(
 
 
 def _fallback(candidates: list[RouteCandidate], reason: str) -> RouteAdvice:
-    ordered = sorted(candidates, key=lambda c: -c.reliability)
+    """Contingência quando o consultor não responde: confiabilidade OBSERVADA AGORA, nunca a do começo do pedido.
+
+    Caso real (e2e de 2026-10-09): o consultor falhou porque o modelo escolhido estourou a cota; a contingência ordenou
+    pela confiabilidade lida antes da falha (todos empatados) e repetiu o mesmo modelo para o chat, mais 3 minutos de espera.
+    """
+    from backend.src.services.model_reliability import get_reliability_score
+
+    ordered = sorted(candidates, key=lambda c: -get_reliability_score(c.provider, c.model))
     return RouteAdvice(ranking=[c.key for c in ordered], reason=reason, source="fallback")
 
 

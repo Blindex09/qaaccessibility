@@ -373,3 +373,15 @@ async def test_router_sees_what_was_already_spent_in_the_request_and_the_real_pr
         await rank_candidates(candidates(), task="t-fatos-obs", step_type="chat-fatos-obs", ask=ask,
                               observed_facts=execution_scope.observed_facts())
     assert seen["payload"]["observed_facts"] == {"model_calls_so_far": 1, "tokens_so_far": 0, "model_comparisons_so_far": 1}
+
+
+def test_fallback_uses_the_reliability_observed_now_not_the_one_read_before_the_failure():
+    """Regressão (e2e real 2026-10-09): o consultor falhou porque o modelo escolhido estourou a cota, e a contingência
+    repetiu esse mesmo modelo para o chat porque ordenava pela confiabilidade lida antes da falha (todos empatados)."""
+    from backend.src.services.route_advisor import _fallback
+
+    pool = [RouteCandidate("gemini", m, 64000, ("tools",), 1, 2, .75, .75, 0) for m in ("quota-estourada", "saudavel")]
+    scores = {"quota-estourada": 0.71, "saudavel": 0.75}  # depois da falha registrada
+    with patch("backend.src.services.model_reliability.get_reliability_score", side_effect=lambda _p, m: scores[m]):
+        advice = _fallback(pool, "consultor indisponível")
+    assert advice.ranking[0] == "gemini::saudavel"

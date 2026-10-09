@@ -24,6 +24,8 @@ export interface SettingsData {
   llm_models_by_provider?: Record<string, string>;
   llm_base_url?: string;
   has_llm_api_key: boolean;
+  // Provedores que já têm chave guardada no cofre (uma por provedor; trocar de provedor nunca apaga as outras).
+  llm_providers_with_key?: string[];
   approval_enabled?: boolean;
   // Limite de tokens por resposta escolhido pela pessoa (0 = sem limite).
   turn_token_budget?: number;

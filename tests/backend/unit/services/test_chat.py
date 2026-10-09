@@ -1956,3 +1956,34 @@ def test_access_denied_shows_what_the_provider_really_said():
 
 def test_invalid_key_error_without_a_provider_message_stays_unchanged():
     assert "O provedor informou" not in format_human_friendly_error("401 Unauthorized")
+
+
+@pytest.mark.asyncio
+async def test_a_silent_provider_call_makes_the_person_see_the_wait(monkeypatch):
+    """Regressão (e2e real 2026-10-09): o Gemini limitou o ritmo e a tela só dizia "Processando há 97s"."""
+    import time as time_module
+
+    from backend.src.services import chat_runtime
+
+    class _SlowAgent:
+        def __init__(self, **kwargs):
+            self._cb = kwargs
+
+        def run_conversation(self, user_message, **_k):
+            from backend.src.services.execution_scope import current_budget
+
+            budget = current_budget()
+            budget.begin_call()  # uma chamada ao provedor em andamento, sem nenhum dado chegando
+            try:
+                time_module.sleep(0.5)
+            finally:
+                budget.end_call()
+            self._cb["stream_delta_callback"]("Pronto")
+            return {"final_response": "Pronto", "failed": False}
+
+    monkeypatch.setattr(chat_runtime, "_PROVIDER_WAIT_NOTICE_INTERVAL", 0.1)
+    with patch("backend.src.services.chat_runtime.AIAgent", new=_SlowAgent):
+        events = [ev async for ev in stream_chat("o que é 1.4.3?", history=[])]
+    waits = [ev for ev in events if ev["type"] == "waiting_provider"]
+    assert waits and waits[0]["seconds"] >= 0
+    assert events[-1]["type"] == "done"

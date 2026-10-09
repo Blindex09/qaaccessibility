@@ -180,6 +180,10 @@ def strip_pictographs(text: str) -> str:
     return _PICTOGRAPH.sub("", text)
 
 
+# De quanto em quanto tempo sem novidade a pessoa é avisada de que se espera o provedor. Só aviso: nada é encerrado por isto.
+_PROVIDER_WAIT_NOTICE_INTERVAL = 15.0
+
+
 def clean_newlines(text: str) -> str:
     if not text:
         return ""
@@ -1026,12 +1030,29 @@ async def _stream_chat_impl(
     task = asyncio.create_task(_run())
     cancel_ev = chat_progress.cancel_event(stream_id)
     cancelled = False
+    last_event_at = time.monotonic()
     try:
         while True:
             get_task = asyncio.ensure_future(queue.get())
             cancel_wait = asyncio.ensure_future(cancel_ev.wait()) if cancel_ev else None
             waitables = {get_task} | ({cancel_wait} if cancel_wait is not None else set())
-            done, still_pending = await asyncio.wait(waitables, return_when=asyncio.FIRST_COMPLETED)
+            done, still_pending = await asyncio.wait(
+                waitables, timeout=_PROVIDER_WAIT_NOTICE_INTERVAL, return_when=asyncio.FIRST_COMPLETED
+            )
+            if not done:
+                # Nada novo há um tempo: se uma chamada ao provedor está em andamento, a pessoa vê que é espera do
+                # provedor (limite de ritmo, fila), em uma linha que se atualiza no lugar (regra 4). Só informa.
+                for fut in still_pending:
+                    fut.cancel()
+                await asyncio.gather(*still_pending, return_exceptions=True)
+                from backend.src.services.execution_scope import current_budget as running_budget
+
+                running = running_budget()
+                if running is not None and running.inflight > 0:
+                    silent_for = int(time.monotonic() - last_event_at)
+                    yield {"type": "waiting_provider", "seconds": silent_for}
+                continue
+            last_event_at = time.monotonic()
 
             for fut in still_pending:
                 fut.cancel()

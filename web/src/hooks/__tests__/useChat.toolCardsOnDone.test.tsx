@@ -127,6 +127,19 @@ test("fim parcial (o servidor marca partial) deixa o cartão como interrompido, 
   expect(toolCards(chat())[0].status).toBe("cancelled");
 });
 
+test("a espera do provedor aparece como uma linha que se atualiza no lugar", async () => {
+  const { chat } = mountChat();
+  act(() => {
+    void chat().send("o que é 1.4.3?");
+  });
+  send({ type: "waiting_provider", seconds: 15 } as ChatEvent);
+  send({ type: "waiting_provider", seconds: 30 } as ChatEvent);
+
+  const waits = chat().messages.filter((message) => message.kind === "wait");
+  expect(waits).toHaveLength(1);
+  expect(waits[0].content).toBe("Aguardando o provedor há 30s.");
+});
+
 test("o aviso de espera atualiza no lugar e some quando chega o próximo evento", async () => {
   const { chat } = mountChat();
   act(() => {

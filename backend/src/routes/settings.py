@@ -7,7 +7,15 @@ from pydantic import BaseModel, Field
 
 from backend.src.config.settings import get_settings
 from backend.src.security.dependencies import rate_limit_dependency
-from backend.src.security.secret_store import delete_secret, save_secret
+from backend.src.security.secret_store import (
+    adopt_legacy_key,
+    delete_provider_key,
+    delete_secret,
+    load_provider_key,
+    providers_with_key,
+    save_provider_key,
+    save_secret,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(
@@ -36,6 +44,8 @@ class SettingsResponse(BaseModel):
     llm_models_by_provider: dict[str, str]
     llm_base_url: str | None
     has_llm_api_key: bool
+    # Provedores que já têm chave guardada no cofre: trocar de provedor nunca apaga as outras.
+    llm_providers_with_key: list[str] = Field(default_factory=list)
     approval_enabled: bool
     # Overrides opcionais do LLM usado especificamente pelo chat agêntico
     # (ChatScreen) -- quando ausentes, o chat cai de volta nos llm_* acima
@@ -62,6 +72,28 @@ class SettingsUpdateBody(BaseModel):
     turn_token_budget: int | None = Field(default=None, ge=0, le=1_000_000_000)
 
 
+def _apply_provider_key(slot: str, provider: str, supplied: str | None) -> str:
+    """Guarda ou apaga a chave SÓ do provedor escolhido e devolve a chave que passa a ser a ativa.
+
+    Chave digitada: guarda a deste provedor. Campo limpo de propósito: apaga só a deste provedor. Campo mascarado ou
+    ausente: mantém. Nunca mexe na chave de outro provedor. A ativa (LLM_API_KEY) é sempre a do provedor ativo; sem
+    chave para ele, fica vazia, para a chave de um provedor nunca ser enviada a outro.
+    """
+    env_name = "LLM_API_KEY" if slot == "LLM" else "CHAT_LLM_API_KEY"
+    if provider and supplied is not None:
+        val = supplied.strip()
+        if val and "•" not in val:
+            save_provider_key(slot, provider, val)
+        elif not val:
+            delete_provider_key(slot, provider)
+    key = (load_provider_key(slot, provider) if provider else None) or ""
+    if key:
+        save_secret(env_name, key)
+    else:
+        delete_secret(env_name)
+    return key
+
+
 @router.get("", response_model=SettingsResponse)
 @router.get("/", response_model=SettingsResponse)
 async def get_settings_route() -> SettingsResponse:
@@ -78,6 +110,7 @@ async def get_settings_route() -> SettingsResponse:
         llm_models_by_provider=model_choices,
         llm_base_url=settings.llm_base_url,
         has_llm_api_key=bool(settings.llm_api_key),
+        llm_providers_with_key=providers_with_key("LLM"),
         approval_enabled=settings.approval_enabled,
         chat_llm_provider=settings.chat_llm_provider,
         chat_llm_model=settings.chat_llm_model,
@@ -92,6 +125,9 @@ async def get_settings_route() -> SettingsResponse:
 @router.post("/")
 async def update_settings_route(body: SettingsUpdateBody) -> dict:
     previous = get_settings()
+    # A chave antiga, de espaço único, é do provedor que estava ativo: guardada antes de qualquer troca.
+    adopt_legacy_key("LLM", previous.llm_provider)
+    adopt_legacy_key("CHAT_LLM", previous.chat_llm_provider or "")
     env_path = "backend/.env"
     if not os.path.exists(env_path):
         env_path = ".env"
@@ -159,12 +195,7 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
     if body.turn_token_budget is not None:
         env_vars["TURN_TOKEN_BUDGET"] = str(body.turn_token_budget)
 
-    if body.llm_api_key is not None:
-        val = body.llm_api_key.strip()
-        if val and "•" not in val:
-            save_secret("LLM_API_KEY", val)
-        elif not val:
-            delete_secret("LLM_API_KEY")
+    active_llm_key = _apply_provider_key("LLM", selected_provider, body.llm_api_key)
 
     if body.llm_base_url is not None:
         env_vars["LLM_BASE_URL"] = body.llm_base_url.strip()
@@ -195,12 +226,7 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
         elif "CHAT_LLM_PROVIDER" in env_vars:
             del env_vars["CHAT_LLM_PROVIDER"]
 
-    if body.chat_llm_api_key is not None:
-        val = body.chat_llm_api_key.strip()
-        if val and "•" not in val:
-            save_secret("CHAT_LLM_API_KEY", val)
-        elif not val:
-            delete_secret("CHAT_LLM_API_KEY")
+    active_chat_key = _apply_provider_key("CHAT_LLM", selected_chat_provider, body.chat_llm_api_key)
 
     if body.chat_llm_model is not None or body.chat_llm_provider is not None:
         if selected_chat_provider and selected_chat_model:
@@ -261,12 +287,10 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
         os.environ["APPROVAL_ENABLED"] = "true"
     if body.turn_token_budget is not None:
         os.environ["TURN_TOKEN_BUDGET"] = str(body.turn_token_budget)
-    if body.llm_api_key is not None:
-        val = body.llm_api_key.strip()
-        if val and "•" not in val:
-            os.environ["LLM_API_KEY"] = val
-        elif not val and "LLM_API_KEY" in os.environ:
-            del os.environ["LLM_API_KEY"]
+    if active_llm_key:
+        os.environ["LLM_API_KEY"] = active_llm_key
+    else:
+        os.environ.pop("LLM_API_KEY", None)
     if body.llm_base_url is not None:
         os.environ["LLM_BASE_URL"] = body.llm_base_url.strip()
     if body.chat_llm_provider is not None:
@@ -275,12 +299,10 @@ async def update_settings_route(body: SettingsUpdateBody) -> dict:
             os.environ["CHAT_LLM_PROVIDER"] = val
         elif "CHAT_LLM_PROVIDER" in os.environ:
             del os.environ["CHAT_LLM_PROVIDER"]
-    if body.chat_llm_api_key is not None:
-        val = body.chat_llm_api_key.strip()
-        if val and "•" not in val:
-            os.environ["CHAT_LLM_API_KEY"] = val
-        elif not val and "CHAT_LLM_API_KEY" in os.environ:
-            del os.environ["CHAT_LLM_API_KEY"]
+    if active_chat_key:
+        os.environ["CHAT_LLM_API_KEY"] = active_chat_key
+    else:
+        os.environ.pop("CHAT_LLM_API_KEY", None)
     if body.chat_llm_model is not None or body.chat_llm_provider is not None:
         if selected_chat_provider and selected_chat_model:
             os.environ["CHAT_LLM_MODEL"] = selected_chat_model

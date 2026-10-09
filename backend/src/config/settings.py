@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -5,6 +6,8 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.src.security.secret_store import (
+    adopt_legacy_key,
+    load_provider_key,
     load_secrets_into_environment,
     migrate_plaintext_env_secrets,
 )
@@ -256,4 +259,17 @@ def get_settings() -> Settings:
     for env_path in (Path(".env"), Path("backend/.env")):
         migrate_plaintext_env_secrets(env_path, _PROTECTED_ENV_NAMES)
     load_secrets_into_environment()
-    return Settings()  # type: ignore[call-arg]  # pydantic-settings populates required fields (secret_key) from env/.env at runtime
+    settings = Settings()  # type: ignore[call-arg]  # pydantic-settings populates required fields (secret_key) from env/.env at runtime
+    # A chave ativa é a do provedor ativo: cada provedor guarda a sua no cofre, e a de um nunca é usada em outro.
+    for slot, provider, attribute, env_name in (
+        ("LLM", settings.llm_provider, "llm_api_key", "LLM_API_KEY"),
+        ("CHAT_LLM", settings.chat_llm_provider or "", "chat_llm_api_key", "CHAT_LLM_API_KEY"),
+    ):
+        if not provider:
+            continue
+        adopt_legacy_key(slot, provider)
+        key = load_provider_key(slot, provider)
+        if key:
+            setattr(settings, attribute, key)
+            os.environ[env_name] = key
+    return settings

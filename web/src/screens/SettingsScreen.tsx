@@ -146,6 +146,7 @@ export function SettingsScreen({ onBack }: Props) {
 
   // Loaded metadata
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [providersWithKey, setProvidersWithKey] = useState<string[]>([]);
   const [initialProvider, setInitialProvider] = useState("");
   const [initialHasApiKey, setInitialHasApiKey] = useState(false);
   // Catálogo por provider AO VIVO (/models → models.dev via Hermes), já sem o
@@ -219,6 +220,7 @@ export function SettingsScreen({ onBack }: Props) {
         setTokenBudgetText(data.turn_token_budget ? String(data.turn_token_budget) : "");
         setHasApiKey(data.has_llm_api_key);
         setInitialHasApiKey(data.has_llm_api_key);
+        setProvidersWithKey(data.llm_providers_with_key || []);
 
         // Se já tem chave cadastrada, mostramos uma máscara no input para sinalizar
         if (data.has_llm_api_key) {
@@ -295,6 +297,9 @@ export function SettingsScreen({ onBack }: Props) {
     try {
       await saveSettings(payload);
       setHasApiKey(!!apiKey);
+      setProvidersWithKey((current) =>
+        apiKey ? Array.from(new Set([...current, provider])) : current.filter((id) => id !== provider),
+      );
       setHasChatLlmApiKey(chatLlmEnabled && !!chatLlmApiKey);
         setStatusMsg("Configurações salvas! Voltando para a tela inicial…");
       // Anuncia o sucesso (live region) e então fecha, voltando para a home.
@@ -321,9 +326,11 @@ export function SettingsScreen({ onBack }: Props) {
         : "custom",
     );
 
-    if (provId === initialProvider) {
-      setHasApiKey(initialHasApiKey);
-      setApiKey(initialHasApiKey ? "••••••••••••••••••••••••" : "");
+    // Cada provedor tem a sua chave no cofre: escolher um que já tem mostra a chave guardada (mascarada), e salvar sem
+    // digitar mantém essa chave. O campo vazio de propósito é que apaga a chave daquele provedor.
+    if (providersWithKey.includes(provId) || (provId === initialProvider && initialHasApiKey)) {
+      setHasApiKey(true);
+      setApiKey("••••••••••••••••••••••••");
     } else {
       setHasApiKey(false);
       setApiKey("");

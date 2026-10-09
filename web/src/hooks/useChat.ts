@@ -609,6 +609,10 @@ export function useChat() {
               case "agent":
                 pushStatus(_agentLine(event), "agent", false);
                 break;
+              case "waiting_provider":
+                // Espera do provedor (limite de ritmo, fila): uma linha que se atualiza no lugar e some no próximo evento.
+                pushStatus(`Aguardando o provedor há ${event.seconds}s.`, "wait", false);
+                break;
               case "analysis_waiting": {
                 const names = event.agents.map((agent) => agentLabelFor(agent));
                 pushStatus(

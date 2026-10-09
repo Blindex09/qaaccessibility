@@ -168,9 +168,56 @@ def delete_secret(name: str) -> None:
             _save_all(values)
 
 
+# Uma chave por provedor: trocar de provedor ou salvar a chave de outro nunca apaga as demais (pedido do dono do projeto,
+# 09/10/2026: "o cofre tem que ter minhas chaves salvas"). O nome do cofre é PROVIDER_KEY__<espaço>__<provedor>, em que o
+# espaço é LLM (modelo principal) ou CHAT_LLM (modelo do chat). Estas entradas NÃO vão para o ambiente do processo: só a do
+# provedor ativo é espelhada em LLM_API_KEY, e as outras não vazam para os subprocessos.
+PROVIDER_KEY_PREFIX = "PROVIDER_KEY__"
+_LEGACY_NAME = {"LLM": "LLM_API_KEY", "CHAT_LLM": "CHAT_LLM_API_KEY"}
+
+
+def provider_key_name(slot: str, provider: str) -> str:
+    return f"{PROVIDER_KEY_PREFIX}{slot}__{provider.strip().lower()}"
+
+
+def load_provider_key(slot: str, provider: str) -> str | None:
+    if not provider.strip():
+        return None
+    return _load_secrets_tolerant().get(provider_key_name(slot, provider)) or None
+
+
+def save_provider_key(slot: str, provider: str, value: str) -> None:
+    save_secret(provider_key_name(slot, provider), value)
+
+
+def delete_provider_key(slot: str, provider: str) -> None:
+    if provider.strip():
+        delete_secret(provider_key_name(slot, provider))
+
+
+def providers_with_key(slot: str) -> list[str]:
+    prefix = f"{PROVIDER_KEY_PREFIX}{slot}__"
+    return sorted(name[len(prefix):] for name, value in _load_secrets_tolerant().items() if name.startswith(prefix) and value)
+
+
+def adopt_legacy_key(slot: str, provider: str) -> None:
+    """A chave antiga, de espaço único, passa a ser a do provedor que estava ativo quando ela foi salva.
+
+    Só age quando o provedor ainda não tem chave própria, então nunca sobrescreve nada.
+    """
+    with _STORE_LOCK:
+        values = _load_secrets_tolerant()
+        legacy = values.get(_LEGACY_NAME[slot])
+        name = provider_key_name(slot, provider)
+        if provider.strip() and legacy and not values.get(name):
+            values[name] = legacy
+            _save_all(values)
+
+
 def load_secrets_into_environment() -> None:
     for name, value in _load_secrets_tolerant().items():
-        os.environ[name] = value
+        if not name.startswith(PROVIDER_KEY_PREFIX):
+            os.environ[name] = value
 
 
 def migrate_plaintext_env_secrets(env_path: Path, secret_names: set[str]) -> int:
