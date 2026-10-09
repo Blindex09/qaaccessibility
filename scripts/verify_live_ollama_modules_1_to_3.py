@@ -1,4 +1,4 @@
-"""Repete ao vivo, no Ollama Cloud (modo Alto), os cenários dos módulos 1 a 3 e compara com o que foi medido.
+"""Repete ao vivo, em qualquer provedor (padrão Ollama Cloud, modo Alto), os cenários dos módulos 1 a 3 e compara com o medido.
 
 Serve para uma pessoa (ou um agente) provar que uma correção feita depois não estragou o que já tinha sido provado.
 Roda pela mesma rota do navegador (`POST /chat/stream`) contra o backend em http://127.0.0.1:8001.
@@ -7,10 +7,12 @@ Regras:
 - Só confere FATOS: a resposta terminou, não veio erro, o custo ficou perto do medido (margem larga, porque o raciocínio dos
   modelos varia), não há emoji nem tabela na resposta, o ZIP foi extraído sem erro. Se a resposta é boa é julgamento, e fica
   para quem lê a saída.
-- Troca o provedor para o Ollama Cloud (Alto) e devolve o que estava configurado ao terminar, mesmo se falhar.
-- Se o Ollama Cloud ainda estiver sem cota (erro 429), diz isso e sai sem marcar nada como quebrado.
+- Troca para o provedor pedido (Alto) e devolve o que estava configurado ao terminar, mesmo se falhar. A chave do provedor tem
+  de estar guardada no cofre (uma por provedor).
+- No Ollama Cloud o custo é conferido com margem (os números medidos são dele). Em outro provedor o custo é só informado ao lado
+  do medido no Ollama, e só os fatos objetivos reprovam. Sem cota (erro 429), diz isso e sai sem marcar nada como quebrado.
 
-Uso:  .venv/Scripts/python scripts/verify_live_ollama_modules_1_to_3.py [--only m1|m2|m3]
+Uso:  .venv/Scripts/python scripts/verify_live_ollama_modules_1_to_3.py [--provider gemini] [--only m1|m2|m3]
 """
 
 import argparse
@@ -154,16 +156,27 @@ def ollama_has_quota() -> tuple[bool, str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", choices=["m1", "m2", "m3"])
-    only = parser.parse_args().only
+    parser.add_argument("--provider", default="ollama-cloud")
+    args = parser.parse_args()
+    only, provider = args.only, args.provider
+    strict_cost = provider == "ollama-cloud"
 
-    has_quota, why = ollama_has_quota()
-    if not has_quota:
-        print(f"NÃO EXECUTADO: o Ollama Cloud não respondeu ({why}). Nada foi marcado como quebrado.")
-        return 2
+    if strict_cost:
+        has_quota, why = ollama_has_quota()
+        if not has_quota:
+            print(f"NÃO EXECUTADO: o Ollama Cloud não respondeu ({why}). Nada foi marcado como quebrado.")
+            return 2
+    else:
+        sys.path.insert(0, str(ROOT))
+        from backend.src.security.secret_store import load_provider_key
+
+        if not load_provider_key("LLM", provider):
+            print(f"NÃO EXECUTADO: não há chave guardada para {provider}. Coloque-a nas Configurações.")
+            return 2
 
     before = api("/settings/")
     print(f"Configuração atual (será restaurada): provedor={before['llm_provider']}, modelo={before['llm_model']}")
-    api("/settings/", {"llm_provider": "ollama-cloud", "llm_model": "alto"})
+    api("/settings/", {"llm_provider": provider, "llm_model": "alto"})
     failures = 0
     try:
         for index, (name, module, template, baseline, checks) in enumerate(SCENARIOS, 1):
@@ -183,7 +196,7 @@ def main() -> int:
             if cost is None:
                 problems.append("sem registro de custo no log")
             else:
-                if cost["total_tokens"] > baseline * MARGIN:
+                if strict_cost and cost["total_tokens"] > baseline * MARGIN:
                     problems.append(f"custo {cost['total_tokens']} acima de {int(baseline * MARGIN)} (medido {baseline})")
                 if "max_calls" in checks and cost["calls"] > checks["max_calls"]:
                     problems.append(f"{cost['calls']} chamadas, esperado no máximo {checks['max_calls']}")

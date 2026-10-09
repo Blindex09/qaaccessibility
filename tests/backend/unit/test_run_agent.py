@@ -2014,3 +2014,81 @@ class TestStreamedDataKeepsTheCallAlive:
             budget.last_chunk_at = time.monotonic() - 1000  # calada há muito tempo
             agent._run_openai("hello")
             assert time.monotonic() - budget.last_chunk_at < 5
+
+
+class TestGeminiRealStreamFormat:
+    """Regressão (e2e real 2026-10-09): todo fluxo do Gemini falhava com "encerrou o stream sem interaction.complete".
+
+    A API atual envia `interaction.completed` (com d), deltas em `step.delta` e o evento final sem conteúdo: a resposta
+    vem da interação guardada. Os eventos abaixo foram gravados de uma chamada real (modelo gemini-3.5-flash-lite)."""
+
+    @staticmethod
+    def _event(kind, **fields):
+        event = MagicMock()
+        event.event_type = kind
+        for name, value in fields.items():
+            setattr(event, name, value)
+        return event
+
+    def _stream(self, interaction_id="v1_abc", status="completed"):
+        text1 = MagicMock(type="text", text="Contraste de cor é a diferença ")
+        text2 = MagicMock(type="text", text="entre duas cores.")
+        completed = MagicMock(id=interaction_id, status=status, steps=None, outputs=None)
+        return [
+            self._event("interaction.created", interaction=MagicMock(id=interaction_id)),
+            self._event("interaction.status_update", status="in_progress"),
+            self._event("step.start", index=0, step=MagicMock(type="thought")),
+            self._event("step.delta", index=0, delta=MagicMock(type="thought_signature")),
+            self._event("step.stop", index=0),
+            self._event("step.delta", index=1, delta=text1),
+            self._event("step.delta", index=1, delta=text2),
+            self._event("step.stop", index=1),
+            self._event("interaction.completed", interaction=completed),
+        ]
+
+    def test_streaming_text_and_final_answer_come_from_the_stored_interaction(self):
+        agent = AIAgent(model="gemini-3.5-flash-lite", provider="gemini", api_key="k", max_iterations=1)
+        received = []
+        agent.stream_delta_callback = received.append
+        stored = MagicMock(
+            id="v1_abc", status="completed",
+            steps=[MagicMock(type="model_output", content=[MagicMock(type="text", text="Contraste de cor é a diferença entre duas cores.")])],
+            usage={"total_input_tokens": 15, "total_output_tokens": 31, "total_tokens": 46},
+        )
+        client = MagicMock()
+        client.interactions.create.return_value = iter(self._stream())
+        client.interactions.get.return_value = stored
+        with patch("google.genai.Client", return_value=client):
+            result = agent._run_gemini("o que é contraste?")
+        assert result["failed"] is False
+        assert "".join(received) == "Contraste de cor é a diferença entre duas cores."
+        assert result["final_response"].startswith("Contraste de cor")
+        client.interactions.get.assert_called_once_with(id="v1_abc")
+        assert result["usage"]["input_tokens"] == 15 and result["usage"]["output_tokens"] == 31  # custo medido, não zero
+
+    def test_a_stream_that_never_completes_is_reported_honestly(self):
+        agent = AIAgent(model="gemini-3.5-flash-lite", provider="gemini", api_key="k", max_iterations=1)
+        agent.stream_delta_callback = lambda _t: None
+        client = MagicMock()
+        client.interactions.create.return_value = iter(self._stream()[:-1])
+        with patch("google.genai.Client", return_value=client):
+            result = agent._run_gemini("oi")
+        assert result["failed"] is True and "interaction.completed" in result["error"]
+
+    def test_a_model_that_rejects_the_thinking_level_is_retried_without_it_and_remembered(self):
+        AIAgent._gemini_models_rejecting_thinking_level.clear()
+        agent = AIAgent(model="gemini-flash-latest", provider="gemini", api_key="k", max_iterations=1)
+        ok = MagicMock(id="i1", status="completed", steps=[MagicMock(type="model_output", content=[MagicMock(type="text", text="ok")])])
+        client = MagicMock()
+        client.interactions.create.side_effect = [
+            RuntimeError("Error code: 400 - Thinking level THINKING_LEVEL_MINIMAL is not supported for this model."),
+            ok,
+        ]
+        with patch("google.genai.Client", return_value=client):
+            result = agent._run_gemini("oi")
+        assert result["failed"] is False and result["final_response"] == "ok"
+        first, second = client.interactions.create.call_args_list
+        assert "thinking_level" in first.kwargs["generation_config"]
+        assert "thinking_level" not in second.kwargs["generation_config"]
+        assert "gemini-flash-latest" in AIAgent._gemini_models_rejecting_thinking_level
+        AIAgent._gemini_models_rejecting_thinking_level.clear()

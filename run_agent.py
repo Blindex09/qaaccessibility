@@ -51,8 +51,9 @@ _SENSITIVE_ARGUMENT_PARTS = ("token", "secret", "password", "api_key", "authoriz
 _USAGE_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     # prompt_eval_count/eval_count: nomes nativos da API /api/chat do Ollama
     # (biblioteca oficial `ollama`, ChatResponse) -- usado por _run_ollama_native.
-    "input_tokens": ("input_tokens", "prompt_tokens", "prompt_token_count", "prompt_eval_count"),
-    "output_tokens": ("output_tokens", "completion_tokens", "candidates_token_count", "eval_count"),
+    # total_input_tokens/total_output_tokens: nomes da Interactions API do Gemini (verificado ao vivo em 2026-10-09).
+    "input_tokens": ("input_tokens", "total_input_tokens", "prompt_tokens", "prompt_token_count", "prompt_eval_count"),
+    "output_tokens": ("output_tokens", "total_output_tokens", "completion_tokens", "candidates_token_count", "eval_count"),
     "total_tokens": ("total_tokens", "total_token_count"),
 }
 
@@ -2125,13 +2126,39 @@ class AIAgent:
 
         return {"final_response": final_response, "failed": False, "usage": usage_total}
 
+    _gemini_models_rejecting_thinking_level: set[str] = set()
+
+    def _without_unsupported_thinking_level(
+        self, client: Any, base_kwargs: dict[str, Any], extra: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Modelo que já recusou o nível de raciocínio não o recebe de novo (caso real: o alias gemini-flash-latest
+        respondeu 400 "THINKING_LEVEL_MINIMAL is not supported for this model"). Só aprende com a recusa do próprio
+        provedor, nunca por lista fixa de modelos."""
+        config = base_kwargs.get("generation_config") or {}
+        if self.model in AIAgent._gemini_models_rejecting_thinking_level and "thinking_level" in config:
+            base_kwargs = {**base_kwargs, "generation_config": {k: v for k, v in config.items() if k != "thinking_level"}}
+        return base_kwargs
+
     def _gemini_interactions_create(self, client: Any, base_kwargs: dict[str, Any], **extra: Any) -> Any:
+        try:
+            return self._gemini_interactions_create_once(client, base_kwargs, **extra)
+        except Exception as exc:
+            if "thinking" in str(exc).lower() and "not supported" in str(exc).lower() and "thinking_level" in (
+                base_kwargs.get("generation_config") or {}
+            ):
+                AIAgent._gemini_models_rejecting_thinking_level.add(self.model)
+                logger.info("%s o provedor recusou o nível de raciocínio; refazendo sem ele.", self.log_prefix)
+                return self._gemini_interactions_create_once(client, base_kwargs, **extra)
+            raise
+
+    def _gemini_interactions_create_once(self, client: Any, base_kwargs: dict[str, Any], **extra: Any) -> Any:
         """`client.interactions.create` com Structured Outputs (`response_format`,
         ver `self.response_schema`) quando aplicavel -- doc oficial da
         Interactions API. Tenta primeiro com o schema; se o modelo/conta nao
         suportar, cai para `base_kwargs` original sem `response_format`, mesmo
         padrao de fallback usado do lado Anthropic/OpenAI.
         """
+        base_kwargs = self._without_unsupported_thinking_level(client, base_kwargs, extra)
         if self.response_schema is None:
             return client.interactions.create(**base_kwargs, **extra)
         try:
@@ -2247,7 +2274,8 @@ class AIAgent:
                     note_chunk()
                     event_type = getattr(event, "event_type", "")
                     delta = getattr(event, "delta", None)
-                    if event_type == "content.delta":
+                    # `step.delta` é o formato atual da Interactions API; `content.delta` é o antigo.
+                    if event_type in ("content.delta", "step.delta"):
                         delta_type = str(getattr(delta, "type", "") or "")
                         if delta_type == "text":
                             text = str(getattr(delta, "text", "") or "")
@@ -2280,10 +2308,20 @@ class AIAgent:
                                             self.thinking_callback(t_str)
                                         if self.reasoning_callback:
                                             self.reasoning_callback(t_str)
-                    if event_type == "interaction.complete":
+                    # A API atual envia `interaction.completed` (o antigo era `interaction.complete`).
+                    if event_type in ("interaction.complete", "interaction.completed"):
                         interaction = getattr(event, "interaction", None)
                 if interaction is None:
-                    return {"failed": True, "error": "Gemini encerrou o stream sem interaction.complete."}
+                    return {"failed": True, "error": "Gemini encerrou o stream sem interaction.completed."}
+                # O evento final traz status e uso de tokens, mas não o conteúdo: busca a interação guardada (store=True)
+                # para ler os passos (resposta e chamadas de ferramenta).
+                if not getattr(interaction, "steps", None) and not getattr(interaction, "outputs", None):
+                    interaction_id = getattr(interaction, "id", None)
+                    if interaction_id:
+                        try:
+                            interaction = client.interactions.get(id=interaction_id)
+                        except Exception as exc:
+                            return {"failed": True, "error": f"Gemini: não foi possível ler a interação concluída ({exc})."}
             else:
                 interaction = self._gemini_interactions_create(client, kwargs)
 

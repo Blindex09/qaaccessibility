@@ -63,3 +63,8 @@ provedor conferida pela API (a chave do Ollama continua guardada e ativa ao volt
 - Os cenários de cartão de aprovação e de tela são conferidos por quem olha a interface, não pelo script.
 - O custo varia com o modelo que o roteador escolhe: a margem de 60 por cento absorve a variação normal, mas uma rodada
   fora dela pede olhar a saída antes de concluir que algo quebrou.
+
+## Outros provedores
+
+A matriz do que está provado em cada provedor, os números do Gemini e os defeitos que só apareceram nele estão em
+`paridade_provedores.md`. O mesmo script, com `--provider <provedor>`, repete os cenários em outro provedor.
