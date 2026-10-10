@@ -15,7 +15,7 @@ Legenda: PROVADO = testado ao vivo pela interface e documentado. PARCIAL = feito
 |---|---|---|---|---|---|---|---|
 | 1 Conversa, triagem e roteamento | PROVADO (08/10) | PROVADO (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
 | 2 Auditoria de URL e especialistas | PROVADO (08/10) | PARCIAL (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
-| 3 Código, anexos, ZIP e projeto local | PROVADO (08/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
+| 3 Código, anexos, ZIP e projeto local | PROVADO (08/10) | PROVADO (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
 | 4 Documentos e imagens | PARCIAL (08/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
 <!-- PROTECOES:MATRIZ:FIM -->
 

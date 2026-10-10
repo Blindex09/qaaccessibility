@@ -138,7 +138,7 @@ Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem p
 `provedores/evidencias.json` por `scripts/update_protections.py` (não editar a mão):
 
 - Ollama Cloud (Alto): PROVADO em 08/10/2026. ZIP extraído pelo sistema, projeto local com aprovação, bloco de código com botão de copiar. Ficha: `provedores/ollama-cloud.md`.
-- Gemini (Alto): NÃO TESTADO.
+- Gemini (Alto): PROVADO em 09/10/2026. ZIP, pasta local com aprovação e componente anexado ao vivo, com bloco de código e botão de copiar; ressalvas: um defeito conhecido não apontado (página sem título) e sem revisão sênior (o modelo analisou sem especialistas). Ficha: `provedores/gemini.md`.
 - OpenAI: NÃO TESTADO.
 - Anthropic: NÃO TESTADO.
 - xAI (Grok): NÃO TESTADO.

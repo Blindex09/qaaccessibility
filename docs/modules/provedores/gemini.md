@@ -24,11 +24,14 @@ interface com uma chave do nível gratuito.
 | 1 | Fora do nicho como primeira mensagem | 1.797 tokens, 1 chamada, 3 s, recusa educada no tom descontraído da pessoa |
 | 1 | Pedido vago como primeira mensagem | 1.740 tokens, 1 chamada, 3 s, pergunta específica |
 | 2 | Auditoria da página com erros do W3C | 148.683 tokens, 18 chamadas, 87 s, 7 especialistas, 11 achados corretos, sem emoji nem tabela |
+| 3 | ZIP da loja anexado pela interface, pedido arquivo por arquivo | 52.643 tokens, 9 chamadas, 35 s, sem especialistas; 9 dos 10 defeitos conhecidos (faltou a página sem título). Pelo script oficial: 35.463 tokens, 8 chamadas, 29 s |
+| 3 | Pasta local por caminho, só teclado, com cartão de aprovação | 36.843 tokens, 5 chamadas, 32 s; apontou só os dois defeitos de teclado (botão feito de div e foco removido), dentro do escopo |
+| 3 | Componente React anexado, pedindo o código corrigido | 26.228 tokens, 5 chamadas, 19 s; bloco de código com botão de copiar, sem emoji nem tabela |
 
 ## O que não foi testado ainda
 
-Módulo 3 (código, anexos, ZIP, projeto local) e módulo 4 (documentos e imagens). Imagem anexada (o Gemini aceita imagem, não
-verificado). Aprovação com cartão e cancelamento no Gemini.
+Módulo 4 (documentos e imagens). Imagem anexada (o Gemini aceita imagem, não verificado). Cancelamento no Gemini. Projeto grande
+(limites de 30 arquivos e 100 mil caracteres do ZIP) e correção de arquivos locais (módulo 5).
 
 ## Particularidades e defeitos já resolvidos (cada um com a causa provada)
 
@@ -43,6 +46,10 @@ verificado). Aprovação com cartão e cancelamento no Gemini.
 5. Chave bloqueada por vazamento: erro 403 "Your API key was reported as leaked". Agora a mensagem mostra o que o provedor disse.
    Uma chave que passou pelo chat ou por um repositório público deve ser trocada.
 6. O alias `gemini-flash-latest` respondeu 503 de alta demanda em uma chamada direta (transitório).
+7. Módulo 3: em um projeto pequeno o Gemini decide analisar direto no chat, sem convocar especialistas (52 mil tokens contra 160 a
+   400 mil no Ollama). É mais barato, mas sem revisão sênior ele deixou passar a página sem `<title>` e, no componente, não avisou
+   que um `<h3>` dentro de um `<button>` é HTML inválido (o Ollama avisou). Quem decide convocar especialistas é a IA, e esta
+   diferença de rigor entre modelos fica registrada como observação, não como defeito do produto.
 
 ## Como repetir e conferir
 
@@ -63,7 +70,7 @@ Estado por módulo (gerado de `evidencias.json` por `scripts/update_protections.
 |---|---|---|---|
 | 1 Conversa, triagem e roteamento | PROVADO | 09/10/2026 | pergunta curta, fora do nicho e pedido vago ao vivo, com custo igual ao do Ollama |
 | 2 Auditoria de URL e especialistas | PARCIAL | 09/10/2026 | um cenário (página com erros do W3C): 148,7 mil tokens e 87 segundos, achados corretos |
-| 3 Código, anexos, ZIP e projeto local | NÃO TESTADO | - | - |
+| 3 Código, anexos, ZIP e projeto local | PROVADO | 09/10/2026 | ZIP, pasta local com aprovação e componente anexado ao vivo, com bloco de código e botão de copiar; ressalvas: um defeito conhecido não apontado (página sem título) e sem revisão sênior (o modelo analisou sem especialistas) |
 | 4 Documentos e imagens | NÃO TESTADO | - | - |
 
 Números de referência dos cenários ao vivo (base do script `verify_live_modules_1_to_3.py` para este provedor):
@@ -72,6 +79,9 @@ Números de referência dos cenários ao vivo (base do script `verify_live_modul
 - m1-fora-do-nicho: 1797 tokens (medido em 09/10/2026)
 - m1-pedido-vago: 1740 tokens (medido em 09/10/2026)
 - m2-url-com-erros: 148683 tokens (medido em 09/10/2026)
+- m3-zip-anexado: 35463 tokens (medido em 09/10/2026)
+- m3-projeto-local: 36843 tokens (medido em 09/10/2026)
+- m3-componente-anexado: 26228 tokens (medido em 09/10/2026)
 
 Contrato real gravado: `tests/backend/fixtures/providers/gemini/contract.json`.
 <!-- PROTECOES:ESTADO:FIM -->
