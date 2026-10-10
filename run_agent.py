@@ -2361,6 +2361,14 @@ class AIAgent:
                 if getattr(output, "type", "") == "function_call"
             ]
             if not calls:
+                if not final_response.strip():
+                    # Evidência (regra 17): uma geração vazia com status "completed" já aconteceu e a causa não está provada.
+                    logger.warning(
+                        "[Gemini] resposta vazia: status=%s passos=%s saida_tokens=%s",
+                        status,
+                        [str(getattr(step, "type", "?")) for step in steps] or [str(getattr(o, "type", "?")) for o in outputs],
+                        usage_total.get("output_tokens"),
+                    )
                 return {
                     "final_response": final_response,
                     "failed": False,

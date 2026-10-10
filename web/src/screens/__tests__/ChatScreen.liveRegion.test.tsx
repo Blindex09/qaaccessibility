@@ -120,11 +120,11 @@ describe("ChatScreen — live regions persistentes", () => {
     expect(host.querySelector('[role="timer"]')).toBeNull();
   });
 
-  test("identifica a resposta com o cabeçalho qaaccessibility", () => {
+  test("identifica a resposta com o cabeçalho qaaccessibility disse", () => {
     sendMessage("olá");
     act(() => emit({ type: "token", text: "Olá!" }));
     const heading = Array.from(host.querySelectorAll("h2")).find(
-      (node) => node.textContent === "qaaccessibility",
+      (node) => node.textContent === "qaaccessibility disse",
     );
     expect(heading).toBeDefined();
     expect(heading?.style.textTransform).not.toBe("uppercase");

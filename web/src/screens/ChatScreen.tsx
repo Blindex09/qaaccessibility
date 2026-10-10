@@ -1174,7 +1174,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                           },
                           "aria-level": 2,
                         },
-                        "qaaccessibility"
+                        "qaaccessibility disse"
                       )
                     ) : (
                       <Text
@@ -1182,7 +1182,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                         aria-level={2}
                         style={styles.roleLabel}
                       >
-                        qaaccessibility
+                        qaaccessibility disse
                       </Text>
                     )}
 

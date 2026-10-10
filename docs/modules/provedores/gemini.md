@@ -82,14 +82,16 @@ Estado por módulo (gerado de `evidencias.json` por `scripts/update_protections.
 
 Números de referência dos cenários ao vivo (base do script `verify_live_modules_1_to_3.py` para este provedor):
 
-- m1-pergunta-curta: 18738 tokens (medido em 09/10/2026)
-- m1-fora-do-nicho: 1797 tokens (medido em 09/10/2026)
-- m1-pedido-vago: 1740 tokens (medido em 09/10/2026)
-- m2-url-com-erros: 148683 tokens (medido em 09/10/2026)
-- m3-zip-anexado: 121305 tokens (medido em 09/10/2026)
+- m1-pergunta-curta: 22469 tokens (medido em 09/10/2026)
+- m1-fora-do-nicho: 1790 tokens (medido em 09/10/2026)
+- m1-pedido-vago: 1802 tokens (medido em 09/10/2026)
+- m2-url-com-erros: 133522 tokens (medido em 09/10/2026)
+- m3-zip-anexado: 133221 tokens (medido em 09/10/2026)
 - m3-projeto-local: 36843 tokens (medido em 09/10/2026)
 - m3-componente-anexado: 26228 tokens (medido em 09/10/2026)
-- m3-zip-pede-especialistas: 136642 tokens (medido em 09/10/2026)
+- m3-zip-pede-especialistas: 159900 tokens (medido em 09/10/2026)
+- m1-tom-descontraido: 17867 tokens (medido em 09/10/2026)
+- m1-tom-formal: 17693 tokens (medido em 09/10/2026)
 
 Contrato real gravado: `tests/backend/fixtures/providers/gemini/contract.json`.
 <!-- PROTECOES:ESTADO:FIM -->

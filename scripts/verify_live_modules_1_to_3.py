@@ -47,6 +47,9 @@ def references(provider: str) -> dict:
 
     scenarios = update_protections.load()["provedores"].get(provider, {}).get("cenarios", {})
     return {name: item for name, item in scenarios.items()}
+sys.path.insert(0, str(ROOT / "scripts"))
+import behavior_judge  # noqa: E402
+
 PICTOGRAPH = re.compile("[\U0001F000-\U0001FAFF☀-➿⭐⭕️‍]")
 
 LOJA = {
@@ -75,15 +78,23 @@ def zip_attachment() -> str:
 
 # (id, módulo, mensagem, tokens medidos, o que mais conferir)
 SCENARIOS = [
-    ("m1-pergunta-curta", "m1", "Em duas frases, o que é o critério 1.4.3 do WCAG? (verificação {n})", 25_400, {"must_not_call": ["analyze_page", "analyze_site", "run_deep_research"]}),
-    ("m1-fora-do-nicho", "m1", "Pode me passar uma receita de bolo de cenoura? (verificação {n})", 2_300, {"max_calls": 2}),
-    ("m1-pedido-vago", "m1", "analisa isso (verificação {n})", 2_300, {"max_calls": 2}),
+    ("m1-pergunta-curta", "m1", "Em duas frases, o que é o critério 1.4.3 do WCAG? (verificação {n})", 25_400, {"must_not_call": ["analyze_page", "analyze_site", "run_deep_research"], "no_repeat": True, "judge": "tone"}),
+    ("m1-fora-do-nicho", "m1", "Pode me passar uma receita de bolo de cenoura? (verificação {n})", 2_300, {"max_calls": 2, "no_repeat": True, "judge": "tone"}),
+    ("m1-pedido-vago", "m1", "analisa isso (verificação {n})", 2_300, {"max_calls": 2, "no_repeat": True, "judge": "tone"}),
+    (
+        "m1-tom-descontraido", "m1", "e aí, tudo bem? me explica rapidinho o que é contraste mínimo no wcag, tipo pra um iniciante (verificação {n})", 2_300,
+        {"must_not_call": ["analyze_page", "analyze_site", "run_deep_research"], "no_repeat": True, "judge": "tone"},
+    ),
+    (
+        "m1-tom-formal", "m1", "Prezado assistente, solicito a gentileza de esclarecer em que consiste o critério 1.4.3 das WCAG. Agradeço desde já. (verificação {n})", 2_300,
+        {"must_not_call": ["analyze_page", "analyze_site", "run_deep_research"], "no_repeat": True, "judge": "tone"},
+    ),
     (
         "m2-url-com-erros",
         "m2",
         "Quais problemas de acessibilidade tem nesta página? https://www.w3.org/WAI/demos/bad/before/home.html (verificação {n})",
         211_000,
-        {"no_pictographs": True, "no_tables": True, "must_call": ["analyze_page"]},
+        {"no_pictographs": True, "no_tables": True, "must_call": ["analyze_page"], "no_repeat": True, "judge": "tone"},
     ),
     (
         "m3-zip-anexado",
@@ -91,7 +102,7 @@ SCENARIOS = [
         "Mando aqui o pacote do site da loja. O que precisa mudar para ficar acessível, arquivo por arquivo? (verificação {n})\n\n"
         + zip_attachment(),
         298_000,
-        {"no_pictographs": True, "no_tables": True, "no_extraction_error": True, "must_call": ["analyze_page"], "must_not_call": ["unzip_and_list_files"]},
+        {"no_pictographs": True, "no_tables": True, "no_extraction_error": True, "must_call": ["analyze_page"], "must_not_call": ["unzip_and_list_files"], "no_repeat": True, "judge": "findings"},
     ),
     (
         "m3-zip-pede-especialistas",
@@ -99,7 +110,7 @@ SCENARIOS = [
         "Faça a auditoria completa deste projeto com os especialistas de acessibilidade e a revisão sênior, e me traga os achados por arquivo. (verificação {n})\n\n"
         + zip_attachment(),
         298_000,
-        {"no_pictographs": True, "no_tables": True, "must_call": ["analyze_page"]},
+        {"no_pictographs": True, "no_tables": True, "must_call": ["analyze_page"], "no_repeat": True, "judge": "findings"},
     ),
 ]
 
@@ -198,6 +209,8 @@ def main() -> int:
             print(f"NÃO EXECUTADO: não há chave guardada para {provider}. Coloque-a nas Configurações.")
             return 2
 
+    judge_info = behavior_judge.make_judge_asker(provider)
+    print(f"Juiz de tom e de achados: {judge_info[0] if judge_info else 'INDISPONÍVEL (sem outro provedor com chave): esses itens ficam NÃO CONFERIDOS'}")
     before = api("/settings/")
     print(f"Configuração atual (será restaurada): provedor={before['llm_provider']}, modelo={before['llm_model']}")
     api("/settings/", {"llm_provider": provider, "llm_model": "alto"})
@@ -209,7 +222,8 @@ def main() -> int:
             if only and module != only:
                 continue
             seen = count_costs()
-            result = run_turn(template.replace("{n}", str(int(time.time()) % 100000 + index)))
+            sent = template.replace("{n}", str(int(time.time()) % 100000 + index))
+            result = run_turn(sent)
             time.sleep(1)
             cost = last_cost() if count_costs() > seen else None
             problems = []
@@ -238,19 +252,40 @@ def main() -> int:
                 problems.append("a resposta tem tabela")
             if checks.get("no_extraction_error") and "extração de arquivos" in result["text"]:
                 problems.append("apareceu erro de extração do ZIP")
+            if checks.get("no_repeat"):
+                for passage in behavior_judge.repeated_passages(result["text"]):
+                    problems.append(f"trecho repetido na resposta: {passage[:90]}")
+            unchecked = ""
+            coverage = None
+            if checks.get("judge") and result["text"].strip():
+                if judge_info is None:
+                    unchecked = " [tom/achados NÃO CONFERIDOS: sem juiz]"
+                else:
+                    expected = behavior_judge.KNOWN_DEFECTS if checks["judge"] == "findings" else None
+                    try:
+                        verdict = behavior_judge.judge(judge_info[1], re.sub(r"\s*\(verificação \d+\)", "", sent.split("=== ")[0]), result["text"], expected)
+                        problems.extend(behavior_judge.problems_from(verdict, expected, (reference or {}).get("cobertura")))
+                        if expected:
+                            coverage = len(verdict.covered)
+                            print(f"         achados conhecidos cobertos: {coverage}/{len(expected)}; faltaram: {', '.join(verdict.missing) or 'nenhum'}")
+                    except Exception as exc:  # noqa: BLE001
+                        unchecked = f" [juiz falhou: {type(exc).__name__}: {str(exc)[:100]}]"
             status = "OK " if not problems else "FALHOU"
             failures += bool(problems)
             tokens = cost["total_tokens"] if cost else "?"
-            if args.register and not problems and cost:
+            if args.register and not problems and cost and not unchecked:
                 sys.path.insert(0, str(ROOT / "scripts"))
                 import update_protections
 
                 data = update_protections.load()
-                data["provedores"][provider].setdefault("cenarios", {})[name] = {"tokens": cost["total_tokens"], "data": time.strftime("%Y-%m-%d")}
+                entry = {"tokens": cost["total_tokens"], "data": time.strftime("%Y-%m-%d")}
+                if coverage is not None:
+                    entry["cobertura"] = coverage
+                data["provedores"][provider].setdefault("cenarios", {})[name] = entry
                 update_protections.save(data)
                 update_protections.render(data, write=True)
             calls = cost["calls"] if cost else "?"
-            print(f"[{status}] {name}: {tokens} tokens (referência {baseline or 'nenhuma ainda'}), {calls} chamadas, {result['seconds']}s, avisos de espera={result['waits']}, ferramentas={sorted(set(result['tools'])) or 'nenhuma'}")
+            print(f"[{status}] {name}: {tokens} tokens (referência {baseline or 'nenhuma ainda'}), {calls} chamadas, {result['seconds']}s, avisos de espera={result['waits']}, ferramentas={sorted(set(result['tools'])) or 'nenhuma'}{unchecked}")
             for problem in problems:
                 print(f"         - {problem}")
     finally:

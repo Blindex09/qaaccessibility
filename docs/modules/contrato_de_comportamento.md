@@ -41,3 +41,39 @@ modelo novo, o comportamento é tratado em camadas, da mais barata à mais firme
 
 Um contrato novo nunca é uma lista de palavras proibidas nem uma decisão fixa sobre intenção: ele só confere fatos observáveis do
 turno (ferramenta chamada ou não, evento, custo), e o que o modelo escolhe dizer continua sendo dele.
+
+## O que o contrato de fatos não vê, e como passa a ser conferido (09/10/2026)
+
+O contrato de fatos (ferramentas, custo, emoji, tabela, erro de extração, fim da resposta) não via quatro coisas. Cada uma agora tem
+uma conferência, e a regra 2 manda separar fato de julgamento:
+
+1. Ausência de repetição: é um fato (o mesmo trecho de pelo menos 8 palavras aparece duas vezes). Conferido pelo código
+   (`repeated_passages` em `scripts/behavior_judge.py`), em todo cenário.
+2. Cabeçalho da resposta: é da interface, não do modelo. O H2 de cada resposta é "qaaccessibility disse" (neste projeto o nome do
+   produto, como "Blind disse" no Agentic). Conferido pelo teste do front `ChatScreen.liveRegion.test.tsx`, que antes aceitava só
+   "qaaccessibility" (sem o "disse"); a tela e o teste foram corrigidos.
+3. Tom da pessoa: é julgamento. Quem confere é um juiz de IA separado de quem respondeu (de outro provedor quando houver chave; só se
+   nenhum outro responder usa o mesmo, e o script avisa que a independência é menor). O juiz recebe o pedido e a resposta, devolve
+   um veredito em JSON validado por contrato (se o formato falha, uma nova tentativa, e depois "juiz falhou", nunca aprovado em
+   silêncio). Registro, e não comprimento ou estrutura de um relatório pedido, é o critério. Há cenários com pessoa descontraída e
+   pessoa formal.
+4. Qualidade dos achados: o projeto de teste (ZIP da loja) tem 10 defeitos conhecidos (`KNOWN_DEFECTS`). O juiz diz quais a resposta
+   trouxe, quais faltaram e se há afirmação falsa. Afirmação falsa reprova. Cobertura é comparada com a cobertura medida antes DESTE
+   provedor (registrada com `--register`); sem referência, só é informada, porque não existe número certo embutido no código.
+
+Medido no Gemini (gemini-3.5-flash-lite, juiz no mesmo provedor porque a cota do Ollama Cloud está esgotada): tom conferido em
+todos os cenários, 8 de 10 e 9 de 10 defeitos conhecidos cobertos nos dois cenários do ZIP. O defeito heading-skip (h1 para h4)
+faltou em todas as execuções do ZIP, o que indica uma lacuna real a investigar no que chega à resposta final (não está provado se
+a falha é do especialista ou do resumo).
+
+Achados reais desta rodada, com a camada em que foram tratados:
+
+- Resposta vazia (Gemini devolveu "concluído" com zero tokens de saída, e a pessoa recebia nada). Causa NÃO provada: o log não
+  guardava status nem passos. Agora o log registra os dois quando a resposta vem vazia, e o chat repete o turno uma vez quando não há
+  texto nem ferramenta (fato objetivo), somando o custo. Teste de regressão: `TestEmptyProviderAnswer`.
+- "Em duas frases": o modelo acrescentava uma terceira frase de sugestão (regra 19 do prompt). A regra agora diz que um limite de
+  tamanho pedido pela pessoa é rígido e que a sugestão não vale para resposta conceitual.
+
+Limites honestos: o juiz também é um modelo e varia (o mesmo cenário foi reprovado e aprovado em execuções diferentes antes de o
+critério de registro ser esclarecido); por isso falha de tom é lida, não decidida às cegas. A independência do juiz depende de ter
+chave de outro provedor com cota. Não foi rodado no Ollama Cloud (cota semanal esgotada).

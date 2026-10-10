@@ -96,24 +96,25 @@
       },
       "cenarios": {
         "m1-pergunta-curta": {
-          "tokens": 18738,
+          "tokens": 22469,
           "data": "2026-10-09"
         },
         "m1-fora-do-nicho": {
-          "tokens": 1797,
+          "tokens": 1790,
           "data": "2026-10-09"
         },
         "m1-pedido-vago": {
-          "tokens": 1740,
+          "tokens": 1802,
           "data": "2026-10-09"
         },
         "m2-url-com-erros": {
-          "tokens": 148683,
+          "tokens": 133522,
           "data": "2026-10-09"
         },
         "m3-zip-anexado": {
-          "tokens": 121305,
-          "data": "2026-10-09"
+          "tokens": 133221,
+          "data": "2026-10-09",
+          "cobertura": 8
         },
         "m3-projeto-local": {
           "tokens": 36843,
@@ -124,7 +125,16 @@
           "data": "2026-10-09"
         },
         "m3-zip-pede-especialistas": {
-          "tokens": 136642,
+          "tokens": 159900,
+          "data": "2026-10-09",
+          "cobertura": 9
+        },
+        "m1-tom-descontraido": {
+          "tokens": 17867,
+          "data": "2026-10-09"
+        },
+        "m1-tom-formal": {
+          "tokens": 17693,
           "data": "2026-10-09"
         }
       }

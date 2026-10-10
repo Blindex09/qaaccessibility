@@ -2094,3 +2094,48 @@ class TestAuditGate:
         assert len(agent.calls) == 2  # uma verificação só, nunca um laço
         assert "os especialistas não foram usados" in self._text(events)
         assert "Resposta direta." not in self._text(events)
+
+
+class TestEmptyProviderAnswer:
+    """Regressão (e2e real 2026-10-09, Gemini): a chamada voltou "completed" com zero tokens de saída e a pessoa recebeu uma resposta
+    vazia. Sem texto e sem ferramenta, o turno é repetido uma vez, somando o custo; com ferramenta usada, não se repete."""
+
+    _run = staticmethod(TestAuditGate._run)
+    _text = staticmethod(TestAuditGate._text)
+
+    @staticmethod
+    def _agent(finals, use_tool_on_first=False):
+        class _Scripted:
+            calls: list[str] = []
+
+            def __init__(self, **kwargs):
+                self._cb = kwargs
+
+            def run_conversation(self, user_message, **_k):
+                index = len(type(self).calls)
+                type(self).calls.append(user_message)
+                if use_tool_on_first and index == 0:
+                    self._cb["tool_start_callback"]("t1", "read_file", {})
+                final = finals[index]
+                if final:
+                    self._cb["stream_delta_callback"](final)
+                return {"final_response": final, "failed": False, "usage": {"input_tokens": 10, "output_tokens": 0 if not final else 5, "total_tokens": 10 if not final else 15}}
+
+        return _Scripted
+
+    async def test_empty_answer_is_asked_again_once_and_costs_add_up(self):
+        agent = self._agent(["", "Contraste mínimo é a razão entre cores."])
+        events = await self._run(agent, "chat_a11y", message="o que é contraste mínimo?")
+        assert "Contraste mínimo" in self._text(events)
+        assert len(agent.calls) == 2
+        assert events[-1]["type"] == "done" and events[-1]["usage"]["total_tokens"] == 25
+
+    async def test_answer_after_a_tool_is_not_repeated(self):
+        agent = self._agent([""], use_tool_on_first=True)
+        await self._run(agent, "chat_a11y", message="leia o arquivo")
+        assert len(agent.calls) == 1
+
+    async def test_normal_answer_runs_once(self):
+        agent = self._agent(["Resposta normal."])
+        await self._run(agent, "chat_a11y", message="oi")
+        assert len(agent.calls) == 1
