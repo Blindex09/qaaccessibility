@@ -55,3 +55,23 @@ verificado). Aprovação com cartão e cancelamento no Gemini.
 ## Pendências
 
 Módulos 3 e 4 no Gemini; rodar o script ao vivo completo; medir o Gemini com um nível pago (a cota gratuita limita rodadas longas).
+
+<!-- PROTECOES:ESTADO:INICIO -->
+Estado por módulo (gerado de `evidencias.json` por `scripts/update_protections.py`, não editar a mão):
+
+| Módulo | Estado | Data | Nota |
+|---|---|---|---|
+| 1 Conversa, triagem e roteamento | PROVADO | 09/10/2026 | pergunta curta, fora do nicho e pedido vago ao vivo, com custo igual ao do Ollama |
+| 2 Auditoria de URL e especialistas | PARCIAL | 09/10/2026 | um cenário (página com erros do W3C): 148,7 mil tokens e 87 segundos, achados corretos |
+| 3 Código, anexos, ZIP e projeto local | NÃO TESTADO | - | - |
+| 4 Documentos e imagens | NÃO TESTADO | - | - |
+
+Números de referência dos cenários ao vivo (base do script `verify_live_modules_1_to_3.py` para este provedor):
+
+- m1-pergunta-curta: 18738 tokens (medido em 09/10/2026)
+- m1-fora-do-nicho: 1797 tokens (medido em 09/10/2026)
+- m1-pedido-vago: 1740 tokens (medido em 09/10/2026)
+- m2-url-com-erros: 148683 tokens (medido em 09/10/2026)
+
+Contrato real gravado: `tests/backend/fixtures/providers/gemini/contract.json`.
+<!-- PROTECOES:ESTADO:FIM -->

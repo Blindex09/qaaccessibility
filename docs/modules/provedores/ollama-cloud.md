@@ -48,3 +48,24 @@ foram provados ao vivo (07 e 08/10/2026).
   atuais do Ollama usam objetos que imitam o formato nativo, que já foi usado em produção nos módulos 1 a 3.
 - Rodada de conferência dos módulos 1 a 3 depois das mudanças de 09/10, quando a cota voltar.
 - Módulo 4 ao vivo.
+
+<!-- PROTECOES:ESTADO:INICIO -->
+Estado por módulo (gerado de `evidencias.json` por `scripts/update_protections.py`, não editar a mão):
+
+| Módulo | Estado | Data | Nota |
+|---|---|---|---|
+| 1 Conversa, triagem e roteamento | PROVADO | 08/10/2026 | pergunta curta de 25 para cerca de 17,6 mil tokens; fora do nicho em 1 chamada |
+| 2 Auditoria de URL e especialistas | PROVADO | 08/10/2026 | página com erros do W3C de 594 mil tokens e 28 minutos para cerca de 150 a 210 mil e 80 a 260 segundos |
+| 3 Código, anexos, ZIP e projeto local | PROVADO | 08/10/2026 | ZIP extraído pelo sistema, projeto local com aprovação, bloco de código com botão de copiar |
+| 4 Documentos e imagens | PARCIAL | 08/10/2026 | preparado sem o modelo; testes ao vivo pendentes por falta de cota |
+
+Números de referência dos cenários ao vivo (base do script `verify_live_modules_1_to_3.py` para este provedor):
+
+- m1-pergunta-curta: 25400 tokens (medido em 08/10/2026)
+- m1-fora-do-nicho: 2300 tokens (medido em 08/10/2026)
+- m1-pedido-vago: 2300 tokens (medido em 08/10/2026)
+- m2-url-com-erros: 211000 tokens (medido em 08/10/2026)
+- m3-zip-anexado: 298000 tokens (medido em 08/10/2026)
+
+Contrato real: pendente (gravar com scripts/record_provider_contract.py --provider ollama-cloud quando a cota semanal voltar).
+<!-- PROTECOES:ESTADO:FIM -->

@@ -114,11 +114,20 @@ entrada). Agora são lotes de 15.
 - A análise de sites com várias páginas ainda gasta muito e não pede aprovação. Fica para o módulo de
   rastreamento.
 
+
 ## Provedores
 
-Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um:
+<!-- PROTECOES:PROVEDORES:INICIO -->
+Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um, gerado de
+`provedores/evidencias.json` por `scripts/update_protections.py` (não editar a mão):
 
-- Ollama Cloud: PROVADO (08/10/2026). Ficha em `provedores/ollama-cloud.md`.
-- Gemini: PROVADO em um cenário (09/10/2026): auditoria da página com erros do W3C, 148.683 tokens e 87 s. Ficha em `provedores/gemini.md`.
-- OpenAI, Anthropic, xAI, Factory: NÃO TESTADOS. O roteiro para testar um provedor novo, sem retrabalho, está em
-  `provedores/_roteiro_para_novo_provedor.md`, e a matriz completa em `paridade_provedores.md`.
+- Ollama Cloud (Alto): PROVADO em 08/10/2026. página com erros do W3C de 594 mil tokens e 28 minutos para cerca de 150 a 210 mil e 80 a 260 segundos. Ficha: `provedores/ollama-cloud.md`.
+- Gemini (Alto): PARCIAL em 09/10/2026. um cenário (página com erros do W3C): 148,7 mil tokens e 87 segundos, achados corretos. Ficha: `provedores/gemini.md`.
+- OpenAI: NÃO TESTADO.
+- Anthropic: NÃO TESTADO.
+- xAI (Grok): NÃO TESTADO.
+- Factory AI: NÃO TESTADO.
+- OpenCode Go: NÃO TESTADO.
+
+O roteiro para testar um provedor novo, sem retrabalho, está em `provedores/_roteiro_para_novo_provedor.md`.
+<!-- PROTECOES:PROVEDORES:FIM -->

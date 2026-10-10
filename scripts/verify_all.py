@@ -38,6 +38,7 @@ def main() -> int:
         run("backend: mypy", [PY, "-m", "mypy", "backend"]),
         run("front: jest", ["npx", "jest", "--silent"], cwd=ROOT / "web", shell=True),
         run("front: tsc", ["npx", "tsc", "--noEmit"], cwd=ROOT / "web", shell=True),
+        run("proteções por provedor e módulo em dia", [PY, "scripts/update_protections.py", "check"]),
     ]
     if args.formats:
         sys.path.insert(0, str(ROOT))

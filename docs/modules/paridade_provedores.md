@@ -7,14 +7,17 @@ adivinhar nem refazer trabalho.
 
 ## Matriz
 
-Legenda: PROVADO = testado ao vivo pela interface e documentado. PARCIAL = feito em parte. NÃO TESTADO = ainda não.
+Legenda: PROVADO = testado ao vivo pela interface e documentado. PARCIAL = feito em parte. NÃO TESTADO = ainda não. A tabela abaixo
+é gerada de `provedores/evidencias.json` por `scripts/update_protections.py` (não editar a mão).
 
-| Módulo | Ollama Cloud (Alto) | Gemini (Alto) | OpenAI | Anthropic | xAI | Factory |
-|---|---|---|---|---|---|---|
-| 1 Conversa, triagem e roteamento | PROVADO (07 e 08/10) | PROVADO (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
-| 2 Auditoria de URL e especialistas | PROVADO (08/10) | PROVADO em um cenário (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
-| 3 Código, anexos, ZIP, projeto local | PROVADO (08/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
-| 4 Documentos e imagens | PARCIAL (preparado sem modelo) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
+<!-- PROTECOES:MATRIZ:INICIO -->
+| Módulo | Ollama Cloud (Alto) | Gemini (Alto) | OpenAI | Anthropic | xAI (Grok) | Factory AI | OpenCode Go |
+|---|---|---|---|---|---|---|---|
+| 1 Conversa, triagem e roteamento | PROVADO (08/10) | PROVADO (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
+| 2 Auditoria de URL e especialistas | PROVADO (08/10) | PARCIAL (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
+| 3 Código, anexos, ZIP e projeto local | PROVADO (08/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
+| 4 Documentos e imagens | PARCIAL (08/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
+<!-- PROTECOES:MATRIZ:FIM -->
 
 O Ollama Cloud está sem cota (limite semanal) desde 08/10, então depois das mudanças feitas em 09/10 ele só foi conferido por
 teste automático e pela troca de provedor, não por uma resposta real. Veja `regressao_ollama_modulos_1_a_3.md`.

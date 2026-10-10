@@ -27,6 +27,16 @@ custou retrabalho em um provedor.
    compartilhado exige a suíte completa e, havendo cota, o script ao vivo no Ollama Cloud.
 7. Cota ou limite de ritmo: parar no primeiro 429, registrar o ponto exato e não insistir.
 
+## Atualizar as proteções (por comando, nunca de memória)
+
+A fonte única é `docs/modules/provedores/evidencias.json`. O que depende dela é gerado, e a suíte reprova se ficar desatualizado.
+
+- `scripts/verify_live_modules_1_to_3.py --provider <provedor> --register`: confere os cenários ao vivo contra os números do próprio
+  provedor e, quando tudo passa, registra os novos números de referência dele.
+- `scripts/update_protections.py set <provedor> <m1..m4> <PROVADO|PARCIAL|NÃO TESTADO> --nota "o que funcionou e o que falta"`.
+- `scripts/update_protections.py check`: reprova se a matriz, a ficha ou o README de um módulo estão desatualizados, se um provedor
+  testado não tem ficha completa (a ficha nova nasce com trechos "A PREENCHER"), ou se falta contrato real gravado ou a explicação.
+
 ## Registrar (sempre, no mesmo commit)
 
 8. Ficha do provedor em `docs/modules/provedores/<provedor>.md`: como o produto fala com ele, o que funciona (com números), o que

@@ -9,10 +9,11 @@ Regras:
   para quem lê a saída.
 - Troca para o provedor pedido (Alto) e devolve o que estava configurado ao terminar, mesmo se falhar. A chave do provedor tem
   de estar guardada no cofre (uma por provedor).
-- No Ollama Cloud o custo é conferido com margem (os números medidos são dele). Em outro provedor o custo é só informado ao lado
-  do medido no Ollama, e só os fatos objetivos reprovam. Sem cota (erro 429), diz isso e sai sem marcar nada como quebrado.
+- O custo é conferido com margem contra os números medidos DAQUELE provedor (docs/modules/provedores/evidencias.json). Cenário sem
+  número do provedor ainda não reprova por custo: o resultado é só informado e pode ser registrado com --register. Sem cota (erro 429), diz isso e sai sem marcar nada como quebrado.
 
-Uso:  .venv/Scripts/python scripts/verify_live_modules_1_to_3.py [--provider gemini] [--only m1|m2|m3]
+Uso:  .venv/Scripts/python scripts/verify_live_modules_1_to_3.py [--provider gemini] [--only m1|m2|m3] [--register]
+  --register: cenário que passou em tudo atualiza o número de referência do provedor (scripts/update_protections.py).
 """
 
 import argparse
@@ -34,6 +35,14 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 # Medido ao vivo (docs/modules): tokens do turno inteiro. A margem (x1,6) cobre a variação do raciocínio e do modelo escolhido.
 MARGIN = 1.6
+
+
+def references(provider: str) -> dict:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import update_protections
+
+    scenarios = update_protections.load()["provedores"].get(provider, {}).get("cenarios", {})
+    return {name: item for name, item in scenarios.items()}
 PICTOGRAPH = re.compile("[\U0001F000-\U0001FAFF☀-➿⭐⭕️‍]")
 
 LOJA = {
@@ -157,11 +166,12 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", choices=["m1", "m2", "m3"])
     parser.add_argument("--provider", default="ollama-cloud")
+    parser.add_argument("--register", action="store_true")
     args = parser.parse_args()
     only, provider = args.only, args.provider
-    strict_cost = provider == "ollama-cloud"
+    refs = references(provider)
 
-    if strict_cost:
+    if provider == "ollama-cloud":
         has_quota, why = ollama_has_quota()
         if not has_quota:
             print(f"NÃO EXECUTADO: o Ollama Cloud não respondeu ({why}). Nada foi marcado como quebrado.")
@@ -179,7 +189,9 @@ def main() -> int:
     api("/settings/", {"llm_provider": provider, "llm_model": "alto"})
     failures = 0
     try:
-        for index, (name, module, template, baseline, checks) in enumerate(SCENARIOS, 1):
+        for index, (name, module, template, _default_baseline, checks) in enumerate(SCENARIOS, 1):
+            reference = refs.get(name)
+            baseline = reference["tokens"] if reference else None
             if only and module != only:
                 continue
             seen = count_costs()
@@ -196,7 +208,7 @@ def main() -> int:
             if cost is None:
                 problems.append("sem registro de custo no log")
             else:
-                if strict_cost and cost["total_tokens"] > baseline * MARGIN:
+                if baseline and cost["total_tokens"] > baseline * MARGIN:
                     problems.append(f"custo {cost['total_tokens']} acima de {int(baseline * MARGIN)} (medido {baseline})")
                 if "max_calls" in checks and cost["calls"] > checks["max_calls"]:
                     problems.append(f"{cost['calls']} chamadas, esperado no máximo {checks['max_calls']}")
@@ -209,8 +221,16 @@ def main() -> int:
             status = "OK " if not problems else "FALHOU"
             failures += bool(problems)
             tokens = cost["total_tokens"] if cost else "?"
+            if args.register and not problems and cost:
+                sys.path.insert(0, str(ROOT / "scripts"))
+                import update_protections
+
+                data = update_protections.load()
+                data["provedores"][provider].setdefault("cenarios", {})[name] = {"tokens": cost["total_tokens"], "data": time.strftime("%Y-%m-%d")}
+                update_protections.save(data)
+                update_protections.render(data, write=True)
             calls = cost["calls"] if cost else "?"
-            print(f"[{status}] {name}: {tokens} tokens (medido {baseline}), {calls} chamadas, {result['seconds']}s, avisos de espera={result['waits']}")
+            print(f"[{status}] {name}: {tokens} tokens (referência {baseline or 'nenhuma ainda'}), {calls} chamadas, {result['seconds']}s, avisos de espera={result['waits']}")
             for problem in problems:
                 print(f"         - {problem}")
     finally:

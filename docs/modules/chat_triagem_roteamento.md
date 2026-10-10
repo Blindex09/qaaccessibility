@@ -163,11 +163,20 @@ Com a chave do Gemini funcionando (a terceira chave testada), o roteiro mostrou 
 Achado de ambiente: o `node_modules` do front usava atalhos para o caminho antigo `C:\qaaccessibility` e quebrou com a
 mudança de pasta; foi reinstalado com `npm ci`.
 
+
 ## Provedores
 
-Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um:
+<!-- PROTECOES:PROVEDORES:INICIO -->
+Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um, gerado de
+`provedores/evidencias.json` por `scripts/update_protections.py` (não editar a mão):
 
-- Ollama Cloud: PROVADO (07 e 08/10/2026). Ficha em `provedores/ollama-cloud.md`.
-- Gemini: PROVADO (09/10/2026): pergunta curta 18.738 tokens, fora do nicho 1.797, pedido vago 1.740. Ficha em `provedores/gemini.md`.
-- OpenAI, Anthropic, xAI, Factory: NÃO TESTADOS. O roteiro para testar um provedor novo, sem retrabalho, está em
-  `provedores/_roteiro_para_novo_provedor.md`, e a matriz completa em `paridade_provedores.md`.
+- Ollama Cloud (Alto): PROVADO em 08/10/2026. pergunta curta de 25 para cerca de 17,6 mil tokens; fora do nicho em 1 chamada. Ficha: `provedores/ollama-cloud.md`.
+- Gemini (Alto): PROVADO em 09/10/2026. pergunta curta, fora do nicho e pedido vago ao vivo, com custo igual ao do Ollama. Ficha: `provedores/gemini.md`.
+- OpenAI: NÃO TESTADO.
+- Anthropic: NÃO TESTADO.
+- xAI (Grok): NÃO TESTADO.
+- Factory AI: NÃO TESTADO.
+- OpenCode Go: NÃO TESTADO.
+
+O roteiro para testar um provedor novo, sem retrabalho, está em `provedores/_roteiro_para_novo_provedor.md`.
+<!-- PROTECOES:PROVEDORES:FIM -->

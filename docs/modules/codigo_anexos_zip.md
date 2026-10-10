@@ -130,11 +130,20 @@ tabela sem cabeçalhos, foco removido pelo CSS e contraste baixo. Todos aparecer
   há como o sistema consertar.
 - Apagar ou alterar arquivos do projeto local pela correção não foi testado neste módulo (é do módulo 5).
 
+
 ## Provedores
 
-Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um:
+<!-- PROTECOES:PROVEDORES:INICIO -->
+Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um, gerado de
+`provedores/evidencias.json` por `scripts/update_protections.py` (não editar a mão):
 
-- Ollama Cloud: PROVADO (08/10/2026). Ficha em `provedores/ollama-cloud.md`.
-- Gemini: NÃO TESTADO. Ficha em `provedores/gemini.md`.
-- OpenAI, Anthropic, xAI, Factory: NÃO TESTADOS. O roteiro para testar um provedor novo, sem retrabalho, está em
-  `provedores/_roteiro_para_novo_provedor.md`, e a matriz completa em `paridade_provedores.md`.
+- Ollama Cloud (Alto): PROVADO em 08/10/2026. ZIP extraído pelo sistema, projeto local com aprovação, bloco de código com botão de copiar. Ficha: `provedores/ollama-cloud.md`.
+- Gemini (Alto): NÃO TESTADO.
+- OpenAI: NÃO TESTADO.
+- Anthropic: NÃO TESTADO.
+- xAI (Grok): NÃO TESTADO.
+- Factory AI: NÃO TESTADO.
+- OpenCode Go: NÃO TESTADO.
+
+O roteiro para testar um provedor novo, sem retrabalho, está em `provedores/_roteiro_para_novo_provedor.md`.
+<!-- PROTECOES:PROVEDORES:FIM -->

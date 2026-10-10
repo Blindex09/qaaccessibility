@@ -79,11 +79,20 @@ Dois testes de regressão cobrem isso (o leitor de mentira e a árvore com ciclo
   conferir com o dono do projeto antes de mudar.
 - A correção de documentos (gerar o arquivo corrigido) é do módulo 5.
 
+
 ## Provedores
 
-Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um:
+<!-- PROTECOES:PROVEDORES:INICIO -->
+Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um, gerado de
+`provedores/evidencias.json` por `scripts/update_protections.py` (não editar a mão):
 
-- Ollama Cloud: PARCIAL: preparado sem o modelo, ao vivo pendente. Ficha em `provedores/ollama-cloud.md`.
-- Gemini: NÃO TESTADO. Ficha em `provedores/gemini.md`.
-- OpenAI, Anthropic, xAI, Factory: NÃO TESTADOS. O roteiro para testar um provedor novo, sem retrabalho, está em
-  `provedores/_roteiro_para_novo_provedor.md`, e a matriz completa em `paridade_provedores.md`.
+- Ollama Cloud (Alto): PARCIAL em 08/10/2026. preparado sem o modelo; testes ao vivo pendentes por falta de cota. Ficha: `provedores/ollama-cloud.md`.
+- Gemini (Alto): NÃO TESTADO.
+- OpenAI: NÃO TESTADO.
+- Anthropic: NÃO TESTADO.
+- xAI (Grok): NÃO TESTADO.
+- Factory AI: NÃO TESTADO.
+- OpenCode Go: NÃO TESTADO.
+
+O roteiro para testar um provedor novo, sem retrabalho, está em `provedores/_roteiro_para_novo_provedor.md`.
+<!-- PROTECOES:PROVEDORES:FIM -->

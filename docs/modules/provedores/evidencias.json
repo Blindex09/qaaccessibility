@@ -1,0 +1,51 @@
+{
+  "modulos": {
+    "m1": {"titulo": "Conversa, triagem e roteamento", "readme": "chat_triagem_roteamento.md"},
+    "m2": {"titulo": "Auditoria de URL e especialistas", "readme": "auditoria_url_especialistas.md"},
+    "m3": {"titulo": "Código, anexos, ZIP e projeto local", "readme": "codigo_anexos_zip.md"},
+    "m4": {"titulo": "Documentos e imagens", "readme": "documentos_imagens.md"}
+  },
+  "provedores": {
+    "ollama-cloud": {
+      "nome": "Ollama Cloud (Alto)",
+      "ficha": "ollama-cloud.md",
+      "contrato": null,
+      "contrato_pendente": "gravar com scripts/record_provider_contract.py --provider ollama-cloud quando a cota semanal voltar",
+      "modulos": {
+        "m1": {"estado": "PROVADO", "data": "2026-10-08", "nota": "pergunta curta de 25 para cerca de 17,6 mil tokens; fora do nicho em 1 chamada"},
+        "m2": {"estado": "PROVADO", "data": "2026-10-08", "nota": "página com erros do W3C de 594 mil tokens e 28 minutos para cerca de 150 a 210 mil e 80 a 260 segundos"},
+        "m3": {"estado": "PROVADO", "data": "2026-10-08", "nota": "ZIP extraído pelo sistema, projeto local com aprovação, bloco de código com botão de copiar"},
+        "m4": {"estado": "PARCIAL", "data": "2026-10-08", "nota": "preparado sem o modelo; testes ao vivo pendentes por falta de cota"}
+      },
+      "cenarios": {
+        "m1-pergunta-curta": {"tokens": 25400, "data": "2026-10-08"},
+        "m1-fora-do-nicho": {"tokens": 2300, "data": "2026-10-08"},
+        "m1-pedido-vago": {"tokens": 2300, "data": "2026-10-08"},
+        "m2-url-com-erros": {"tokens": 211000, "data": "2026-10-08"},
+        "m3-zip-anexado": {"tokens": 298000, "data": "2026-10-08"}
+      }
+    },
+    "gemini": {
+      "nome": "Gemini (Alto)",
+      "ficha": "gemini.md",
+      "contrato": "tests/backend/fixtures/providers/gemini/contract.json",
+      "modulos": {
+        "m1": {"estado": "PROVADO", "data": "2026-10-09", "nota": "pergunta curta, fora do nicho e pedido vago ao vivo, com custo igual ao do Ollama"},
+        "m2": {"estado": "PARCIAL", "data": "2026-10-09", "nota": "um cenário (página com erros do W3C): 148,7 mil tokens e 87 segundos, achados corretos"},
+        "m3": {"estado": "NÃO TESTADO", "data": null, "nota": ""},
+        "m4": {"estado": "NÃO TESTADO", "data": null, "nota": ""}
+      },
+      "cenarios": {
+        "m1-pergunta-curta": {"tokens": 18738, "data": "2026-10-09"},
+        "m1-fora-do-nicho": {"tokens": 1797, "data": "2026-10-09"},
+        "m1-pedido-vago": {"tokens": 1740, "data": "2026-10-09"},
+        "m2-url-com-erros": {"tokens": 148683, "data": "2026-10-09"}
+      }
+    },
+    "openai": {"nome": "OpenAI", "ficha": "openai.md", "contrato": null, "modulos": {"m1": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m2": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m3": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m4": {"estado": "NÃO TESTADO", "data": null, "nota": ""}}, "cenarios": {}},
+    "anthropic": {"nome": "Anthropic", "ficha": "anthropic.md", "contrato": null, "modulos": {"m1": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m2": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m3": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m4": {"estado": "NÃO TESTADO", "data": null, "nota": ""}}, "cenarios": {}},
+    "xai": {"nome": "xAI (Grok)", "ficha": "xai.md", "contrato": null, "modulos": {"m1": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m2": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m3": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m4": {"estado": "NÃO TESTADO", "data": null, "nota": ""}}, "cenarios": {}},
+    "factory": {"nome": "Factory AI", "ficha": "factory.md", "contrato": null, "modulos": {"m1": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m2": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m3": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m4": {"estado": "NÃO TESTADO", "data": null, "nota": ""}}, "cenarios": {}},
+    "opencode-go": {"nome": "OpenCode Go", "ficha": "opencode-go.md", "contrato": null, "modulos": {"m1": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m2": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m3": {"estado": "NÃO TESTADO", "data": null, "nota": ""}, "m4": {"estado": "NÃO TESTADO", "data": null, "nota": ""}}, "cenarios": {}}
+  }
+}
