@@ -78,3 +78,12 @@ Dois testes de regressão cobrem isso (o leitor de mentira e a árvore com ciclo
 - Não existe revisão de Word, PowerPoint ou EPUB feita por especialista: só o modelo do chat. É uma decisão de produto a
   conferir com o dono do projeto antes de mudar.
 - A correção de documentos (gerar o arquivo corrigido) é do módulo 5.
+
+## Provedores
+
+Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um:
+
+- Ollama Cloud: PARCIAL: preparado sem o modelo, ao vivo pendente. Ficha em `provedores/ollama-cloud.md`.
+- Gemini: NÃO TESTADO. Ficha em `provedores/gemini.md`.
+- OpenAI, Anthropic, xAI, Factory: NÃO TESTADOS. O roteiro para testar um provedor novo, sem retrabalho, está em
+  `provedores/_roteiro_para_novo_provedor.md`, e a matriz completa em `paridade_provedores.md`.

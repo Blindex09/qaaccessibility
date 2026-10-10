@@ -49,13 +49,21 @@ descrição em inglês (já acontecia no Ollama Cloud) e a resposta final não t
 6. O erro 403 de chave bloqueada por vazamento aparecia como "verifique as permissões" (corrigido, vale para todo provedor).
 7. O cofre guardava uma só chave de IA e trocar de provedor apagava a anterior (corrigido: uma chave por provedor).
 
+## Fichas e roteiro
+
+Uma ficha por provedor em `provedores/` (como o produto fala com ele, o que funciona com números, particularidades e defeitos
+com a causa de cada um): `provedores/ollama-cloud.md` e `provedores/gemini.md`. O passo a passo para qualquer provedor novo, na
+mesma ordem sempre, está em `provedores/_roteiro_para_novo_provedor.md`. O contrato real de cada provedor fica gravado em
+`tests/backend/fixtures/providers/<provedor>/contract.json` (Gemini gravado em 09/10/2026; Ollama Cloud pendente por falta de cota)
+e o `--check` do gravador acusa mudança de formato.
+
 ## Como evitar retrabalho com os próximos provedores
 
 1. Antes de testar um provedor, gravar uma chamada real dele (texto, fluxo e ferramenta) e escrever os testes em cima do que
    ele de fato devolve. Mock inventado não prova integração (regra 11): foi exatamente o que escondeu o defeito 1.
 2. Código específico de um provedor fica dentro do caminho daquele provedor em `run_agent.py`. Mudança em arquivo
    compartilhado exige a suíte completa e, havendo cota, o script ao vivo no Ollama Cloud.
-3. Conferir o provedor com `scripts/verify_live_ollama_modules_1_to_3.py --provider <provedor>` (os fatos objetivos reprovam,
+3. Conferir o provedor com `scripts/verify_live_modules_1_to_3.py --provider <provedor>` (os fatos objetivos reprovam,
    o custo é só informado ao lado do medido no Ollama) e registrar o resultado na matriz acima.
 4. Um provedor só entra na matriz como PROVADO depois da interface real, não só do script.
 

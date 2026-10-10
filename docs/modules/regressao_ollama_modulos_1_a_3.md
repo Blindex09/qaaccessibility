@@ -9,7 +9,7 @@ comportamento provado ao teste automático que o guarda e ao cenário ao vivo qu
 1. Testes automáticos (rodam em segundos, sem gastar cota). A suíte completa deve estar verde antes de qualquer commit:
    backend `pytest tests/backend`, ruff e mypy; front `jest` e `tsc`. Último resultado completo em 09/10/2026: 1.896 testes
    do backend passando (41 pulados) e 267 do front.
-2. Script ao vivo: `scripts/verify_live_ollama_modules_1_to_3.py`. Repete no Ollama Cloud (Alto), pela mesma rota do
+2. Script ao vivo: `scripts/verify_live_modules_1_to_3.py`. Repete no Ollama Cloud (Alto), pela mesma rota do
    navegador, os cenários dos três módulos e compara com os números medidos (custo com margem de 60 por cento, número de
    chamadas, sem erro, sem emoji, sem tabela, ZIP extraído sem erro). Troca o provedor para o Ollama e devolve a configuração
    anterior ao terminar. Sem cota, avisa e sai sem marcar nada como quebrado. Opção `--only m1`, `m2` ou `m3`.

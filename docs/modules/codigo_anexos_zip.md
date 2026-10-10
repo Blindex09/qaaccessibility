@@ -129,3 +129,12 @@ tabela sem cabeçalhos, foco removido pelo CSS e contraste baixo. Todos aparecer
 - A resposta final de um modelo trouxe uma palavra estranha (e-mailikinetic) numa rodada. É erro do modelo e não
   há como o sistema consertar.
 - Apagar ou alterar arquivos do projeto local pela correção não foi testado neste módulo (é do módulo 5).
+
+## Provedores
+
+Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um:
+
+- Ollama Cloud: PROVADO (08/10/2026). Ficha em `provedores/ollama-cloud.md`.
+- Gemini: NÃO TESTADO. Ficha em `provedores/gemini.md`.
+- OpenAI, Anthropic, xAI, Factory: NÃO TESTADOS. O roteiro para testar um provedor novo, sem retrabalho, está em
+  `provedores/_roteiro_para_novo_provedor.md`, e a matriz completa em `paridade_provedores.md`.

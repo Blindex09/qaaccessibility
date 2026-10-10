@@ -12,7 +12,7 @@ Regras:
 - No Ollama Cloud o custo é conferido com margem (os números medidos são dele). Em outro provedor o custo é só informado ao lado
   do medido no Ollama, e só os fatos objetivos reprovam. Sem cota (erro 429), diz isso e sai sem marcar nada como quebrado.
 
-Uso:  .venv/Scripts/python scripts/verify_live_ollama_modules_1_to_3.py [--provider gemini] [--only m1|m2|m3]
+Uso:  .venv/Scripts/python scripts/verify_live_modules_1_to_3.py [--provider gemini] [--only m1|m2|m3]
 """
 
 import argparse

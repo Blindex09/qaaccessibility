@@ -162,3 +162,12 @@ Com a chave do Gemini funcionando (a terceira chave testada), o roteiro mostrou 
 
 Achado de ambiente: o `node_modules` do front usava atalhos para o caminho antigo `C:\qaaccessibility` e quebrou com a
 mudança de pasta; foi reinstalado com `npm ci`.
+
+## Provedores
+
+Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um:
+
+- Ollama Cloud: PROVADO (07 e 08/10/2026). Ficha em `provedores/ollama-cloud.md`.
+- Gemini: PROVADO (09/10/2026): pergunta curta 18.738 tokens, fora do nicho 1.797, pedido vago 1.740. Ficha em `provedores/gemini.md`.
+- OpenAI, Anthropic, xAI, Factory: NÃO TESTADOS. O roteiro para testar um provedor novo, sem retrabalho, está em
+  `provedores/_roteiro_para_novo_provedor.md`, e a matriz completa em `paridade_provedores.md`.

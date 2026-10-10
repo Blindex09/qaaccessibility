@@ -113,3 +113,12 @@ entrada). Agora são lotes de 15.
   textos diferentes.
 - A análise de sites com várias páginas ainda gasta muito e não pede aprovação. Fica para o módulo de
   rastreamento.
+
+## Provedores
+
+Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem para todos). Estado de cada um:
+
+- Ollama Cloud: PROVADO (08/10/2026). Ficha em `provedores/ollama-cloud.md`.
+- Gemini: PROVADO em um cenário (09/10/2026): auditoria da página com erros do W3C, 148.683 tokens e 87 s. Ficha em `provedores/gemini.md`.
+- OpenAI, Anthropic, xAI, Factory: NÃO TESTADOS. O roteiro para testar um provedor novo, sem retrabalho, está em
+  `provedores/_roteiro_para_novo_provedor.md`, e a matriz completa em `paridade_provedores.md`.
