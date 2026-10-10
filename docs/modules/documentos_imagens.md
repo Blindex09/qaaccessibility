@@ -87,7 +87,7 @@ Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem p
 `provedores/evidencias.json` por `scripts/update_protections.py` (não editar a mão):
 
 - Ollama Cloud (Alto): PARCIAL em 08/10/2026. preparado sem o modelo; testes ao vivo pendentes por falta de cota. Ficha: `provedores/ollama-cloud.md`.
-- Gemini (Alto): NÃO TESTADO.
+- Gemini (Alto): PARCIAL em 09/10/2026. pela tela, o Word anexado expôs um defeito real (o anexo chegava como base64 cru ao classificador, ao reranqueador e à squad, 45 a 71 mil tokens de entrada cada), corrigido com teste de regressão. O Word corrigido foi reenviado pela tela, mas a cota diária gratuita do Gemini esgotou (429, volta em cerca de 21 horas) antes de terminar. Faltam pela tela: Word corrigido, PDF, Excel, PowerPoint, EPUB, imagem e arquivo corrompido. Ficha: `provedores/gemini.md`.
 - OpenAI: NÃO TESTADO.
 - Anthropic: NÃO TESTADO.
 - xAI (Grok): NÃO TESTADO.

@@ -2139,3 +2139,42 @@ class TestEmptyProviderAnswer:
         agent = self._agent(["Resposta normal."])
         await self._run(agent, "chat_a11y", message="oi")
         assert len(agent.calls) == 1
+
+
+class TestStructuredAttachmentsAreExtracted:
+    """Regressão (e2e pela tela, 2026-10-09, Gemini): o anexo estruturado (o que a tela envia) entrava como base64 cru em todas as
+    chamadas (clarificador 70 mil tokens, reranqueador 71 mil, cada papel da squad 45 mil para um Word de 37 KB) e imagens
+    anexadas nunca chegavam ao modelo. Depois da correção, tudo recebe o texto extraído com os fatos do arquivo."""
+
+    async def test_docx_attachment_reaches_every_call_as_extracted_text_not_base64(self):
+        import base64
+        import io
+
+        import docx
+
+        document = docx.Document()
+        document.add_paragraph("Relatório")
+        buffer = io.BytesIO()
+        document.save(buffer)
+        content = base64.b64encode(buffer.getvalue()).decode()
+        seen: dict[str, str] = {}
+
+        async def fake_clarifier(context):
+            seen["clarifier"] = context
+            return AgentResult(agent="clarifier", success=True, data={"intent": "chat_a11y", "squad_roles": [], "complexity": "low"})
+
+        class _Agent:
+            def __init__(self, **kwargs):
+                pass
+
+            def run_conversation(self, user_message, **_k):
+                seen["agent"] = user_message
+                return {"final_response": "ok", "failed": False, "usage": {}}
+
+        with (
+            patch("backend.src.agents.clarifier.run_clarifier", new=fake_clarifier),
+            patch("backend.src.services.chat_runtime.AIAgent", new=_Agent),
+        ):
+            _ = [e async for e in stream_chat("Este documento está acessível?", history=[], attachments=[{"name": "relatorio.docx", "content": content}])]
+        assert content[:200] not in seen["clarifier"] and content[:200] not in seen["agent"]
+        assert "Fatos observados" in seen["agent"] and "Fatos observados" in seen["clarifier"]

@@ -76,9 +76,9 @@ Estado por módulo (gerado de `evidencias.json` por `scripts/update_protections.
 | Módulo | Estado | Data | Nota |
 |---|---|---|---|
 | 1 Conversa, triagem e roteamento | PROVADO | 09/10/2026 | pergunta curta, fora do nicho e pedido vago ao vivo, com custo igual ao do Ollama |
-| 2 Auditoria de URL e especialistas | PARCIAL | 09/10/2026 | um cenário (página com erros do W3C): 148,7 mil tokens e 87 segundos, achados corretos |
+| 2 Auditoria de URL e especialistas | PROVADO | 09/10/2026 | pela tela: auditoria da página com erros do W3C em 137 s e 127.556 tokens, 18 chamadas, achados corretos sem emoji nem tabela. Pelo script mais 3 cenários (pedido estreito, página acessível, URL inexistente). Pendências: a contagem de achados da resposta não bateu com a lista (disse 8 e listou 7) e a abertura 'Olha,' é casual para uma pergunta neutra |
 | 3 Código, anexos, ZIP e projeto local | PROVADO | 09/10/2026 | ZIP, pasta local com aprovação e componente anexado ao vivo; auditoria de projeto passa pelos especialistas e pela revisão sênior depois da verificação comum a todos os provedores (antes o Gemini auditava sozinho) |
-| 4 Documentos e imagens | NÃO TESTADO | - | - |
+| 4 Documentos e imagens | PARCIAL | 09/10/2026 | pela tela, o Word anexado expôs um defeito real (o anexo chegava como base64 cru ao classificador, ao reranqueador e à squad, 45 a 71 mil tokens de entrada cada), corrigido com teste de regressão. O Word corrigido foi reenviado pela tela, mas a cota diária gratuita do Gemini esgotou (429, volta em cerca de 21 horas) antes de terminar. Faltam pela tela: Word corrigido, PDF, Excel, PowerPoint, EPUB, imagem e arquivo corrompido |
 
 Números de referência dos cenários ao vivo (base do script `verify_live_modules_1_to_3.py` para este provedor):
 
@@ -95,3 +95,22 @@ Números de referência dos cenários ao vivo (base do script `verify_live_modul
 
 Contrato real gravado: `tests/backend/fixtures/providers/gemini/contract.json`.
 <!-- PROTECOES:ESTADO:FIM -->
+
+## Rodada pela tela do navegador (09/10/2026, noite)
+
+Feita no navegador, na interface de chat, com o provedor Gemini no modo Alto, anexando arquivos pelo mesmo campo do botão "Anexar arquivos".
+
+- Módulo 2, auditoria de URL: 137 s, 127.556 tokens, 18 chamadas, achados corretos, cabeçalho "qaaccessibility disse", sem asteriscos nem
+  emoji nem tabela. Defeitos da resposta: a contagem não bateu (disse 8 problemas e listou 7) e a abertura "Olha," é casual para uma
+  pergunta neutra.
+- Módulo 3, ZIP da loja anexado: 7 dos 10 defeitos conhecidos (faltaram idioma, título da página e o salto de h1 para h4), sem número de
+  contraste inventado. A resposta terminou com três ofertas e uma pergunta, quando a regra 19 pede uma só sugestão.
+- Módulo 4, Word anexado: defeito real encontrado e corrigido. Pelo caminho da tela o anexo entra como anexo estruturado, e a extração do
+  texto rodava antes de ele entrar na mensagem. O arquivo seguia como base64 cru (49.885 caracteres para um Word de 37 KB) para o
+  classificador (70.861 tokens de entrada), o reranqueador (71.043) e cada papel da squad (cerca de 45 mil), e uma imagem anexada nunca
+  chegava ao modelo. Depois da correção o classificador recebe 2.261 tokens. O script ao vivo não via isso porque embute o anexo no
+  texto (outro caminho), o que prova que só a tela pega esse tipo de defeito. Teste de regressão: `TestStructuredAttachmentsAreExtracted`.
+- A cota diária gratuita do Gemini (500 pedidos por dia para este modelo) esgotou antes de o Word corrigido terminar. O erro 429 traz
+  "retry in 21h14m"; a tela ficou em "Processando" por mais de 3 minutos sem a linha de espera do provedor e sem explicar o limite. É
+  pendência a tratar: um limite diário de horas não é limite de ritmo, e a pessoa precisa saber disso logo.
+- Achado de interface fora do chat: a tela de Configurações mostra "**Hermes Agent**" com asteriscos crus e um nome antigo do produto.

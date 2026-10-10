@@ -79,9 +79,9 @@
           "nota": "pergunta curta, fora do nicho e pedido vago ao vivo, com custo igual ao do Ollama"
         },
         "m2": {
-          "estado": "PARCIAL",
+          "estado": "PROVADO",
           "data": "2026-10-09",
-          "nota": "um cenário (página com erros do W3C): 148,7 mil tokens e 87 segundos, achados corretos"
+          "nota": "pela tela: auditoria da página com erros do W3C em 137 s e 127.556 tokens, 18 chamadas, achados corretos sem emoji nem tabela. Pelo script mais 3 cenários (pedido estreito, página acessível, URL inexistente). Pendências: a contagem de achados da resposta não bateu com a lista (disse 8 e listou 7) e a abertura 'Olha,' é casual para uma pergunta neutra"
         },
         "m3": {
           "estado": "PROVADO",
@@ -89,9 +89,9 @@
           "nota": "ZIP, pasta local com aprovação e componente anexado ao vivo; auditoria de projeto passa pelos especialistas e pela revisão sênior depois da verificação comum a todos os provedores (antes o Gemini auditava sozinho)"
         },
         "m4": {
-          "estado": "NÃO TESTADO",
-          "data": null,
-          "nota": ""
+          "estado": "PARCIAL",
+          "data": "2026-10-09",
+          "nota": "pela tela, o Word anexado expôs um defeito real (o anexo chegava como base64 cru ao classificador, ao reranqueador e à squad, 45 a 71 mil tokens de entrada cada), corrigido com teste de regressão. O Word corrigido foi reenviado pela tela, mas a cota diária gratuita do Gemini esgotou (429, volta em cerca de 21 horas) antes de terminar. Faltam pela tela: Word corrigido, PDF, Excel, PowerPoint, EPUB, imagem e arquivo corrompido"
         }
       },
       "cenarios": {

@@ -14,9 +14,9 @@ Legenda: PROVADO = testado ao vivo pela interface e documentado. PARCIAL = feito
 | Módulo | Ollama Cloud (Alto) | Gemini (Alto) | OpenAI | Anthropic | xAI (Grok) | Factory AI | OpenCode Go |
 |---|---|---|---|---|---|---|---|
 | 1 Conversa, triagem e roteamento | PROVADO (08/10) | PROVADO (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
-| 2 Auditoria de URL e especialistas | PROVADO (08/10) | PARCIAL (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
+| 2 Auditoria de URL e especialistas | PROVADO (08/10) | PROVADO (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
 | 3 Código, anexos, ZIP e projeto local | PROVADO (08/10) | PROVADO (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
-| 4 Documentos e imagens | PARCIAL (08/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
+| 4 Documentos e imagens | PARCIAL (08/10) | PARCIAL (09/10) | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO | NÃO TESTADO |
 <!-- PROTECOES:MATRIZ:FIM -->
 
 O Ollama Cloud está sem cota (limite semanal) desde 08/10, então depois das mudanças feitas em 09/10 ele só foi conferido por

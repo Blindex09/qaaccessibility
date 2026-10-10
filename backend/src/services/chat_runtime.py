@@ -638,6 +638,12 @@ async def _stream_chat_impl(
     # arquivo da conversa e reenviando o conteúdo em todo turno seguinte.
     texto_do_usuario = message
     message = _compor_mensagem_com_anexos(message, attachments)
+    if attachments:
+        # Os anexos estruturados (o caminho da tela) entram na mensagem depois da extração acima: sem este passo o arquivo
+        # chegava como base64 cru ao classificador, ao reranqueador e à squad (medido: 70 mil tokens de entrada em cada uma
+        # para um Word de 37 KB, contra 1 mil depois de extraído) e imagens anexadas nunca chegavam ao modelo.
+        message, attachment_images = extract_message_with_images(message)
+        images = list(images) + list(attachment_images)
     # Copia fiel do que o usuario anexou, para o corretor poder conferir contra
     # o que o modelo repassar depois (ver turn_attachments_store).
     turn_attachments_store.set_turn_attachments(attachments, session_id=conversation_id)

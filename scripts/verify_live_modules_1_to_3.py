@@ -49,6 +49,7 @@ def references(provider: str) -> dict:
     return {name: item for name, item in scenarios.items()}
 sys.path.insert(0, str(ROOT / "scripts"))
 import behavior_judge  # noqa: E402
+import live_document_fixtures as docs  # noqa: E402
 
 PICTOGRAPH = re.compile("[\U0001F000-\U0001FAFF☀-➿⭐⭕️‍]")
 
@@ -97,6 +98,27 @@ SCENARIOS = [
         {"no_pictographs": True, "no_tables": True, "must_call": ["analyze_page"], "no_repeat": True, "judge": "tone"},
     ),
     (
+        "m2-pedido-estreito",
+        "m2",
+        "Na página https://www.w3.org/WAI/demos/bad/before/home.html, olhe só o idioma e o texto alternativo das imagens. (verificação {n})",
+        106_000,
+        {"no_pictographs": True, "no_tables": True, "must_call": ["analyze_page"], "no_repeat": True, "judge": "tone"},
+    ),
+    (
+        "m2-pagina-acessivel",
+        "m2",
+        "Esta página está acessível? https://www.w3.org/WAI/demos/bad/after/home.html (verificação {n})",
+        174_000,
+        {"no_pictographs": True, "no_tables": True, "must_call": ["analyze_page"], "no_repeat": True, "judge": "tone"},
+    ),
+    (
+        "m2-url-inexistente",
+        "m2",
+        "Audite https://este-site-nao-existe-qa-9341.example/ por favor (verificação {n})",
+        20_000,
+        {"no_pictographs": True, "no_tables": True, "no_repeat": True, "judge": "tone"},
+    ),
+    (
         "m3-zip-anexado",
         "m3",
         "Mando aqui o pacote do site da loja. O que precisa mudar para ficar acessível, arquivo por arquivo? (verificação {n})\n\n"
@@ -111,6 +133,34 @@ SCENARIOS = [
         + zip_attachment(),
         298_000,
         {"no_pictographs": True, "no_tables": True, "must_call": ["analyze_page"], "no_repeat": True, "judge": "findings"},
+    ),
+    (
+        "m4-docx", "m4", "Este documento está acessível? O que precisa corrigir? (verificação {n})\n\n" + docs.attach("relatorio.docx", docs.docx_bytes()), 40_000,
+        {"no_pictographs": True, "no_tables": True, "no_repeat": True, "must_not_call": ["analyze_page", "analyze_site"], "judge": "findings", "expected": docs.EXPECTED["docx"]},
+    ),
+    (
+        "m4-pptx", "m4", "Este documento está acessível? O que precisa corrigir? (verificação {n})\n\n" + docs.attach("apresentacao.pptx", docs.pptx_bytes()), 40_000,
+        {"no_pictographs": True, "no_tables": True, "no_repeat": True, "must_not_call": ["analyze_page", "analyze_site"], "judge": "findings", "expected": docs.EXPECTED["pptx"]},
+    ),
+    (
+        "m4-epub", "m4", "Este documento está acessível? O que precisa corrigir? (verificação {n})\n\n" + docs.attach("livro.epub", docs.epub_bytes()), 40_000,
+        {"no_pictographs": True, "no_tables": True, "no_repeat": True, "must_not_call": ["analyze_page", "analyze_site"], "judge": "findings", "expected": docs.EXPECTED["epub"]},
+    ),
+    (
+        "m4-pdf", "m4", "Este documento está acessível? O que precisa corrigir? (verificação {n})\n\n" + docs.attach("relatorio.pdf", docs.pdf_bytes()), 80_000,
+        {"no_pictographs": True, "no_tables": True, "no_repeat": True, "must_call": ["analyze_document"], "judge": "findings", "expected": docs.EXPECTED["pdf"]},
+    ),
+    (
+        "m4-xlsx", "m4", "Este documento está acessível? O que precisa corrigir? (verificação {n})\n\n" + docs.attach("vendas.xlsx", docs.xlsx_bytes()), 80_000,
+        {"no_pictographs": True, "no_tables": True, "no_repeat": True, "must_call": ["analyze_document"], "judge": "findings", "expected": docs.EXPECTED["xlsx"]},
+    ),
+    (
+        "m4-imagem", "m4", "Esta imagem de banner está acessível? Que texto alternativo você sugere? (verificação {n})\n\n" + docs.attach("banner.png", docs.banner_png()), 20_000,
+        {"no_pictographs": True, "no_tables": True, "no_repeat": True, "must_not_call": ["analyze_page", "analyze_site"], "judge": "findings", "expected": docs.EXPECTED["imagem"]},
+    ),
+    (
+        "m4-arquivo-corrompido", "m4", "Veja se este documento está acessível (verificação {n})\n\n" + docs.attach("quebrado.docx", docs.corrupted_docx()), 10_000,
+        {"no_pictographs": True, "no_tables": True, "no_repeat": True, "must_not_call": ["analyze_page", "analyze_site"], "judge": "tone"},
     ),
 ]
 
@@ -189,7 +239,7 @@ def ollama_has_quota() -> tuple[bool, str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--only", choices=["m1", "m2", "m3"])
+    parser.add_argument("--only", choices=["m1", "m2", "m3", "m4"])
     parser.add_argument("--provider", default="ollama-cloud")
     parser.add_argument("--register", action="store_true")
     args = parser.parse_args()
@@ -261,7 +311,7 @@ def main() -> int:
                 if judge_info is None:
                     unchecked = " [tom/achados NÃO CONFERIDOS: sem juiz]"
                 else:
-                    expected = behavior_judge.KNOWN_DEFECTS if checks["judge"] == "findings" else None
+                    expected = (checks.get("expected") or behavior_judge.KNOWN_DEFECTS) if checks["judge"] == "findings" else None
                     try:
                         verdict = behavior_judge.judge(judge_info[1], re.sub(r"\s*\(verificação \d+\)", "", sent.split("=== ")[0]), result["text"], expected)
                         problems.extend(behavior_judge.problems_from(verdict, expected, (reference or {}).get("cobertura")))

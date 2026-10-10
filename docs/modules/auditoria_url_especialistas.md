@@ -122,7 +122,7 @@ Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem p
 `provedores/evidencias.json` por `scripts/update_protections.py` (não editar a mão):
 
 - Ollama Cloud (Alto): PROVADO em 08/10/2026. página com erros do W3C de 594 mil tokens e 28 minutos para cerca de 150 a 210 mil e 80 a 260 segundos. Ficha: `provedores/ollama-cloud.md`.
-- Gemini (Alto): PARCIAL em 09/10/2026. um cenário (página com erros do W3C): 148,7 mil tokens e 87 segundos, achados corretos. Ficha: `provedores/gemini.md`.
+- Gemini (Alto): PROVADO em 09/10/2026. pela tela: auditoria da página com erros do W3C em 137 s e 127.556 tokens, 18 chamadas, achados corretos sem emoji nem tabela. Pelo script mais 3 cenários (pedido estreito, página acessível, URL inexistente). Pendências: a contagem de achados da resposta não bateu com a lista (disse 8 e listou 7) e a abertura 'Olha,' é casual para uma pergunta neutra. Ficha: `provedores/gemini.md`.
 - OpenAI: NÃO TESTADO.
 - Anthropic: NÃO TESTADO.
 - xAI (Grok): NÃO TESTADO.
