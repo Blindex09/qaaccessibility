@@ -1987,3 +1987,110 @@ async def test_a_silent_provider_call_makes_the_person_see_the_wait(monkeypatch)
     waits = [ev for ev in events if ev["type"] == "waiting_provider"]
     assert waits and waits[0]["seconds"] >= 0
     assert events[-1]["type"] == "done"
+
+
+def test_prompt_makes_attached_audits_go_through_the_specialists_and_forbids_pretending():
+    """Regressão (e2e real 2026-10-09): o Gemini auditou o ZIP sozinho, mesmo com a pessoa pedindo especialistas e revisão
+    sênior, e não disse que eles não participaram. A regra antiga mandava "auditar imediatamente" sem citar a ferramenta, e o
+    comportamento dependia do modelo."""
+    from backend.src.services.chat_runtime import SYSTEM_PROMPT
+
+    assert "run the audit in this turn. Run it with `analyze_page`" in SYSTEM_PROMPT
+    assert "ONE call with every relevant file" in SYSTEM_PROMPT
+    assert "you MUST call the tool" in SYSTEM_PROMPT
+    assert "never say or imply that specialists" in SYSTEM_PROMPT
+    assert "Never state a number you did not measure" in SYSTEM_PROMPT
+    assert "ACTION DIRECTIVE FOR ATTACHED FILES" not in SYSTEM_PROMPT
+
+
+class TestAuditGate:
+    """Regressão (e2e real 2026-10-09): o Gemini auditou um ZIP sozinho e escreveu "com base na análise especializada" sem chamar
+    nenhuma ferramenta de análise. Se o classificador decidiu que é auditoria e o turno termina sem ferramenta de análise, a
+    primeira resposta não é mostrada e a análise é pedida uma vez, em qualquer provedor."""
+
+    @staticmethod
+    def _agent(script):
+        """`script`: lista de funções (callbacks, message) -> texto final, uma por chamada de run_conversation."""
+
+        class _Scripted:
+            calls: list[str] = []
+
+            def __init__(self, **kwargs):
+                self._cb = kwargs
+
+            def run_conversation(self, user_message, **_k):
+                type(self).calls.append(user_message)
+                final = script[len(type(self).calls) - 1](self._cb, user_message)
+                return {"final_response": final, "failed": False, "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15}}
+
+        return _Scripted
+
+    @staticmethod
+    async def _run(agent_class, intent, message="Audite este projeto"):
+        classification = AgentResult(agent="clarifier", success=True, data={"intent": intent, "squad_roles": [], "complexity": "low"})
+        with (
+            patch("backend.src.agents.clarifier.run_clarifier", new=AsyncMock(return_value=classification)),
+            patch("backend.src.services.chat_runtime.AIAgent", new=agent_class),
+        ):
+            return [event async for event in stream_chat(message, history=[])]
+
+    @staticmethod
+    def _text(events):
+        return "".join(event.get("text", "") for event in events if event["type"] == "token")
+
+    async def test_an_audit_answered_without_analysis_is_not_shown_and_the_analysis_is_requested_once(self):
+        def without_tool(cb, _message):
+            cb["stream_delta_callback"]("Com base na análise especializada, tudo certo.")
+            return "Com base na análise especializada, tudo certo."
+
+        def with_tool(cb, _message):
+            cb["tool_start_callback"]("t1", "analyze_page", {})
+            cb["tool_complete_callback"]("t1", "analyze_page", {}, "{}")
+            cb["stream_delta_callback"]("Achados dos especialistas.")
+            return "Achados dos especialistas."
+
+        agent = self._agent([without_tool, with_tool])
+        events = await self._run(agent, "analyze_code")
+        shown = self._text(events)
+        assert "Com base na análise especializada" not in shown  # a afirmação sem análise nunca chega à tela
+        assert "Achados dos especialistas." in shown
+        assert len(agent.calls) == 2
+        assert "classified as an accessibility audit" in agent.calls[1]
+        assert events[-1]["type"] == "done" and events[-1]["usage"]["total_tokens"] == 30  # o custo das duas rodadas conta
+
+    async def test_an_audit_that_calls_the_analysis_tool_runs_once_and_releases_the_preamble(self):
+        def with_tool(cb, _message):
+            cb["stream_delta_callback"]("Vou analisar. ")
+            cb["tool_start_callback"]("t1", "analyze_page", {})
+            cb["stream_delta_callback"]("Resultado final.")
+            return "Vou analisar. Resultado final."
+
+        agent = self._agent([with_tool])
+        events = await self._run(agent, "analyze_url")
+        assert len(agent.calls) == 1
+        assert self._text(events) == "Vou analisar. Resultado final."
+
+    async def test_a_question_that_is_not_an_audit_streams_immediately_and_is_never_checked(self):
+        def answer(cb, _message):
+            cb["stream_delta_callback"]("Contraste é a diferença entre cores.")
+            return "Contraste é a diferença entre cores."
+
+        agent = self._agent([answer])
+        events = await self._run(agent, "chat_a11y", "O que é contraste?")
+        assert len(agent.calls) == 1
+        assert self._text(events) == "Contraste é a diferença entre cores."
+
+    async def test_when_the_second_round_also_has_no_tool_the_check_stops_and_shows_the_models_own_disclosure(self):
+        def first(cb, _m):
+            cb["stream_delta_callback"]("Resposta direta.")
+            return "Resposta direta."
+
+        def second(cb, _m):
+            cb["stream_delta_callback"]("Word não tem especialista; os especialistas não foram usados.")
+            return "Word não tem especialista; os especialistas não foram usados."
+
+        agent = self._agent([first, second])
+        events = await self._run(agent, "analyze_code")
+        assert len(agent.calls) == 2  # uma verificação só, nunca um laço
+        assert "os especialistas não foram usados" in self._text(events)
+        assert "Resposta direta." not in self._text(events)

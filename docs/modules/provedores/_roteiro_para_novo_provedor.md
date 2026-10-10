@@ -26,6 +26,9 @@ custou retrabalho em um provedor.
    que só aparece em um provedor se corrige dentro do caminho daquele provedor em `run_agent.py`. Defeito em arquivo
    compartilhado exige a suíte completa e, havendo cota, o script ao vivo no Ollama Cloud.
 7. Cota ou limite de ritmo: parar no primeiro 429, registrar o ponto exato e não insistir.
+   Divergência de comportamento entre modelos (um segue a regra de um jeito, outro de outro): tratar pelas quatro camadas de
+   `docs/modules/contrato_de_comportamento.md` (regra clara, contrato observável no script, verificação do harness, ajuste só na
+   camada do provedor), nunca com texto ou ramo específico de modelo.
 
 ## Atualizar as proteções (por comando, nunca de memória)
 

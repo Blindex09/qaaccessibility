@@ -83,6 +83,22 @@ def _provider_state_put(conversation_id: str | None, provider: str, model: str, 
 # Constantes de intent do clarifier: fonte unica de verdade.
 # Se o clarifier mudar os valores, basta atualizar aqui.
 _INTENT_OUT_OF_SCOPE = "out_of_scope"
+
+# Verificação comum a todos os provedores (regra 1: a IA decide, o harness confere fatos). Se o classificador (IA) decidiu que o
+# pedido é uma auditoria e o turno terminou sem NENHUMA ferramenta de análise chamada, a resposta não passou pelos especialistas nem
+# pela revisão sênior. Caso real (e2e de 2026-10-09): o Gemini auditou um ZIP sozinho e escreveu "com base na análise especializada"
+# sem ter chamado nada, enquanto os modelos do Ollama chamavam a ferramenta. O texto do prompt reduz a chance, mas só a verificação
+# do fato garante o mesmo comportamento em qualquer modelo.
+_AUDIT_INTENTS = frozenset({"analyze_url", "analyze_code"})
+_ANALYSIS_TOOLS = frozenset({"analyze_page", "analyze_site", "analyze_document"})
+_AUDIT_GATE_NUDGE = (
+    "[SYSTEM] The request was classified as an accessibility audit, but your last answer was produced without running any analysis "
+    "tool (`analyze_page`, `analyze_site` or `analyze_document`). It was not shown to the person. Do it now: call `analyze_page` with the "
+    "attached content in `html` (ONE call for a project, each file preceded by a line `--- path ---`), or the analysis tool that fits "
+    "the material, so that the specialists, the deterministic checks and the senior review do the work. Only if no analysis tool applies "
+    "to this material (for example Word, PowerPoint or EPUB files, which have no specialist), answer directly and say plainly that the "
+    "specialists and the senior review were not used, and why. Never claim a review that did not happen."
+)
 _INTENT_NEEDS_CLARIFICATION = "needs_clarification"
 # Usada quando o clarifier classifica como ambíguo mas não devolve a pergunta.
 _DEFAULT_CLARIFY_QUESTION = (
@@ -137,7 +153,7 @@ SYSTEM_PROMPT = (
     "2. Speak the user's language (Portuguese if they write in Portuguese).\n"
     "3. Keep the response comfortable to read with assistive technology: never use emojis, decorative symbols or loose special characters, because screen readers read them aloud as noise.\n"
     "4. Keep private reasoning internal. Communicate only concise, observable progress and final conclusions.\n"
-    "5. ACTION DIRECTIVE FOR ATTACHED FILES: When the user attaches files (HTML, CSS, JS, DOCX, etc.) for accessibility analysis, DO NOT merely say you will analyze them later. Perform the complete, thorough accessibility audit of all attached files immediately in this turn, detailing WCAG 2.2 criterion violations, contrast issues, keyboard/focus gaps, missing accessible names/labels, and concrete remediation fixes.\n"
+    "5. ATTACHED FILES AND PROJECTS: When the user attaches files (HTML, CSS, JS, a ZIP project, etc.) for accessibility analysis, do not merely promise to analyze them later: run the audit in this turn. Run it with `analyze_page`, passing the content in `html` (for a project, ONE call with every relevant file, each one preceded by a line `--- path ---`), so that the specialists, the deterministic contrast check and the senior review do the work and their findings can feed the checklist, the spreadsheet and the fixes. Answering from your own reading alone is acceptable only for a tiny snippet or a conceptual question, and you must say so plainly. If the person asks for the specialists or for the senior review, you MUST call the tool, and you must never say or imply that specialists or a review took part when you did not call it. Never state a number you did not measure (a contrast ratio, a size, a count): take it from the tool result. Report the findings per file, with the WCAG 2.2 criterion, the severity and a concrete fix.\n"
     "6. Use the clearest format for the user and the interface, including Markdown, headings, lists, code blocks, or blank lines when they improve comprehension and accessibility. Avoid raw protocol markers, but do not suppress useful formatting. Never use tables (a screen reader reads them cell by cell and the interface does not render them), never write raw HTML tags or escaped characters outside a code block, and never list the same finding again under another severity: one finding appears once, with the severity the review gave it.\n"
     "6b. Only claim a check that the tool result actually reports. Never say a finding was verified in the accessibility tree, with a screen reader, in the rendered page or by any other method unless the result says so; the evidence field tells you what the code proves, nothing more.\n"
     "7. Use the user's language and normal spelling, including accents when the language requires them. "
@@ -799,19 +815,37 @@ async def _stream_chat_impl(
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
 
     token_filter = TokenFilter()
+    # Portão da auditoria: enquanto nenhuma ferramenta de análise foi chamada num turno de auditoria, o texto do modelo fica retido, para
+    # que uma resposta sem análise (e uma eventual afirmação falsa de que houve) nunca chegue à tela antes da verificação.
+    gate: dict[str, Any] = {"expected": intent in _AUDIT_INTENTS, "called": False, "held": []}
+    gate["holding"] = gate["expected"]
 
     def push(event: dict[str, Any] | None) -> None:
         loop.call_soon_threadsafe(queue.put_nowait, event)
 
     # Callbacks do AIAgent (disparam na thread worker) -> fila async.
+    def release_held() -> None:
+        gate["holding"] = False
+        held, gate["held"] = gate["held"], []
+        for piece in held:
+            filtered = token_filter.feed(piece)
+            if filtered:
+                push({"type": "token", "text": filtered})
+
     def on_token(text: Any) -> None:
         if text is None:
             return  # fim de um bloco de stream; o evento 'done' fecha o turno
+        if gate["holding"]:
+            gate["held"].append(str(text))
+            return
         filtered_text = token_filter.feed(str(text))
         if filtered_text:
             push({"type": "token", "text": filtered_text})
 
     def on_tool_start(tool_id: Any, name: Any = "", args: Any = None) -> None:
+        if str(name) in _ANALYSIS_TOOLS:
+            gate["called"] = True
+            release_held()
         push(
             {
                 "type": "tool_start",
@@ -998,6 +1032,22 @@ async def _stream_chat_impl(
                 },
             ) as span:
                 res = await asyncio.to_thread(agent.run_conversation, user_message=message)
+                if gate["expected"] and not gate["called"] and not res.get("failed"):
+                    # O turno de auditoria terminou sem análise: descarta o texto retido e pede a análise uma vez.
+                    logger.warning("[ChatRuntime] auditoria sem ferramenta de análise; pedindo a análise uma vez (intenção %s).", intent)
+                    gate["held"] = []
+                    gate["holding"] = False
+                    push({"type": "phase", "text": "Conferindo se a análise passou pelos especialistas..."})
+                    first_usage = res.get("usage") or {}
+                    res = await asyncio.to_thread(
+                        agent.run_conversation, user_message=f"{message}\n\n{_AUDIT_GATE_NUDGE}"
+                    )
+                    second_usage = res.get("usage") or {}
+                    if first_usage or second_usage:
+                        res["usage"] = {
+                            key: int(first_usage.get(key, 0)) + int(second_usage.get(key, 0))
+                            for key in set(first_usage) | set(second_usage)
+                        }
                 usage = res.get("usage") or {}
                 if span is not None and usage:
                     span.set_attribute("gen_ai.usage.input_tokens", int(usage.get("input_tokens", 0)))
@@ -1025,6 +1075,7 @@ async def _stream_chat_impl(
             friendly_err = format_human_friendly_error(str(exc))
             push({"type": "error", "error": friendly_err})
         finally:
+            release_held()  # o que ficou retido sem verificação a fazer (falha, ou intenção que não exigia análise) chega à tela
             push(None)  # sentinela de fim
 
     task = asyncio.create_task(_run())

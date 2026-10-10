@@ -4,6 +4,10 @@ Serve para uma pessoa (ou um agente) provar que uma correção feita depois não
 Roda pela mesma rota do navegador (`POST /chat/stream`) contra o backend em http://127.0.0.1:8001.
 
 Regras:
+- Contrato de comportamento, igual para todo provedor: além de custo, confere QUAIS FERRAMENTAS foram chamadas (fato objetivo do fluxo de
+  eventos). Pergunta conceitual não chama ferramenta de análise; auditoria de URL e de projeto anexado chama `analyze_page`; ZIP anexado
+  nunca chama a descompactação. Foi assim que o Gemini apareceu auditando um ZIP sozinho, sem especialistas, enquanto os modelos do
+  Ollama chamavam a ferramenta: o texto da regra dava margem, e o contrato torna a diferença visível em qualquer provedor.
 - Só confere FATOS: a resposta terminou, não veio erro, o custo ficou perto do medido (margem larga, porque o raciocínio dos
   modelos varia), não há emoji nem tabela na resposta, o ZIP foi extraído sem erro. Se a resposta é boa é julgamento, e fica
   para quem lê a saída.
@@ -71,7 +75,7 @@ def zip_attachment() -> str:
 
 # (id, módulo, mensagem, tokens medidos, o que mais conferir)
 SCENARIOS = [
-    ("m1-pergunta-curta", "m1", "Em duas frases, o que é o critério 1.4.3 do WCAG? (verificação {n})", 25_400, {}),
+    ("m1-pergunta-curta", "m1", "Em duas frases, o que é o critério 1.4.3 do WCAG? (verificação {n})", 25_400, {"must_not_call": ["analyze_page", "analyze_site", "run_deep_research"]}),
     ("m1-fora-do-nicho", "m1", "Pode me passar uma receita de bolo de cenoura? (verificação {n})", 2_300, {"max_calls": 2}),
     ("m1-pedido-vago", "m1", "analisa isso (verificação {n})", 2_300, {"max_calls": 2}),
     (
@@ -79,7 +83,7 @@ SCENARIOS = [
         "m2",
         "Quais problemas de acessibilidade tem nesta página? https://www.w3.org/WAI/demos/bad/before/home.html (verificação {n})",
         211_000,
-        {"no_pictographs": True, "no_tables": True},
+        {"no_pictographs": True, "no_tables": True, "must_call": ["analyze_page"]},
     ),
     (
         "m3-zip-anexado",
@@ -87,7 +91,15 @@ SCENARIOS = [
         "Mando aqui o pacote do site da loja. O que precisa mudar para ficar acessível, arquivo por arquivo? (verificação {n})\n\n"
         + zip_attachment(),
         298_000,
-        {"no_pictographs": True, "no_tables": True, "no_extraction_error": True},
+        {"no_pictographs": True, "no_tables": True, "no_extraction_error": True, "must_call": ["analyze_page"], "must_not_call": ["unzip_and_list_files"]},
+    ),
+    (
+        "m3-zip-pede-especialistas",
+        "m3",
+        "Faça a auditoria completa deste projeto com os especialistas de acessibilidade e a revisão sênior, e me traga os achados por arquivo. (verificação {n})\n\n"
+        + zip_attachment(),
+        298_000,
+        {"no_pictographs": True, "no_tables": True, "must_call": ["analyze_page"]},
     ),
 ]
 
@@ -120,7 +132,7 @@ def count_costs() -> int:
 def run_turn(message: str) -> dict:
     body = json.dumps({"message": message, "history": []}).encode()
     request = urllib.request.Request(BASE + "/chat/stream", data=body, headers={"Content-Type": "application/json"})
-    text, done, error, waits = [], False, None, 0
+    text, done, error, waits, tools = [], False, None, 0, []
     started = time.time()
     with urllib.request.urlopen(request, timeout=3600) as response:
         for raw in response:
@@ -134,6 +146,8 @@ def run_turn(message: str) -> dict:
             kind = event.get("type")
             if kind == "token":
                 text.append(event.get("text", ""))
+            elif kind == "tool_start":
+                tools.append(str(event.get("name")))
             elif kind == "waiting_provider":
                 waits += 1
             elif kind == "error":
@@ -142,7 +156,7 @@ def run_turn(message: str) -> dict:
                 done = True
                 if event.get("final") and not text:
                     text.append(event["final"])
-    return {"text": "".join(text), "done": done, "error": error, "waits": waits, "seconds": round(time.time() - started)}
+    return {"text": "".join(text), "done": done, "error": error, "waits": waits, "tools": tools, "seconds": round(time.time() - started)}
 
 
 def ollama_has_quota() -> tuple[bool, str]:
@@ -212,6 +226,12 @@ def main() -> int:
                     problems.append(f"custo {cost['total_tokens']} acima de {int(baseline * MARGIN)} (medido {baseline})")
                 if "max_calls" in checks and cost["calls"] > checks["max_calls"]:
                     problems.append(f"{cost['calls']} chamadas, esperado no máximo {checks['max_calls']}")
+            for needed in checks.get("must_call", []):
+                if needed not in result["tools"]:
+                    problems.append(f"não chamou {needed} (ferramentas chamadas: {sorted(set(result['tools'])) or 'nenhuma'})")
+            for forbidden in checks.get("must_not_call", []):
+                if forbidden in result["tools"]:
+                    problems.append(f"chamou {forbidden}, que não devia")
             if checks.get("no_pictographs") and PICTOGRAPH.search(result["text"]):
                 problems.append("a resposta tem emoji")
             if checks.get("no_tables") and re.search(r"^\s*\|.*\|\s*$", result["text"], re.M):
@@ -230,7 +250,7 @@ def main() -> int:
                 update_protections.save(data)
                 update_protections.render(data, write=True)
             calls = cost["calls"] if cost else "?"
-            print(f"[{status}] {name}: {tokens} tokens (referência {baseline or 'nenhuma ainda'}), {calls} chamadas, {result['seconds']}s, avisos de espera={result['waits']}")
+            print(f"[{status}] {name}: {tokens} tokens (referência {baseline or 'nenhuma ainda'}), {calls} chamadas, {result['seconds']}s, avisos de espera={result['waits']}, ferramentas={sorted(set(result['tools'])) or 'nenhuma'}")
             for problem in problems:
                 print(f"         - {problem}")
     finally:

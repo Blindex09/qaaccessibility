@@ -100,6 +100,16 @@ tabela sem cabeçalhos, foco removido pelo CSS e contraste baixo. Todos aparecer
     pedaços recebeu, quantos caracteres e o final do texto, para que a causa de uma nova ocorrência fique provada em
     vez de adivinhada. A regra de buscar a causa raiz entrou no CLAUDE.md (regra 17) por causa deste caso.
 
+10. Descoberto no teste com o Gemini (09/10/2026): a regra 5 do prompt mandava "auditar imediatamente neste turno" sem citar a
+    ferramenta, e cada modelo a lia de um jeito. Os modelos do Ollama chamavam `analyze_page`; o Gemini auditava sozinho, sem
+    especialistas nem revisão sênior, errou um número de contraste e, quando a pessoa pediu os especialistas, escreveu "com base na
+    análise especializada" sem ter chamado nenhuma ferramenta. A regra agora diz qual ferramenta usar, proíbe insinuar especialistas
+    que não rodaram e proíbe número não medido, e há uma verificação comum a todos os provedores: se o classificador decidiu que é
+    auditoria e o turno termina sem ferramenta de análise, a resposta é retida, a análise é pedida uma vez e só então o modelo diz,
+    se for o caso, que os especialistas não foram usados. Detalhes e as quatro camadas em `contrato_de_comportamento.md`. Ao vivo
+    no Gemini: 10 de 10 defeitos conhecidos e o contraste certo. NÃO foi visto ao vivo no Ollama Cloud depois da mudança (cota
+    esgotada); os testes automáticos cobrem a lógica e o script ao vivo passa a conferir as ferramentas chamadas em qualquer provedor.
+
 ## Testes e verificação
 
 - Testes novos: extração do ZIP anexado, aviso de extração parcial, ZIP corrompido sem derrubar o turno, resumo
@@ -138,7 +148,7 @@ Este módulo vale para todos os provedores (todas as regras do CLAUDE.md valem p
 `provedores/evidencias.json` por `scripts/update_protections.py` (não editar a mão):
 
 - Ollama Cloud (Alto): PROVADO em 08/10/2026. ZIP extraído pelo sistema, projeto local com aprovação, bloco de código com botão de copiar. Ficha: `provedores/ollama-cloud.md`.
-- Gemini (Alto): PROVADO em 09/10/2026. ZIP, pasta local com aprovação e componente anexado ao vivo, com bloco de código e botão de copiar; ressalvas: um defeito conhecido não apontado (página sem título) e sem revisão sênior (o modelo analisou sem especialistas). Ficha: `provedores/gemini.md`.
+- Gemini (Alto): PROVADO em 09/10/2026. ZIP, pasta local com aprovação e componente anexado ao vivo; auditoria de projeto passa pelos especialistas e pela revisão sênior depois da verificação comum a todos os provedores (antes o Gemini auditava sozinho). Ficha: `provedores/gemini.md`.
 - OpenAI: NÃO TESTADO.
 - Anthropic: NÃO TESTADO.
 - xAI (Grok): NÃO TESTADO.

@@ -46,10 +46,17 @@ Módulo 4 (documentos e imagens). Imagem anexada (o Gemini aceita imagem, não v
 5. Chave bloqueada por vazamento: erro 403 "Your API key was reported as leaked". Agora a mensagem mostra o que o provedor disse.
    Uma chave que passou pelo chat ou por um repositório público deve ser trocada.
 6. O alias `gemini-flash-latest` respondeu 503 de alta demanda em uma chamada direta (transitório).
-7. Módulo 3: em um projeto pequeno o Gemini decide analisar direto no chat, sem convocar especialistas (52 mil tokens contra 160 a
-   400 mil no Ollama). É mais barato, mas sem revisão sênior ele deixou passar a página sem `<title>` e, no componente, não avisou
-   que um `<h3>` dentro de um `<button>` é HTML inválido (o Ollama avisou). Quem decide convocar especialistas é a IA, e esta
-   diferença de rigor entre modelos fica registrada como observação, não como defeito do produto.
+7. Módulo 3, auditoria de projeto anexado sem especialistas. O Gemini auditava o ZIP sozinho (52 mil tokens), deixou passar a página
+   sem `<title>`, errou um número de contraste (disse 1,45:1; o correto é 2,3:1) e, mesmo quando a pessoa pediu especialistas e
+   revisão sênior, respondeu "com base na análise especializada" sem ter chamado nenhuma ferramenta. Causa provada: a regra 5 do
+   prompt mandava "auditar imediatamente neste turno" sem citar a ferramenta, e os modelos do Ollama chamavam `analyze_page` por
+   conta própria. Correções, iguais para todo provedor: (a) a regra 5 agora manda usar `analyze_page` (uma chamada para o projeto,
+   com `--- caminho ---` antes de cada arquivo), proíbe dizer ou insinuar que houve especialistas sem chamar a ferramenta e proíbe
+   número não medido; (b) verificação do harness: se o classificador decidiu que é auditoria e o turno termina sem ferramenta de
+   análise, a resposta é retida, a análise é pedida uma vez, e só se nenhuma ferramenta servir (Word, PowerPoint, EPUB) o modelo
+   diz com clareza que os especialistas não foram usados. Resultado ao vivo depois das correções: 10 de 10 defeitos conhecidos,
+   contraste certo, 121.305 tokens, 20 chamadas, 117 s no pedido comum, e 136.642 tokens no pedido explícito de especialistas.
+8. O Gemini às vezes responde com formatação crua (títulos e negrito); a tela remove a marcação, o texto bruto do fluxo não.
 
 ## Como repetir e conferir
 
@@ -70,7 +77,7 @@ Estado por módulo (gerado de `evidencias.json` por `scripts/update_protections.
 |---|---|---|---|
 | 1 Conversa, triagem e roteamento | PROVADO | 09/10/2026 | pergunta curta, fora do nicho e pedido vago ao vivo, com custo igual ao do Ollama |
 | 2 Auditoria de URL e especialistas | PARCIAL | 09/10/2026 | um cenário (página com erros do W3C): 148,7 mil tokens e 87 segundos, achados corretos |
-| 3 Código, anexos, ZIP e projeto local | PROVADO | 09/10/2026 | ZIP, pasta local com aprovação e componente anexado ao vivo, com bloco de código e botão de copiar; ressalvas: um defeito conhecido não apontado (página sem título) e sem revisão sênior (o modelo analisou sem especialistas) |
+| 3 Código, anexos, ZIP e projeto local | PROVADO | 09/10/2026 | ZIP, pasta local com aprovação e componente anexado ao vivo; auditoria de projeto passa pelos especialistas e pela revisão sênior depois da verificação comum a todos os provedores (antes o Gemini auditava sozinho) |
 | 4 Documentos e imagens | NÃO TESTADO | - | - |
 
 Números de referência dos cenários ao vivo (base do script `verify_live_modules_1_to_3.py` para este provedor):
@@ -79,9 +86,10 @@ Números de referência dos cenários ao vivo (base do script `verify_live_modul
 - m1-fora-do-nicho: 1797 tokens (medido em 09/10/2026)
 - m1-pedido-vago: 1740 tokens (medido em 09/10/2026)
 - m2-url-com-erros: 148683 tokens (medido em 09/10/2026)
-- m3-zip-anexado: 35463 tokens (medido em 09/10/2026)
+- m3-zip-anexado: 121305 tokens (medido em 09/10/2026)
 - m3-projeto-local: 36843 tokens (medido em 09/10/2026)
 - m3-componente-anexado: 26228 tokens (medido em 09/10/2026)
+- m3-zip-pede-especialistas: 136642 tokens (medido em 09/10/2026)
 
 Contrato real gravado: `tests/backend/fixtures/providers/gemini/contract.json`.
 <!-- PROTECOES:ESTADO:FIM -->

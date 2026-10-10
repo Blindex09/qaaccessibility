@@ -86,7 +86,7 @@
         "m3": {
           "estado": "PROVADO",
           "data": "2026-10-09",
-          "nota": "ZIP, pasta local com aprovação e componente anexado ao vivo, com bloco de código e botão de copiar; ressalvas: um defeito conhecido não apontado (página sem título) e sem revisão sênior (o modelo analisou sem especialistas)"
+          "nota": "ZIP, pasta local com aprovação e componente anexado ao vivo; auditoria de projeto passa pelos especialistas e pela revisão sênior depois da verificação comum a todos os provedores (antes o Gemini auditava sozinho)"
         },
         "m4": {
           "estado": "NÃO TESTADO",
@@ -112,7 +112,7 @@
           "data": "2026-10-09"
         },
         "m3-zip-anexado": {
-          "tokens": 35463,
+          "tokens": 121305,
           "data": "2026-10-09"
         },
         "m3-projeto-local": {
@@ -121,6 +121,10 @@
         },
         "m3-componente-anexado": {
           "tokens": 26228,
+          "data": "2026-10-09"
+        },
+        "m3-zip-pede-especialistas": {
+          "tokens": 136642,
           "data": "2026-10-09"
         }
       }
