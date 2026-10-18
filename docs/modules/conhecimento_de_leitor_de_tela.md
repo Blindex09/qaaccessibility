@@ -95,3 +95,27 @@ Ao ligar as referências ao índice do chat, o teste de economia do índice (tes
 - Afirmações marcadas nas próprias referências como não confirmadas: list-style none no VoiceOver, chaves de lista por índice no React, foco após remover um elemento, e o efeito do aria-haspopup em navegação por links (inferência da definição, não critério).
 - A fala exata de cada leitor continua pendente de verificação manual com o leitor real; a árvore de acessibilidade do navegador é um substituto, não o leitor.
 - Nada foi commitado.
+
+## Quarta rodada (2026-10-18): foco, títulos, listas, tabelas e navegação
+
+Nova referência: backend/src/resources/leitor_de_tela_estrutura_foco_e_navegacao.md, no corpus do chat e em fatias de seis especialistas (screen_reader, tables_data, wcag_semantics, operability, css_analyzer, interaction_pattern). Teste: tests/backend/unit/shared/test_conhecimento_estrutura_foco_navegacao.py.
+
+O que ela entrega, com a fonte de cada ponto dentro do próprio documento: ordem de foco e de leitura (2.4.3, 1.3.2, tabindex, order do flex, reading-flow), hierarquia de títulos, listas (inclusive list-style none no Safari), marcação e fala de tabelas, grade e teclado, e as teclas de navegação por tipo e por tabela no NVDA, JAWS e VoiceOver.
+
+Medido: o custo somado das fatias subiu de cerca de 126 mil para cerca de 146 mil caracteres (limite do teste atualizado para 155 mil). Suíte unitária: 2260 passaram; 1 falhou, test_run_conversation_formats_429_friendly_error, que é do trabalho antigo e não commitado em error_formatter (não é desta rodada).
+
+Não confirmado: teclas de tabela do JAWS na página oficial, VO com Command e setas em tabela, suporte de dl por leitor, e se o reading-flow é respeitado na fala. O portão da regra 15 (conjunto amplo ao vivo, ablação e período de observação) continua pendente.
+
+## Auditoria da interface web (2026-10-18)
+
+Método: teste com o axe-core sobre o chat populado (turno com atividade da squad, ferramenta, resposta com bloco de código) e testes de papel, rótulo e estado. Arquivos: web/src/screens/__tests__/ChatScreen.axe.test.tsx e Paineis.axe.test.tsx.
+
+Defeitos reais achados e corrigidos:
+- Itens do feed de andamento tinham role listitem sem um list como pai (violação aria-required-parent do axe). O contêiner agora tem role list.
+- aria-label em div sem papel (balões de mensagem, cartão de ferramenta, feed): o rótulo não é exposto de forma confiável. Agora têm role group ou list. Os balões ganharam nome curto (Mensagem de Você, Resposta do assistente) em vez de repetir a mensagem inteira, que seria lida duas vezes; o texto da mensagem continua sendo o conteúdo.
+- Nome visível fora do nome acessível (2.5.3): Salvar e Continuar, Anexos adicionados e os dois botões do preview (Corrigido, Original) e o link de nova aba.
+- Estado dito duas vezes: o botão de anexos trocava o rótulo e também tinha aria-expanded. O rótulo agora é fixo.
+- aria-selected em botão (barra lateral e histórico), que não existe nesse papel; ficou aria-current na barra lateral e o rótulo "Conversa atual" no histórico.
+- O alternador Corrigido e Original era tablist sem painéis nem setas; virou grupo de botões com aria-pressed.
+
+Não alterado, por falta de prova com leitor real: aria-busy no bloco do turno e no cartão de ferramenta (a referência diz que o leitor pode esconder a região ocupada, mas o MDN usa "pode"); a tela de carregamento das Configurações cria a região de status já com texto.

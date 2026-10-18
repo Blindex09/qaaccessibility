@@ -50,6 +50,7 @@ _CORPUS_FILES = (
     "leitor_de_tela_dinamico_js_react.md",
     "leitor_de_tela_css_e_modos.md",
     "leitor_de_tela_acoes_teclas_e_eventos.md",
+    "leitor_de_tela_estrutura_foco_e_navegacao.md",
     "acessibilidade_frameworks_e_componentes.md",
     "acessibilidade_mobile_documentos_e_midia.md",
     "acessibilidade_cognitiva_conformidade_e_metodologia.md",

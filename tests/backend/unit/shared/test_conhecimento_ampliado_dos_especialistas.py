@@ -124,7 +124,7 @@ class TestSpecialistSlices:
 
     def test_total_cost_of_all_slices_is_measured_and_bounded(self):
         total = sum(len(sk.specialist_knowledge(agent)) for agent in sk.SLICES)
-        assert total < 140_000  # medido em 2026-10-17: cerca de 126 mil caracteres para os 28 especialistas
+        assert total < 155_000  # medido em 2026-10-18: cerca de 146 mil caracteres para os 28 especialistas (126 mil em 2026-10-17, antes da quarta rodada)
 
     def test_unknown_specialist_fails_loudly(self):
         with pytest.raises(KeyError):

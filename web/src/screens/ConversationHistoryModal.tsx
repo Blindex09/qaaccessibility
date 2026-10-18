@@ -257,7 +257,6 @@ export function ConversationHistoryModal({
                   }}
                   accessibilityRole="button"
                   accessibilityLabel={`${isCurrent ? "Conversa atual: " : "Abrir conversa: "}${label}`}
-                  accessibilityState={{ selected: isCurrent }}
                   style={[styles.item, isCurrent && styles.itemActive]}
                 >
                   <Text style={styles.itemTitle} numberOfLines={1}>

@@ -44,7 +44,7 @@ function ToolCallCard({ toolCall, messageIndex }: { toolCall: ToolCallData; mess
       style={styles.toolRegion}
       aria-busy={isRunning}
       {...(Platform.OS === "web"
-        ? { dataSet: { messageIndex: String(messageIndex) }, tabIndex: 0, "aria-label": `Status da ferramenta: ${statusLabel}` }
+        ? { dataSet: { messageIndex: String(messageIndex) }, tabIndex: 0, role: "group", "aria-label": `Status da ferramenta: ${statusLabel}` }
         : {})}
     >
       <View style={styles.toolHeader}>
@@ -57,7 +57,7 @@ function ToolCallCard({ toolCall, messageIndex }: { toolCall: ToolCallData; mess
         <View
           style={styles.toolLogContainer}
           {...(Platform.OS === "web"
-            ? { dataSet: { toolLog: "active" }, tabIndex: 0, "aria-label": `Atualizações: ${getToolLabel(toolCall.name)}` }
+            ? { dataSet: { toolLog: "active" }, tabIndex: 0, role: "group", "aria-label": `Atualizações: ${getToolLabel(toolCall.name)}` }
             : {})}
         >
           {toolCall.logs?.length ? toolCall.logs.map((line, idx) => (
@@ -146,7 +146,7 @@ function ActivityFeed({
       style={styles.squadFeed}
       accessibilityRole={Platform.OS === "web" ? undefined : "list"}
       {...(Platform.OS === "web"
-          ? { "aria-label": `${label}. Use as setas para navegar entre as atualizações.` }
+          ? { role: "list", "aria-label": `${label}. Use as setas para navegar entre as atualizações.` }
         : {})}
     >
       {showTitle && <Text style={styles.squadFeedTitle}>{label}</Text>}
@@ -1057,7 +1057,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                 <View
                   style={[styles.bubble, styles.userBubble]}
                   {...(Platform.OS === "web"
-                    ? { dataSet: { messageIndex: String(messageIndex++) }, tabIndex: 0, "aria-label": `Mensagem de Você: ${turn.user.content}` }
+                    ? { dataSet: { messageIndex: String(messageIndex++) }, tabIndex: 0, role: "group", "aria-label": "Mensagem de Você" }
                     : {})}
                 >
                   {Platform.OS === "web" ? (
@@ -1156,7 +1156,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                   <View
                     style={[styles.bubble, styles.assistantBubble]}
                     {...(Platform.OS === "web"
-                      ? { dataSet: { messageIndex: String(messageIndex++) }, tabIndex: 0, "aria-label": `Resposta do Assistente: ${cleanAssistantMarkup(turn.assistant?.content || "")}` }
+                      ? { dataSet: { messageIndex: String(messageIndex++) }, tabIndex: 0, role: "group", "aria-label": "Resposta do assistente" }
                       : {})}
                   >
                     {Platform.OS === "web" ? (
@@ -1228,17 +1228,11 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
             onPress={() => setAttachmentsExpanded(!attachmentsExpanded)}
             style={[styles.choiceBtn, { alignSelf: "flex-start", marginBottom: attachmentsExpanded ? 8 : 0 }]}
             accessibilityRole="button"
-            accessibilityLabel={
-              attachmentsExpanded
-                ? `Ocultar anexos (${attachments.length} arquivos)`
-                : `Ver anexos (${attachments.length} arquivos)`
-            }
+            accessibilityLabel={`Anexos adicionados (${attachments.length} arquivos)`}
             accessibilityState={{ expanded: attachmentsExpanded }}
           >
             <Text style={styles.choiceText}>
-              {attachmentsExpanded
-                ? `- Ocultar anexos (${attachments.length} arquivos)`
-                : `+ Anexos adicionados (${attachments.length} arquivos)`}
+              {`${attachmentsExpanded ? "−" : "+"} Anexos adicionados (${attachments.length} arquivos)`}
             </Text>
           </TouchableOpacity>
 
@@ -1405,7 +1399,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                 onPress={handleSaveKey}
                 disabled={keyModalSaving || !keyModalValue.trim()}
                 accessibilityRole="button"
-                accessibilityLabel="Salvar chave e continuar execução da IA"
+                accessibilityLabel="Salvar e Continuar, a chave será usada para continuar a execução da IA"
                 style={[
                   styles.modalSaveBtn,
                   (!keyModalValue.trim() || keyModalSaving) && styles.sendBtnDisabled,

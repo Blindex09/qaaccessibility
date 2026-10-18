@@ -137,7 +137,7 @@ describe("ChatScreen — live regions persistentes", () => {
     "Avalie a acessibilidade de https://example.com/ e compare com https://example.org/.",
   ])("texto antes de links é exibido uma vez: %s", (text) => {
     sendMessage(text);
-    const userBubble = host.querySelector('[aria-label^="Mensagem de Você:"]');
+    const userBubble = host.querySelector('[aria-label="Mensagem de Você"]');
     expect(userBubble?.textContent?.split("Avalie a acessibilidade de")).toHaveLength(2);
     expect(userBubble?.querySelectorAll("a").length).toBe(text.includes("compare") ? 2 : 1);
   });
@@ -267,10 +267,10 @@ describe("ChatScreen — live regions persistentes", () => {
     expect(host.textContent).not.toContain("###");
     expect(host.textContent).not.toContain("***");
     expect(host.textContent).not.toContain("`");
-    const reply = host.querySelector('[aria-label^="Resposta do Assistente:"]');
-    expect(reply?.getAttribute("aria-label")).toContain("Importante: texto");
-    expect(reply?.getAttribute("aria-label")).not.toContain("###");
-    expect(reply?.getAttribute("aria-label")).not.toContain("***");
+    const reply = host.querySelector('[role="group"][aria-label="Resposta do assistente"]');
+    expect(reply?.textContent).toContain("Importante: texto");
+    expect(reply?.textContent).not.toContain("###");
+    expect(reply?.textContent).not.toContain("***");
   });
 
   test("o andamento da squad fica navegável pelas setas, sem anúncio automático", () => {

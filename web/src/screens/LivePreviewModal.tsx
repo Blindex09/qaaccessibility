@@ -76,14 +76,14 @@ export function LivePreviewModal({ sessionId, totalPages }: Props) {
               Live Preview Acessível
             </Text>
 
-            {/* Alternador de Modo (Before / After) — padrão tablist para leitores de tela */}
-            <View style={styles.toggleGroup} accessibilityRole="tablist" aria-label="Modo de visualização">
+            {/* Alternador de modo: dois botões de alternância (aria-pressed). Não é tablist:
+                não há painéis nem setas, e o padrão de abas promete as duas coisas. */}
+            <View style={styles.toggleGroup} role="group" aria-label="Modo de visualização">
               <TouchableOpacity
                 onPress={() => setMode("fixed")}
-                accessibilityRole="tab"
-                accessibilityLabel="Mostrar visualização corrigida pela IA"
-                accessibilityState={{ selected: mode === "fixed" }}
-                aria-selected={mode === "fixed"}
+                accessibilityRole="button"
+                accessibilityLabel="Corrigido (IA)"
+                aria-pressed={mode === "fixed"}
                 style={[styles.toggleBtn, mode === "fixed" && styles.toggleActive]}
               >
                 <Text style={[styles.toggleText, mode === "fixed" && styles.toggleActiveText]}>
@@ -93,10 +93,9 @@ export function LivePreviewModal({ sessionId, totalPages }: Props) {
 
               <TouchableOpacity
                 onPress={() => setMode("original")}
-                accessibilityRole="tab"
-                accessibilityLabel="Mostrar versão original com falhas"
-                accessibilityState={{ selected: mode === "original" }}
-                aria-selected={mode === "original"}
+                accessibilityRole="button"
+                accessibilityLabel="Original (Com Falhas)"
+                aria-pressed={mode === "original"}
                 style={[styles.toggleBtn, mode === "original" && styles.toggleActiveDanger]}
               >
                 <Text style={[styles.toggleText, mode === "original" && styles.toggleActiveText]}>
@@ -146,7 +145,6 @@ export function LivePreviewModal({ sessionId, totalPages }: Props) {
                 href: previewUrl,
                 target: "_blank",
                 rel: "noopener noreferrer",
-                "aria-label": "Abrir a visualização em uma nova aba",
                 style: {
                   paddingHorizontal: 12,
                   paddingVertical: 8,
@@ -157,7 +155,7 @@ export function LivePreviewModal({ sessionId, totalPages }: Props) {
                   fontSize: 13,
                 },
               },
-              "Abrir conteúdo em nova aba",
+              "Abrir conteúdo em nova aba (abre em outra aba)",
             )}
           {Platform.OS === "web" ? (
             React.createElement("iframe", {

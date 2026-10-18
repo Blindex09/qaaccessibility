@@ -21,8 +21,9 @@ ACTIONS = "leitor_de_tela_acoes_teclas_e_eventos.md"
 FRAMEWORKS = "acessibilidade_frameworks_e_componentes.md"
 MOBILE_DOCS = "acessibilidade_mobile_documentos_e_midia.md"
 COGNITIVE = "acessibilidade_cognitiva_conformidade_e_metodologia.md"
+STRUCTURE = "leitor_de_tela_estrutura_foco_e_navegacao.md"
 
-SOURCE_FILES = (HTML, ARIA, DYNAMIC, CSS, ACTIONS, FRAMEWORKS, MOBILE_DOCS, COGNITIVE)
+SOURCE_FILES = (HTML, ARIA, DYNAMIC, CSS, ACTIONS, FRAMEWORKS, MOBILE_DOCS, COGNITIVE, STRUCTURE)
 
 _HEADER = (
     "SOURCED REFERENCE FOR THIS SPECIALIST (official documentation, written in Portuguese; answer in the language "
@@ -32,18 +33,18 @@ _HEADER = (
 
 # agent -> (character cap, [(document, heading prefix), ...])
 SLICES: dict[str, tuple[int, list[tuple[str, str]]]] = {
-    "screen_reader": (7000, [(HTML, "Como usar"), (HTML, "Estrutura de cab"), (HTML, "Links e bot"), (HTML, "Campos de formul"), (HTML, "Tabelas"), (HTML, "Imagens"), (HTML, "Áreas de página")]),
+    "screen_reader": (9500, [(HTML, "Como usar"), (HTML, "Estrutura de cab"), (HTML, "Links e bot"), (HTML, "Campos de formul"), (HTML, "Tabelas"), (HTML, "Imagens"), (HTML, "Áreas de página"), (STRUCTURE, "Títulos e hierarquia"), (STRUCTURE, "Navegação tabular")]),
     "aria_specialist": (6500, [(ARIA, "Princípios"), (ACTIONS, "O que é anunciado quando um estado muda")]),
     "forms_a11y": (7000, [(HTML, "Campos de formul"), (ARIA, "Casos de estado de formul"), (ACTIONS, "Atributos HTML"), (DYNAMIC, "Formulários e valida")]),
     "ajax_dynamic": (7000, [(DYNAMIC, "Como o leitor de tela percebe"), (DYNAMIC, "Foco"), (ACTIONS, "AJAX e conteúdo")]),
-    "operability": (6500, [(ACTIONS, "Ativar um elemento"), (DYNAMIC, "Foco"), (ACTIONS, "Modos de leitura")]),
+    "operability": (9500, [(ACTIONS, "Ativar um elemento"), (DYNAMIC, "Foco"), (ACTIONS, "Modos de leitura"), (STRUCTURE, "Ordem de foco")]),
     "widgets_a11y": (7000, [(ARIA, "Diálogo"), (ARIA, "Abas"), (ARIA, "Acordeão"), (ARIA, "Menu de aplicativo"), (ARIA, "Combobox")]),
     "component_contracts": (6000, [(ARIA, "Diálogo"), (ARIA, "Abas"), (ARIA, "Acordeão"), (ARIA, "Dicas")]),
-    "interaction_pattern": (6000, [(ARIA, "Combobox"), (ARIA, "Menu de aplicativo"), (ARIA, "Controles básicos"), (ARIA, "Tabela e grade")]),
-    "tables_data": (5000, [(HTML, "Tabelas"), (ARIA, "Tabela e grade")]),
+    "interaction_pattern": (7500, [(ARIA, "Combobox"), (ARIA, "Menu de aplicativo"), (ARIA, "Controles básicos"), (ARIA, "Tabela e grade"), (STRUCTURE, "Grade (grid)")]),
+    "tables_data": (9000, [(HTML, "Tabelas"), (ARIA, "Tabela e grade"), (STRUCTURE, "Tabelas: marcação"), (STRUCTURE, "Grade (grid)")]),
     "link_checker": (4000, [(HTML, "Links e bot")]),
-    "wcag_semantics": (6000, [(HTML, "Estrutura de cab"), (HTML, "Áreas de página"), (HTML, "Texto em linha")]),
-    "css_analyzer": (6500, [(CSS, "Efeitos do CSS")]),
+    "wcag_semantics": (9500, [(HTML, "Estrutura de cab"), (HTML, "Áreas de página"), (HTML, "Texto em linha"), (STRUCTURE, "Títulos e hierarquia"), (STRUCTURE, "Listas")]),
+    "css_analyzer": (8500, [(CSS, "Efeitos do CSS"), (STRUCTURE, "Ordem de foco")]),
     "perceiver": (5500, [(HTML, "Imagens"), (HTML, "Mídia"), (MOBILE_DOCS, "Mídia")]),
     "mobile_a11y": (7500, [(MOBILE_DOCS, "Mobile na web")]),
     "pdf_accessibility": (7000, [(MOBILE_DOCS, "PDF")]),
