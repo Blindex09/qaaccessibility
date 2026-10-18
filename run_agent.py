@@ -364,7 +364,7 @@ def run_local_tool(
         )
     try:
         check_execution()
-        with agent_span("agent.tool", {"gen_ai.tool.name": name}):
+        with agent_span(f"execute_tool {name}", {"gen_ai.operation.name": "execute_tool", "gen_ai.tool.name": name}):
             res = handler(clean_args, approval_callback) if needs_callback else handler(clean_args)
         if not isinstance(res, str):
             res = json.dumps(res, ensure_ascii=False)

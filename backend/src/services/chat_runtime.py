@@ -1047,9 +1047,11 @@ async def _stream_chat_impl(
     async def _run() -> None:
         try:
             with agent_span(
-                "agent.chat_turn",
+                "invoke_agent qaaccessibility",
                 {
-                    "gen_ai.system": provider,
+                    "gen_ai.operation.name": "invoke_agent",
+                    "gen_ai.agent.name": "qaaccessibility",
+                    "gen_ai.provider.name": provider,
                     "gen_ai.request.model": model,
                     "conversation.id": conversation_id or "",
                 },

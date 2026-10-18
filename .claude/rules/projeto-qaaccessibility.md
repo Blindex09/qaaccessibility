@@ -153,6 +153,8 @@ Mudança: o SYSTEM_PROMPT do chat ganhou as regras 21 (narração durante o trab
 Testes que rodaram: tests/backend/unit/services/test_prompt_regras_de_comportamento.py (numeração única, referências existentes, conteúdo das duas regras) e a suíte unitária do backend.
 Portão NÃO cumprido: conjunto amplo de avaliações ao vivo em tentativas repetidas, ablação (ligar e desligar as duas regras e comparar a taxa) e período de observação. Motivo: não há chave de provedor no ambiente desta sessão e a cota do Ollama Cloud estava esgotada. A mudança entra por ordem do dono e fica marcada como pendente de avaliação; se a taxa dos fluxos de narração ou de custo piorar ao voltar a rodar ao vivo, desfazer.
 
+Segunda mudança de instrução do dia (2026-10-18): o prompt do especialista de formulários ganhou a orientação "não reportar marcador visual de obrigatório quando já há required ou aria-required", que antes era imposta por um filtro de expressões regulares no código (removido, regra 2). Mesmo portão da mudança anterior: o conjunto amplo ao vivo, a ablação e a observação continuam pendentes; os testes unitários provam só que o código não descarta mais achados e que o prompt traz as duas orientações.
+
 ### Nicho (regra 5)
 
 Acessibilidade digital. Um pedido fora dela é recusado com educação, como descreve a regra 5.

@@ -79,9 +79,15 @@ async def get_task_status_endpoint(task_id: str) -> dict[str, Any]:
 @router.post("/a2a/v1/tasks/{task_id}:cancel", operation_id="cancel_task_endpoint_colon")
 async def cancel_task_endpoint(task_id: str) -> dict[str, Any]:
     """
-    Cancela graciosamente uma tarefa A2A em andamento.
+    Cancela uma tarefa A2A em andamento (A2A 1.0): para o trabalho de verdade; tarefa inexistente
+    devolve 404 (TaskNotFoundError) e tarefa em estado terminal devolve 409 (TaskNotCancelableError).
     """
-    return cancel_a2a_task(task_id)
+    result = cancel_a2a_task(task_id)
+    if result.get("error") == "TaskNotFoundError":
+        raise HTTPException(status_code=404, detail=result["message"])
+    if result.get("error") == "TaskNotCancelableError":
+        raise HTTPException(status_code=409, detail=result["message"])
+    return result
 
 
 @router.get("/a2a/v1/tasks/{task_id}/subscribe")

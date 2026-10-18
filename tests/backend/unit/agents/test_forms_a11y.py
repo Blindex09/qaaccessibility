@@ -46,46 +46,30 @@ FORMS_ISSUE = make_issue(
 
 @pytest.mark.asyncio
 class TestFormsA11yAgent:
-    async def test_discards_static_only_required_indicator_and_submit_button_claims(self):
-        """Regressão: snapshot estático não prova essas duas violações por si só."""
+    async def test_code_does_not_judge_findings_by_keyword(self):
+        """Regra 2: o codigo nao descarta achado do modelo lendo palavras da descricao (isso e julgamento).
+
+        O que o HTML estatico nao prova (botao de envio ausente, marcador visual de obrigatorio quando ja ha
+        required) e dito ao modelo no prompt; quem julga o achado e a IA, e o revisor. O harness so repassa.
+        """
         from backend.src.shared.models import AccessibilityIssue
 
-        static_only = [
+        findings = [
             AccessibilityIssue.model_validate(
-                make_issue(
-                    {
-                        "id": "forms-visual-required",
-                        "criterion": "3.3.2 Labels or Instructions",
-                        "description": "Required field has no visible indicator.",
-                        "description_technical": (
-                            "The required field has no visual indicator for sighted users."
-                        ),
-                    }
-                )
-            ),
-            AccessibilityIssue.model_validate(
-                make_issue(
-                    {
-                        "id": "forms-submit",
-                        "criterion": "3.3.2 Labels or Instructions",
-                        "description": "The form has no submit button.",
-                    }
-                )
+                make_issue({"id": "forms-submit", "criterion": "3.3.2 Labels or Instructions", "description": "The form has no submit button."})
             ),
         ]
-        html = """
-        <form><label for="email">E-mail</label>
-          <input id="email" type="email" required>
-        </form>
-        """
-        with patch(
-            "backend.src.agents.forms_a11y.forms_a11y.call_llm_structured",
-            new=AsyncMock(return_value=static_only),
-        ):
-            result = await run_forms_a11y(html)
+        with patch("backend.src.agents.forms_a11y.forms_a11y.call_llm_structured", new=AsyncMock(return_value=findings)):
+            result = await run_forms_a11y('<form><input id="e" required></form>')
 
         assert result.success is True
-        assert result.data["issues"] == []
+        assert [i["id"] for i in result.data["issues"]] == ["forms-submit"]
+
+    def test_prompt_tells_the_model_what_static_html_cannot_prove(self):
+        from backend.src.agents.forms_a11y.forms_a11y import SYSTEM_PROMPT
+
+        assert "Do NOT report a missing submit button from static HTML alone" in SYSTEM_PROMPT
+        assert "Do NOT report a missing visual required marker" in SYSTEM_PROMPT
 
     async def test_contract_on_success(self):
         with patch(

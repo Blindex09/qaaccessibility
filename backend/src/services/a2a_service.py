@@ -9,6 +9,9 @@ logger = logging.getLogger(__name__)
 
 # Task memory store for A2A delegated tasks
 _a2a_tasks_store: dict[str, dict[str, Any]] = {}
+_a2a_running: dict[str, asyncio.Task[None]] = {}
+# Estados terminais do A2A 1.0: depois de um deles, a tarefa nao muda mais.
+A2A_TERMINAL_STATES = frozenset({"completed", "failed", "canceled", "rejected"})
 
 
 def generate_agent_card(base_url: str = "http://localhost:8000") -> dict[str, Any]:
@@ -180,7 +183,9 @@ async def submit_a2a_task(
     logger.info(f"[A2AService] Tarefa A2A criada: {task_id} (skill={skill_id})")
 
     # Inicia execucao assincrona em background
-    asyncio.create_task(_execute_a2a_task_worker(task_id, skill_id, input_data, parameters or {}))
+    running = asyncio.create_task(_execute_a2a_task_worker(task_id, skill_id, input_data, parameters or {}))
+    _a2a_running[task_id] = running
+    running.add_done_callback(lambda _t: _a2a_running.pop(task_id, None))
 
     return {
         "task_id": task_id,
@@ -299,6 +304,8 @@ async def _execute_a2a_task_worker(
                 f"Skills disponiveis: {', '.join(sorted(supported_skill_ids()))}."
             )
 
+        if _a2a_tasks_store[task_id]["status"] in A2A_TERMINAL_STATES:
+            return  # cancelada enquanto terminava: o estado terminal ja decidido nao e sobrescrito
         end_time = asyncio.get_event_loop().time()
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
         _a2a_tasks_store[task_id]["status"] = "completed"
@@ -309,8 +316,16 @@ async def _execute_a2a_task_worker(
 
         logger.info(f"[A2AService] Tarefa A2A concluida com sucesso: {task_id}")
 
+    except asyncio.CancelledError:
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        if _a2a_tasks_store[task_id]["status"] not in A2A_TERMINAL_STATES:
+            _a2a_tasks_store[task_id]["status"] = "canceled"
+            _a2a_tasks_store[task_id]["updated_at"] = now_iso
+        raise
     except Exception as exc:
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        if _a2a_tasks_store[task_id]["status"] in A2A_TERMINAL_STATES:
+            return
         _a2a_tasks_store[task_id]["status"] = "failed"
         _a2a_tasks_store[task_id]["error"] = str(exc)
         _a2a_tasks_store[task_id]["updated_at"] = now_iso
@@ -325,11 +340,27 @@ def get_a2a_task_status(task_id: str) -> dict[str, Any]:
 
 
 def cancel_a2a_task(task_id: str) -> dict[str, Any]:
-    """Cancela graciosamente uma tarefa A2A."""
+    """Cancela de verdade uma tarefa A2A em andamento (A2A 1.0, CancelTask).
+
+    O trabalho em segundo plano e cancelado, nao so o rotulo do estado. Tarefa inexistente devolve
+    TaskNotFoundError e tarefa ja em estado terminal devolve TaskNotCancelableError, sem alterar nada.
+    """
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    if task_id in _a2a_tasks_store:
-        _a2a_tasks_store[task_id]["status"] = "canceled"
-        _a2a_tasks_store[task_id]["updated_at"] = now_iso
+    record = _a2a_tasks_store.get(task_id)
+    if record is None:
+        return {"task_id": task_id, "error": "TaskNotFoundError", "message": "Tarefa A2A nao encontrada."}
+    if record["status"] in A2A_TERMINAL_STATES:
+        return {
+            "task_id": task_id,
+            "status": record["status"],
+            "error": "TaskNotCancelableError",
+            "message": f"A tarefa ja esta em estado terminal ({record['status']}) e nao pode ser cancelada.",
+        }
+    record["status"] = "canceled"
+    record["updated_at"] = now_iso
+    running = _a2a_running.get(task_id)
+    if running is not None and not running.done():
+        running.cancel()
     return {
         "task_id": task_id,
         "status": "canceled",

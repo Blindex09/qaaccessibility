@@ -84,10 +84,13 @@ leitura do código em 2026-10-08, sem executar: (1) não há isolamento uniforme
 `chat_tools.py`) são subprocessos com os privilégios da pessoa e o ambiente herdado do processo, protegidos só por aprovação,
 consentimento local e proteção de caminho, e não existe credencial de curta duração, só chaves estáticas no cofre DPAPI
 (`security/secret_store.py`) ou no ambiente; (2) o Gemini já tem steer ligado, ao contrário do que este arquivo dizia, e o
-Factory não tem; (3) o MCP por stdio roda sem orçamento, e o A2A herda o orçamento mas vira falha ao atingi-lo; (4) o
-cancelamento do A2A só muda o status no dicionário em memória e não para a tarefa, que depois grava `completed` por cima;
+Factory não tem; (3) o MCP por stdio roda sem orçamento, e o A2A herda o orçamento mas vira falha ao atingi-lo; (4) [corrigido em 2026-10-18: o cancelamento do A2A agora para a tarefa de verdade, recusa estado terminal com 409 e não deixa `completed` sobrescrever `canceled`];
 (5) não existe cliente MCP para consumir ferramentas externas (só o servidor e o servidor embutido do Factory); (6) a
 memória de longo prazo existe só em parte (histórico por conversa e lições de falso positivo, sem visão nem edição pela
 pessoa e sem memória de preferências); (7) os estados do sistema ficam em `tempfile.gettempdir()`, que o sistema pode
 limpar. A matriz acima deve ser rodada, com resultado real registrado, antes
 de dar por pronta qualquer mudança no pipeline; os resultados gravados nela não foram reverificados em 2026-10-08.
+
+Revisão de 2026-10-18 contra fontes primárias (MCP 2026-07-28, A2A 1.0.0, Agent Skills, convenções GenAI do OpenTelemetry, que agora vivem no repositório semantic-conventions-genai e ainda estão em estágio Development):
+- Corrigido: cancelamento do A2A (acima); nomes dos spans de observabilidade (`invoke_agent qaaccessibility`, `execute_tool <nome>`, `gen_ai.operation.name`, `gen_ai.provider.name` no lugar do obsoleto `gen_ai.system`, `gen_ai.request.model`); filtro por expressão regular que descartava achados do especialista de formulários (julgamento por palavra-chave, regra 2) trocado por orientação no prompt; relógios fixos (regra 8, ver a seção própria deste arquivo); prompt do chat sem as regras de narração e de autonomia (regras 3 e 5).
+- Ainda aberto, achado nesta revisão: não existe a memória de longo prazo em SKILL.md (o aprendizado da regra 10 guarda lições de falso positivo, não habilidades no formato aberto, com `name` de até 64 caracteres em minúsculas e hífens, `description` de até 1024 e o corpo com menos de 500 linhas); `model_router.py` ainda classifica o nível e a capacidade de um modelo por palavras do identificador (nano, flash, lite, codex...), o que a regra 9 pede que seja decidido pelo significado pelo roteador; o MCP do projeto é só servidor, sem cliente para consumir ferramentas externas; sandbox uniforme e credenciais de curta duração seguem ausentes; a matriz de cobertura não foi rodada nesta revisão (sem chave de provedor no ambiente e cota esgotada).

@@ -717,6 +717,10 @@ Check for these form-specific accessibility failures:
     the field via aria-describedby
   - Instructions placed after the form control (AT reads label+role first, instruction after)
   - Password requirements described only after submission failure
+  - Do NOT report a missing visual required marker (an asterisk, a colour) when the control already
+    has the required or aria-required attribute: that attribute is the programmatic indication, and
+    a visible marker is a recommendation, not a failure by itself. Report it only with concrete
+    evidence that the requirement is hidden from users.
 
 ### BUTTON LABELING (WCAG 2.4.6, 4.1.2)
 - Submit buttons with vague or empty text ("Submit", "Go", icon-only)

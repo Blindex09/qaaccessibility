@@ -97,10 +97,50 @@ async def test_a2a_task_lifecycle():
     assert status_data["task_id"] == task_id
     assert status_data["status"] in ["working", "completed"]
 
-    # 3. Cancelar Tarefa A2A
+    # 3. Cancelar: a tarefa pode ja ter terminado (sarif_export e rapida), e A2A 1.0 recusa cancelar estado terminal
     cancel_res = client.post(f"/a2a/v1/tasks/{task_id}/cancel")
-    assert cancel_res.status_code == 200
-    assert cancel_res.json()["status"] == "canceled"
+    final = client.get(f"/a2a/v1/tasks/{task_id}").json()["status"]
+    if cancel_res.status_code == 200:
+        assert cancel_res.json()["status"] == "canceled"
+        assert final == "canceled"
+    else:
+        assert cancel_res.status_code == 409
+        assert final in ("completed", "failed")
+
+
+@pytest.mark.asyncio
+async def test_a2a_cancel_stops_the_background_work_and_is_not_overwritten(monkeypatch):
+    """Regressao: o cancelamento so mudava o rotulo; a tarefa continuava e gravava completed por cima."""
+    import asyncio
+
+    from backend.src.services import a2a_service
+
+    started, finished = asyncio.Event(), []
+
+    async def slow(*_a, **_k):
+        started.set()
+        await asyncio.sleep(30)
+        finished.append(True)
+
+    monkeypatch.setattr("backend.src.agents.design_review.design_review.run_design_review", slow)
+    info = await a2a_service.submit_a2a_task("design_review", {"requirement_text": "x"})
+    task_id = info["task_id"]
+    await asyncio.wait_for(started.wait(), 5)
+
+    result = a2a_service.cancel_a2a_task(task_id)
+    assert result["status"] == "canceled"
+    await asyncio.sleep(0.05)
+    assert not finished, "o trabalho em segundo plano tinha de ser interrompido"
+    assert a2a_service.get_a2a_task_status(task_id)["status"] == "canceled"
+    assert task_id not in a2a_service._a2a_running
+
+    again = a2a_service.cancel_a2a_task(task_id)
+    assert again["error"] == "TaskNotCancelableError"
+    assert a2a_service.cancel_a2a_task("task_a2a_inexistente")["error"] == "TaskNotFoundError"
+
+
+def test_a2a_cancel_route_maps_unknown_to_404():
+    assert client.post("/a2a/v1/tasks/task_a2a_nao_existe/cancel").status_code == 404
 
 
 @pytest.mark.asyncio

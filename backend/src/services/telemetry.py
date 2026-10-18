@@ -10,7 +10,9 @@ Variáveis de ambiente:
   OTEL_SERVICE_NAME            default: qaaccessibility
   OTEL_EXPORTER_OTLP_HEADERS   ex.: Authorization=Bearer <token> (Langfuse)
 
-Fonte: OpenTelemetry GenAI semantic conventions 2026 + Langfuse OTLP docs.
+Fonte: convenções semânticas de GenAI do OpenTelemetry (repositório semantic-conventions-genai, ainda em estágio Development: nomes
+de atributo podem mudar) + documentação OTLP do Langfuse. Nomes usados: gen_ai.operation.name (invoke_agent, execute_tool),
+gen_ai.agent.name, gen_ai.provider.name (substitui o gen_ai.system, obsoleto), gen_ai.request.model, gen_ai.tool.name e gen_ai.usage.*.
 """
 
 import logging
@@ -80,7 +82,7 @@ def agent_span(name: str, attributes: dict | None = None) -> Generator:
     Uso:
         with agent_span("agent_iteration", {"iteration_index": i}) as span:
             if span:
-                span.set_attribute("gen_ai.model", model)
+                span.set_attribute("gen_ai.request.model", model)
     """
     tracer = get_tracer()
     if tracer is None:
