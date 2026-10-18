@@ -52,3 +52,10 @@ def _violacoes() -> list[str]:
 
 def test_nenhum_relogio_fixo_corta_trabalho_em_andamento():
     assert _violacoes() == []
+
+
+def test_nenhum_modelo_e_escolhido_pelo_nome_no_roteador():
+    """Regras 2 e 9: o roteador nao decide nivel nem capacidade por palavra do identificador do modelo."""
+    fonte = (_RAIZ / "services" / "model_router.py").read_text(encoding="utf-8")
+    for palavra in ('"nano"', '"flash"', '"haiku"', '"codex"', "is_fast_name"):
+        assert palavra not in fonte

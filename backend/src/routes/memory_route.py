@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.src.security.dependencies import rate_limit_dependency
-from backend.src.services import skill_memory
+from backend.src.services import mcp_client, skill_memory
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,19 @@ router = APIRouter(prefix="/memory", tags=["memory"], dependencies=[Depends(rate
 class SkillBody(BaseModel):
     description: str = Field(min_length=1, max_length=skill_memory.MAX_DESCRIPTION)
     instructions: str = Field(min_length=1)
+
+
+@router.get("/mcp-servers")
+async def list_mcp_servers() -> dict[str, list[dict]]:
+    """Servidores MCP externos que a pessoa registrou (só os nomes das credenciais, nunca os valores)."""
+    return {"servers": mcp_client.list_servers()}
+
+
+@router.delete("/mcp-servers/{name}")
+async def delete_mcp_server(name: str) -> dict[str, bool]:
+    if not mcp_client.remove_server(name):
+        raise HTTPException(status_code=404, detail="Servidor MCP não registrado.")
+    return {"deleted": True}
 
 
 @router.get("/skills")

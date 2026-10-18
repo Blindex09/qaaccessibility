@@ -274,20 +274,16 @@ def resolve_fast_model(provider: str, allow_extra_usage: bool = False) -> str:
     if not candidates:
         return ""
 
-    def _rank(model_id: str) -> tuple[float, int, int]:
+    def _rank(model_id: str) -> tuple[float, int]:
+        """Mais barato primeiro, depois o maior contexto. Só metadado do catálogo: o nome do modelo nunca decide (regras 2 e 9)."""
         info = None
         try:
             info = get_model_info(provider, model_id)
         except Exception:  # pragma: no cover
             info = None
 
-        lower_id = model_id.lower()
-        is_fast_name = (
-            1 if any(w in lower_id for w in ["nano", "flash", "lite", "mini", "small", "3b", "8b", "haiku"]) else 0
-        )
-
         if info is None:
-            return (0.0, is_fast_name, 0)
+            return (0.0, 0)
 
         cost_input = float(getattr(info, "cost_input", 0.0) or 0.0)
         cost_output = float(getattr(info, "cost_output", 0.0) or 0.0)
@@ -295,9 +291,9 @@ def resolve_fast_model(provider: str, allow_extra_usage: bool = False) -> str:
         context = int(getattr(info, "context_window", 0) or 0)
 
         if cost == 0.0:
-            cost = 0.0001 if is_fast_name else 99.0
+            cost = 99.0  # preço desconhecido: não se adivinha pelo nome do modelo
 
-        return (-cost, is_fast_name, context)
+        return (-cost, context)
 
     best = max(candidates, key=_rank)
     logger.info("[Fast] provider=%s -> %s (entre %d candidatos)", provider, best, len(candidates))
@@ -345,21 +341,11 @@ def resolve_code_model(
         ranked = rank_ollama_cloud_candidates(
             descriptors, tradeoff=tradeoff, needs_tools=True, needs_vision=needs_vision
         )
-        # Preferencia por nomes que evidenciam modelo de codigo
-        code_pref = [d for d in ranked if any(w in d.id.lower() for w in ("code", "codex", "coder"))]
-        if code_pref:
-            best = code_pref[0].id
-            logger.info(
-                "[Code] provider=ollama-cloud -> %s (ranking com preferencia por codigo, needs_vision=%s, tradeoff=%d)",
-                best,
-                needs_vision,
-                tradeoff,
-            )
-            return best
+        # O nome do modelo nunca decide (regras 2 e 9): vale o ranking por capacidade, custo e contexto do catalogo.
         if ranked:
             best = ranked[0].id
             logger.info(
-                "[Code] provider=ollama-cloud -> %s (fallback alto, nenhum modelo de codigo identificado, needs_vision=%s, tradeoff=%d)",
+                "[Code] provider=ollama-cloud -> %s (ranking do catalogo, needs_vision=%s, tradeoff=%d)",
                 best,
                 needs_vision,
                 tradeoff,
@@ -378,10 +364,7 @@ def resolve_code_model(
                 if info and getattr(info, "release_date", "") >= "2026-01-01":
                     if not allow_extra_usage and getattr(info, "requires_extra_usage", False):
                         continue
-                    lower_id = m.lower()
-                    lower_name = str(getattr(info, "name", "") or "").lower()
-                    if any(w in lower_id or w in lower_name for w in ("codex", "code", "coder")):
-                        filtered.append(m)
+                    filtered.append(m)
             except Exception as exc:
                 logger.debug("[Code] get_model_info(%s, %s) falhou: %s", provider, m, exc)
         candidates = filtered
@@ -390,7 +373,7 @@ def resolve_code_model(
         return ""
 
     if not candidates:
-        logger.info("[Code] provider=%s -> nenhum modelo de codigo identificado; fallback para alto", provider)
+        logger.info("[Code] provider=%s -> nenhum modelo elegivel no catalogo; fallback para alto", provider)
         return resolve_alto_model(provider, allow_extra_usage, needs_vision, tradeoff)
 
     def _rank(model_id: str) -> tuple[int, int, float]:
@@ -408,7 +391,7 @@ def resolve_code_model(
         return (reasoning, context, -cost)
 
     best = max(candidates, key=_rank)
-    logger.info("[Code] provider=%s -> %s (entre %d modelos de codigo)", provider, best, len(candidates))
+    logger.info("[Code] provider=%s -> %s (entre %d modelos elegiveis, por capacidade, contexto e custo)", provider, best, len(candidates))
     return best
 
 

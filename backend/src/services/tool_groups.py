@@ -31,7 +31,10 @@ TOOL_GROUPS: dict[str, tuple[str, ...]] = {
         "install_playwright_browsers", "run_code_in_sandbox",
     ),
     "pesquisa": ("tavily_search", "exa_search", "evaluate_research", "run_deep_research"),
-    "integracoes": ("create_github_issue", "create_jira_issue", "create_azure_devops_work_item"),
+    "integracoes": (
+        "create_github_issue", "create_jira_issue", "create_azure_devops_work_item",
+        "mcp_register_server", "mcp_list_tools", "mcp_call_tool",
+    ),
 }
 
 GROUP_DESCRIPTIONS: dict[str, str] = {
@@ -43,7 +46,7 @@ GROUP_DESCRIPTIONS: dict[str, str] = {
         "pesquisar na web ou nas normas e avaliar as fontes; a pesquisa profunda gasta centenas de milhares "
         "de tokens, então só quando a pessoa pede aprofundamento"
     ),
-    "integracoes": "abrir ticket no GitHub, Jira ou Azure DevOps",
+    "integracoes": "abrir ticket no GitHub, Jira ou Azure DevOps, ou usar ferramentas de um servidor MCP externo registrado",
 }
 
 

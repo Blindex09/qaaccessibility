@@ -111,16 +111,26 @@ class TestResolveFastModel:
         ):
             assert model_router.resolve_fast_model("openai") == "cheap"
 
-    def test_prefers_fast_name_heuristics_when_no_cost(self):
-        # Nomes que contêm nano/flash/lite/mini devem ser preferidos quando não há custo
+    def test_the_name_never_decides_even_for_fast_sounding_names(self):
+        """Regras 2 e 9: 'mini', 'flash' ou 'nano' no nome nao dao preferencia; o preco conhecido do catalogo decide."""
         infos = {
-            "heavy-model": _info(reasoning=False, context=128000, cost=0.0),
-            "gpt-5-mini": _info(reasoning=False, context=8000, cost=0.0),
+            "gpt-5-mini": _info(reasoning=False, context=8000, cost=5.0),
+            "plain-model": _info(reasoning=False, context=128000, cost=0.5),
         }
         with patch.object(model_router, "list_agentic_models", return_value=list(infos)), patch.object(
             model_router, "get_model_info", side_effect=lambda p, m: infos[m]
         ):
-            assert model_router.resolve_fast_model("openai") == "gpt-5-mini"
+            assert model_router.resolve_fast_model("openai") == "plain-model"
+
+    def test_unknown_price_is_not_guessed_from_the_name(self):
+        infos = {
+            "gpt-5-mini": _info(reasoning=False, context=8000, cost=0.0),
+            "priced-model": _info(reasoning=False, context=8000, cost=2.0),
+        }
+        with patch.object(model_router, "list_agentic_models", return_value=list(infos)), patch.object(
+            model_router, "get_model_info", side_effect=lambda p, m: infos[m]
+        ):
+            assert model_router.resolve_fast_model("openai") == "priced-model"
 
     def test_empty_when_no_candidates(self):
         with patch.object(model_router, "list_agentic_models", return_value=[]):
@@ -134,7 +144,8 @@ class TestResolveCodeModel:
     def teardown_method(self):
         model_router.clear_cache()
 
-    def test_prefers_models_with_code_substring(self):
+    def test_ranks_by_catalog_metadata_never_by_the_name(self):
+        """Regras 2 e 9: um 'codex' no nome nao ganha por causa do nome; vale capacidade, contexto e custo do catalogo."""
         infos = {
             "general-model": _info(reasoning=True, context=128000, cost=1.0),
             "gpt-5.3-codex": _info(reasoning=False, context=128000, cost=2.0),
@@ -143,17 +154,20 @@ class TestResolveCodeModel:
         with patch.object(model_router, "list_agentic_models", return_value=list(infos)), patch.object(
             model_router, "get_model_info", side_effect=lambda p, m: infos[m]
         ):
-            # Entre modelos de codigo, reasoning + context desempata
-            assert model_router.resolve_code_model("openai") == "kimi-k2.7-code"
+            assert model_router.resolve_code_model("openai") == "general-model"
 
-    def test_fallback_to_alto_when_no_code_model(self):
+    def test_a_model_without_code_in_its_name_can_win(self):
         infos = {
-            "general-model": _info(reasoning=True, context=128000, cost=1.0),
-            "other-general": _info(reasoning=False, context=64000, cost=0.5),
+            "plain-a": _info(reasoning=False, context=64000, cost=0.5),
+            "plain-b": _info(reasoning=True, context=200000, cost=0.7),
         }
         with patch.object(model_router, "list_agentic_models", return_value=list(infos)), patch.object(
             model_router, "get_model_info", side_effect=lambda p, m: infos[m]
-        ), patch.object(
+        ):
+            assert model_router.resolve_code_model("openai") == "plain-b"
+
+    def test_fallback_to_alto_when_no_eligible_candidate(self):
+        with patch.object(model_router, "list_agentic_models", return_value=[]), patch.object(
             model_router, "resolve_alto_model", return_value="best-alto"
         ):
             assert model_router.resolve_code_model("openai") == "best-alto"
