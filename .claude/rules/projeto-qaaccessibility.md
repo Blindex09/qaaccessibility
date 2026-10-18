@@ -1,0 +1,172 @@
+---
+paths:
+  - "backend/**"
+  - "web/src/**"
+  - "scripts/**"
+  - "docs/modules/**"
+---
+
+# Regras específicas do Qaaccessibility
+
+> Carrega quando se mexe no backend, na interface web, nos scripts ou nos módulos. Texto integral da parte específica deste projeto, sem mudança.
+
+### Interfaces que executam tarefas (regra 14)
+
+A interface web de chat (`web/src/screens/ChatScreen.tsx`) e qualquer outra que execute tarefas. Toda
+funcionalidade de comportamento vale em todas elas, na mesma entrega. A regra dos dois chats separados é só do
+projeto Agentic e não existe aqui.
+
+### Mobilização contextual da squad
+
+O chat atua como coordenador da squad de acessibilidade. O classificador escolhe
+`squad_roles` e sua ordem pelo contexto, sem uma sequência obrigatória de gestão
+e sem uma regra que dispense a squad em auditorias pequenas. Os especialistas
+das ferramentas de análise são membros da mesma squad. Durante o trabalho, o
+agente pode usar `consult_squad` para consultar outros papéis ou rever a abordagem
+com os resultados reais. Não converter essa seleção em palavras-chave, regex ou
+heurística de intenção. Uma consulta de QA define/revisa evidências; não significa
+que testes foram executados. Handoffs não concedem aprovação para mutações.
+O harness valida IDs, contratos, permissões e cancelamento, e acompanha o progresso do conjunto.
+As rotinas batch de planejamento não são a política de seleção do chat.
+
+### Nota específica deste projeto
+
+Aqui, "todo modelo/provider sem exceção" cobre OpenAI, Anthropic, Gemini, xAI,
+Ollama, Factory, OpenCode Go e `AgenticAutoProvider`. Uma versão anterior desta nota citava
+commits específicos e um documento (`docs/AGENTIC_BEHAVIORAL_CONTRACT_AND_ACCEPTANCE.md`) como
+o histórico completo de por que a regra existe -- auditoria em 2026-09-12 confirmou que
+nenhum dos hashes citados existe no histórico git deste repositório e que o documento nunca
+chegou a ser criado, então a referência foi removida em vez de mantida sem verificação. Se o
+histórico completo for registrado no futuro, documentar aqui com um link real, não uma
+citação que não pode ser conferida. O mecanismo concreto de redirecionamento em tempo real é
+`POST /chat/steer` (`backend/src/routes/chat.py`,
+canal `chat_progress.request_steer`/`pop_pending_steer`) / botão "Redirecionar" que aparece no
+lugar de "Parar" quando há texto digitado durante o streaming (`web/src/screens/ChatScreen.tsx`).
+Cobre os providers OpenAI (Responses e Chat Completions), xAI, Ollama e Anthropic; o Gemini tem steer ligado em `run_agent.py::_run_gemini` (verificado em 2026-10-08, sem prova ao vivo registrada) e o Factory ainda não tem (só `cancel_check` em `factory_adapter.py`; o cancelamento best-effort continua disponível).
+
+### Evidência operacional de 2026-09-30
+
+O turno compartilha um único orçamento em `execution_scope.py`, incluindo
+triagem, consultor de rotas, ferramentas, especialistas e reparação de JSON.
+A complexidade declarada pela IA adapta o orçamento do turno; retry não reinicia a
+contagem. Planejamento gerencial depende de uma decisão estruturada da IA, não da
+presença de URL/anexo ou de palavras no pedido.
+
+Convergência com a regra 8 (2026-10-07): o orçamento do turno em `execution_scope.py` deixou de ser
+um teto de duração. O `deadline` passou a ser o instante em que a execução seria considerada TRAVADA:
+todo progresso real (evento publicado, token recebido, ferramenta concluída, nova rodada do modelo,
+especialista concluído) desliza esse instante, e a janela de silêncio se adapta à complexidade que a IA
+declarou. `run_until_stalled` substitui os `wait_for` de prazo fixo no orquestrador, no `llm_client`, no
+`route_advisor` e no factory. Toda execução tem esse orçamento: `orchestrate` e `run_conversation` abrem
+o seu quando não há um do turno, então as rotas fora do chat seguem a mesma regra. A espera por
+aprovação do usuário não tem relógio. Uma chamada lenta ao provedor em curso não é "travamento" enquanto
+dado chega dentro da janela (cada pedaço recebido de uma chamada em fluxo a renova), e quando ela termina a janela recomeça; uma chamada que não entrega nada por toda a janela é travamento, mesmo sem erro (medido: 29 minutos presa no e2e de 2026-10-08), e o orquestrador segue com o parcial; um fluxo degenerado (mil pedaços seguidos vazios, só de espaço ou repetidos, que nenhuma resposta legítima produz) é encerrado como falha de provedor por `stream_guard.py`, sem refazer a mesma geração por outro endpoint, e uma chamada longa deixa no log o que está recebendo, para a causa de uma nova chamada presa ficar provada; depois de largar
+especialistas parados, o restante do pipeline segue com janela nova (entrega parcial, não falha total). O factory não tem mais máximo de chamadas de ferramenta, e o laço
+de um agente com ferramentas não é cortado por `max_iterations` (só a folha sem ferramentas é uma
+chamada única, por estrutura); a repetição persistente depois da reflexão encerra o laço.
+
+Tokens: nenhum chamador impõe teto de saída. `AIAgent.max_tokens` e o padrão de `call_llm` são
+`None` (o parâmetro é omitido onde o provider permite). A Anthropic exige um número: usa um padrão
+alto (32000) e, se o provider recusar o tamanho, o código refaz uma vez com o limite que o próprio
+erro informa. O reparo de JSON em `call_llm_structured` não tem contador nem teto: dobra o espaço quando
+a saída foi cortada e termina por saída válida, repetição da mesma saída ou do mesmo defeito, erro do
+provider ou cancelamento.
+
+Clientes HTTP dos providers: sem timeout de leitura nem de escrita (`_provider_timeout` em
+`run_agent.py`); só estabelecer a conexão tem limite, porque isso não é trabalho em andamento. Uma
+chamada lenta continua sendo a mesma chamada. As tentativas automáticas do SDK (queda de conexão, 429,
+5xx) voltaram a valer dentro do turno: antes `_sdk_retry_options` as desligava (`max_retries=0`).
+
+Orçamento de custo da pessoa (único teto de trabalho que existe): a tela de Configurações tem o campo
+"Limite de tokens por resposta (opcional)", gravado como `TURN_TOKEN_BUDGET` e lido em `Settings.turn_token_budget`.
+O padrão é 0, sem limite: o código nunca escolhe um número por conta própria. O consumo de cada chamada ao
+provider (`_accumulate_usage`) soma no orçamento do turno, e `check_execution` levanta `TokenBudgetReachedError`
+no próximo limite de chamada; chamadas em andamento terminam, então o limite é verificado nas fronteiras, não
+no meio de uma geração. O chat encerra com uma explicação honesta (o que já apareceu continua valendo, ou
+"não houve como apurar nada") e diz como continuar; nunca é tratado como erro. A chamada de fallback para outro
+modelo não é tentada depois do limite. A contagem inclui as chamadas de triagem e roteamento, que são custo real.
+
+O limite vale também fora do chat (CI, scripts, outras IAs): `RequestBudgetMiddleware` abre o orçamento de cada
+pedido HTTP com o limite da pessoa, e o que acontece ao atingi-lo segue o que a Anthropic (`stop_reason: max_tokens`)
+e a OpenAI (`finish_reason: length`) fazem: devolver o que já foi feito como resposta normal (HTTP 200), marcada
+como cortada, e não como erro. As análises voltam com `data.token_limit`, `data.complete = false` e um `warning`
+que diz se há achados parciais ou nenhum; o crawl traz `token_limit`; uma rota que atinge o limite antes de
+produzir qualquer coisa responde 200 com `complete: false`, o corte descrito e o cabeçalho `X-Token-Limit-Reached`.
+
+Não existe prazo legado de reserva: `run_until_stalled` não tem `fallback_timeout`, e a consulta de roteamento
+(`advise_route`, `rank_candidates`) não recebe timeout. Sem orçamento (não acontece nos caminhos do produto,
+que sempre abrem um) só o cancelamento encerra uma espera.
+
+Limites que ainda existem, e que são honestos: a consulta ao catálogo de modelos do Ollama Cloud
+(`ollama_cloud_adapter.py`) mantém timeouts curtos de 10 a 15 segundos, por ser metadado e não trabalho do
+modelo; uma chamada de fluxo que não entrega dado por toda a janela deixa de segurar o turno, mas a conexão em si só
+é encerrada pelo limite de leitura do HTTP, pelo cancelamento da pessoa ou pelo sistema operacional; o limite de tokens não cobre o servidor MCP por stdio, que não passa pelo middleware HTTP, e no protocolo A2A a requisição passa pelo middleware e o trabalho em segundo plano herda o orçamento, mas ao atingi-lo a tarefa vira falha em vez de entrega parcial (verificado por leitura do código em 2026-10-08), e uma rota que faz várias chamadas isoladas divide um único orçamento por pedido; o padrão de 32000 da
+Anthropic e a autocorreção pelo limite do provider foram cobertos só com mocks, sem chamada real. Ao mexer
+nesses pontos, convergir para a regra 8 e registrar aqui o que mudou.
+
+Cada instância de `AIAgent` captura suas concessões de ferramentas ao nascer.
+O dispatcher verifica concessão, schema e aprovação antes de chamar o handler.
+A configuração não pode desativar aprovação de ferramentas assim marcadas.
+Atualizações públicas estruturadas são separadas de raciocínio privado e de
+JSON; a interface mantém um feed consultável com setas, sem anunciar progresso
+automaticamente. Cancelamento preserva texto recebido e encerra cartões ativos.
+O narrador recebe fatos estruturais observados do HTML original; ausência de
+achados não permite inventar elementos presentes nem certificar conformidade.
+Especialista de semântica, revisor, papéis da squad e chat compartilham a calibração normativa
+de `backend/src/shared/normative_calibration.py`: técnicas recomendadas não
+são requisitos obrigatórios isolados, e decisões WCAG exigem evidência contextual.
+
+O pedido, histórico e atualizações já comunicadas acompanham as chamadas dos
+especialistas por `request_context.py`; a ponte síncrona/assíncrona das ferramentas
+preserva esse contexto e o orçamento. Redirecionamentos consumidos pelo agente
+também atualizam o escopo dos próximos especialistas. O revisor recebe o HTML
+original da captura, inclusive em cada lote, não apenas os achados consolidados.
+Eventos de quadro/roteamento são estado interno, não narração pública. Cada resposta
+guarda sua própria duração; histórico sem esse dado não exibe um tempo inventado
+nem a mensagem fixa “Processamento concluído”.
+
+Isso não é uma declaração de conformidade integral: sandbox uniforme,
+credenciais curtas por execução, recuperação durável de todos os módulos,
+latência de primeira atualização e comportamento de todos os providers ainda
+exigem evidência adicional. Consulte
+`docs/implementacao-regras-mestras-2026-09-30.md` para testes e limitações reais.
+
+### Nicho (regra 5)
+
+Acessibilidade digital. Um pedido fora dela é recusado com educação, como descreve a regra 5.
+
+### Proteções por provedor e por módulo (regra 15)
+
+Fonte única: `docs/modules/provedores/evidencias.json` (estado, data, nota e números de referência de cada módulo em cada
+provedor). Tudo o que depende dela é gerado por `scripts/update_protections.py`: a matriz `docs/modules/paridade_provedores.md`,
+a seção "Provedores" do README de cada módulo e a tabela de estado da ficha de cada provedor (`docs/modules/provedores/`).
+Depois de testar um provedor em um módulo, na mesma entrega:
+
+1. `scripts/record_provider_contract.py --provider <provedor>` grava o contrato real (texto, fluxo e ferramenta) e
+   `--check` acusa mudança de formato da API; os testes de contrato (`tests/backend/unit/providers/`) partem da gravação.
+2. `scripts/verify_live_modules_1_to_3.py --provider <provedor> --register` confere os cenários ao vivo contra os números do
+   próprio provedor e registra os novos números quando tudo passa.
+3. `scripts/update_protections.py set <provedor> <m1..m4> <PROVADO|PARCIAL|NÃO TESTADO> --nota "o que funcionou e o que falta"`.
+4. A ficha do provedor é completada à mão (a de um provedor novo nasce com trechos "A PREENCHER" que reprovam a verificação).
+5. `scripts/verify_all.py [--formats]` fica verde (suítes, lint, tipos, proteções em dia e formato da API) e o commit é feito.
+
+O passo a passo para um provedor novo está em `docs/modules/provedores/_roteiro_para_novo_provedor.md`.
+
+### Contrato de comportamento entre provedores (regras 2, 9 e 15)
+
+O mesmo texto de regra pode ser lido de um jeito por um modelo e de outro por outro (caso real de 09/10/2026: pedida uma auditoria de
+projeto, o Ollama chamava `analyze_page` e o Gemini auditava sozinho e escrevia "com base na análise especializada" sem ter
+chamado ferramenta nenhuma). Divergência assim se trata em quatro camadas, nunca com texto ou ramo por nome de modelo; o detalhe
+está em `docs/modules/contrato_de_comportamento.md`:
+
+1. Regra escrita sem ambiguidade no `SYSTEM_PROMPT` (`backend/src/services/chat_runtime.py`): qual ferramenta, por quê e o que nunca fazer.
+2. Contrato observável no `scripts/verify_live_modules_1_to_3.py`: cada cenário declara as ferramentas que devem e as que não devem ser
+   chamadas (`must_call`, `must_not_call`), conferidas pelo fluxo de eventos, em qualquer provedor.
+3. Verificação do harness para o que não pode depender do modelo (portão da auditoria em `chat_runtime.py`): se o classificador (IA)
+   decidiu "auditoria" e o turno termina sem ferramenta de análise, a resposta é retida, a análise é pedida uma vez, e só se nenhuma
+   ferramenta servir o próprio modelo diz que não houve especialistas. O harness confere um fato; o conteúdo continua sendo do modelo.
+4. Ajuste específico de provedor somente no caminho daquele provedor em `run_agent.py` (formato do fluxo, nomes de uso, parâmetros
+   recusados), e o contrato real dele gravado e conferido por `scripts/record_provider_contract.py`.
+
+Regra para todo defeito que aparecer só em um provedor ou modelo: provar a causa (regra 17), corrigir na camada certa, escrever o teste
+e acrescentar o cenário ao contrato.
