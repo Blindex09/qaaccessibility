@@ -18,6 +18,7 @@ from backend.src.routes.checklist import router as checklist_router
 from backend.src.routes.design_review_route import router as design_review_router
 from backend.src.routes.export_xlsx import router as export_router
 from backend.src.routes.fix import router as fix_router
+from backend.src.routes.memory_route import router as memory_router
 from backend.src.routes.models_route import router as models_router
 from backend.src.routes.preview import router as preview_router
 from backend.src.routes.report import router as report_router
@@ -104,6 +105,7 @@ app.include_router(tests_router)
 app.include_router(vpat_router)
 app.include_router(screen_reader_router)
 app.include_router(design_review_router)
+app.include_router(memory_router)
 app.include_router(settings_router)
 app.include_router(preview_router)
 

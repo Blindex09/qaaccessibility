@@ -980,6 +980,11 @@ async def _stream_chat_impl(
             "\nPassages retrieved from the local knowledge base for this question:\n\n"
             f"{a11y_ref}"
         )
+    from backend.src.services.skill_memory import skills_index_for_prompt
+
+    learned_skills = skills_index_for_prompt()
+    if learned_skills:
+        dynamic_prompt += "\n\n" + learned_skills
     dynamic_prompt += (
         RESEARCH_PROTOCOL
         + "\n\n"

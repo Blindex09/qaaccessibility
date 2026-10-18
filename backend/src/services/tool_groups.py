@@ -14,7 +14,7 @@ from collections.abc import Iterable
 ENABLE_TOOL_GROUP = "enable_tool_group"
 
 # Sempre oferecidas: perguntar à pessoa, consultar a squad e pedir outro grupo.
-CORE_TOOLS: frozenset[str] = frozenset({"clarify", "consult_squad", ENABLE_TOOL_GROUP})
+CORE_TOOLS: frozenset[str] = frozenset({"clarify", "consult_squad", "load_skill", "remember_skill", ENABLE_TOOL_GROUP})
 
 TOOL_GROUPS: dict[str, tuple[str, ...]] = {
     "analise": (

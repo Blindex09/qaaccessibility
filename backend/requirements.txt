@@ -33,3 +33,4 @@ cryptography>=48.0.1,<49.0.0
 jsonschema>=4.23.0,<5.0.0
 types-jsonschema
 droid-sdk[mcp]>=0.4.0,<0.5.0
+PyYAML>=6.0

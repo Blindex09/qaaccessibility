@@ -70,7 +70,8 @@ def test_selected_group_adds_only_its_own_tools():
 
 def test_the_offered_set_is_much_smaller_than_everything():
     everything = _chat_tools()
-    assert len(offered_tools([], everything)) <= 4 < len(everything)
+    # 5 ferramentas sempre presentes (perguntar, squad, habilitar grupo, carregar e guardar habilidade), medido em 2026-10-18
+    assert len(offered_tools([], everything)) <= 5 < len(everything)
 
 
 # ----------------------------------------------------------------- agente
