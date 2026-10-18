@@ -23,9 +23,11 @@ teste manual ou automatizado falta.
 
 ## Disclosure, acordeão e mostrar mais
 
-- O gatilho deve ser um `button`, não um `div` clicável.
-- O botão deve expor `aria-expanded="true|false"` e `aria-controls` apontando
-  para o painel correspondente.
+- O gatilho deve ser um `button` ou o `summary` de um `details` nativo, não um `div`
+  clicável. `details` e `summary` expõem o estado sozinhos: nesse caso `aria-expanded` e
+  `aria-controls` não são exigidos.
+- Quando o gatilho é um `button`, ele deve expor `aria-expanded="true|false"` e `aria-controls`
+  apontando para o painel correspondente.
 - O painel deve ter um `id` estável; quando recolhido, deve estar realmente
   oculto para tecnologia assistiva (`hidden`, `display:none` ou equivalente
   comprovado).
@@ -60,7 +62,9 @@ teste manual ou automatizado falta.
 
 - Tooltip complementa um controle; nunca deve ser o único nome de um botão de
   ícone. Deve aparecer em foco e hover, permanecer enquanto o ponteiro estiver
-  sobre ele e poder ser dispensado sem mover o foco, inclusive com Escape.
+  sobre ele e poder ser dispensado sem mover o foco, inclusive com Escape. Um toggletip, que
+  só abre por ativação (clique, Enter, Espaço), é outro padrão: a regra de hover e foco não se
+  aplica a ele, mas ele precisa fechar com Escape ou ao clicar fora.
 - Mensagens de sucesso ou estado normal devem usar um container persistente com
   `role="status"` ou `aria-live="polite"`; não crie a região live somente no
   instante da mensagem.
@@ -91,8 +95,9 @@ teste manual ou automatizado falta.
   de correção sem perder contexto.
 - DataTable precisa preservar cabeçalhos, relação célula-cabeçalho, ordenação,
   paginação e posição real quando houver virtualização.
-- A paginação deve indicar a página atual com `aria-current="page"`, ter nomes
-  distintos para anterior/próxima e manter foco depois de trocar o conteúdo.
+- A paginação deve indicar a página atual com `aria-current="page"` quando houver lista de
+  páginas numeradas (ou por texto de progresso, como "Página 3 de 12", quando não houver), ter
+  nomes distintos para anterior/próxima e manter foco depois de trocar o conteúdo.
 
 ## Regra de evidência do componente
 

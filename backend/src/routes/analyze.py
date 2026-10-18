@@ -18,6 +18,7 @@ from backend.src.security.dependencies import rate_limit_dependency
 from backend.src.services import batch_collector, batch_job_store
 from backend.src.services.agent_project_audit import MAX_ARCHIVE_BYTES, audit_agent_project, select_project_files
 from backend.src.services.agent_project_audit import MAX_FILES as AGENT_AUDIT_MAX_FILES
+from backend.src.services.astro_source import build_source_map
 from backend.src.services.batch_inference import (
     BatchNotSupportedError,
     BatchRequest,
@@ -59,6 +60,8 @@ _SUPPORTED_EXT = {
     ".tsx",
     ".vue",
     ".svelte",
+    ".astro",
+    ".mdx",
 }
 _SKIP_DIRS = {
     "node_modules",
@@ -484,11 +487,17 @@ def _assemble_project(files: list[tuple[str, str]]) -> str:
         ".tsx": 2,
         ".vue": 2,
         ".svelte": 2,
+        ".astro": 2,
+        ".mdx": 2,
     }
     sorted_files = sorted(files, key=lambda fc: order.get(_ext(fc[0]), 9))
 
     parts: list[str] = [f"=== PROJECT ANALYSIS: {len(sorted_files)} file(s) ===\n"]
-    total = len(parts[0])
+    # Astro/MDX são fonte, não HTML: o mapa diz que HTML cada componente usado renderiza.
+    source_map = build_source_map(sorted_files)
+    if source_map:
+        parts.append(source_map)
+    total = sum(len(part) for part in parts)
 
     for filename, content in sorted_files:
         if total >= _MAX_TOTAL_BYTES:
@@ -686,7 +695,7 @@ def _map_issues_to_files(issues: list[dict], accepted_files: list[tuple[str, str
 async def analyze_project(
     files: Annotated[list[UploadFile], File()],
 ) -> AgentResult:
-    """Analyzes a full project: accepts HTML, CSS, JS, TS, TSX, Vue, Svelte files."""
+    """Analyzes a full project: accepts HTML, CSS, JS, TS, TSX, Vue, Svelte, Astro and MDX files."""
     _MAX_PROJECT_FILES = 200
     if not files:
         raise HTTPException(status_code=400, detail="Nenhum arquivo enviado.")
@@ -709,7 +718,7 @@ async def analyze_project(
     if not accepted:
         raise HTTPException(
             status_code=422,
-            detail="Nenhum arquivo compativel encontrado. Envie arquivos .html, .css, .js, .ts ou .tsx.",
+            detail="Nenhum arquivo compativel encontrado. Envie arquivos .html, .css, .js, .ts, .tsx, .vue, .svelte, .astro ou .mdx.",
         )
 
     logger.info("[Route] POST /analyze/project files=%d accepted=%d", len(files), len(accepted))
@@ -1168,7 +1177,7 @@ async def analyze_project_zip(
         if not accepted:
             raise HTTPException(
                 status_code=422,
-                detail="Nenhum arquivo compatível encontrado no ZIP. Envie arquivos .html, .css, .js, .ts ou .tsx.",
+                detail="Nenhum arquivo compatível encontrado no ZIP. Envie arquivos .html, .css, .js, .ts, .tsx, .vue, .svelte, .astro ou .mdx.",
             )
 
         logger.info("[Route] POST /analyze/project/zip arquivos_filtrados=%d", len(accepted))

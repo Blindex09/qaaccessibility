@@ -44,6 +44,7 @@ _CORPUS_FILES = (
     "a11y_reference.md",
     "agent_knowledge.md",
     "accessible_component_patterns.md",
+    "component_library_knowledge.md",
 )
 
 # Embedding models per provider family. Both are the current small/cheap tier,

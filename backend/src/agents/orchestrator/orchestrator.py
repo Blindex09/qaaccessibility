@@ -143,7 +143,7 @@ def _has_component_contract_surface(html_content: str) -> bool:
     """
     return bool(
         re.search(
-            r"\b(aria-(controls|expanded|haspopup|live|modal|selected|describedby|labelledby)|role\s*=\s*['\"]?(dialog|tab|tabpanel|status|alert|tooltip|menu|listbox)|data-(component|state|headlessui)|<dialog\b)",
+            r"(\b(aria-(controls|expanded|haspopup|live|modal|selected|describedby|labelledby)|role\s*=\s*['\"]?(dialog|tab|tabpanel|status|alert|tooltip|menu|listbox)|data-(component|state|headlessui)|popover)|<(dialog|details)\b)",
             html_content,
             re.I,
         )

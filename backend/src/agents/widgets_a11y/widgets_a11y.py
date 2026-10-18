@@ -1,6 +1,7 @@
 import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
+from backend.src.shared.component_library_calibration import COMPONENT_LIBRARY_FULL
 from backend.src.shared.models import AccessibilityIssue, AgentResult
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,8 @@ DIALOG / MODAL (WCAG 2.1.2, 4.1.2):
   - Dialog without focus trap (Tab cycles outside dialog while it is open)
   - aria-modal="true" used without background rendered inert (use inert attribute
     or aria-hidden="true" on #root; aria-modal alone is unreliable in Safari/iOS)
-  - Dialog trigger button without aria-haspopup="dialog"
+  - Dialog trigger button without aria-haspopup="dialog" (a recommendation only, never
+    a confirmed failure on its own; a native dialog opened with showModal does not need it)
   - alertdialog used for informational dialogs (use dialog; alertdialog implies
     immediate required user response)
 
@@ -149,6 +151,10 @@ EVIDENCE DISCIPLINE:
     report the contradiction explicitly and cite the measured elements.
 
 MENU / MENUBAR (WCAG 2.1.1, 4.1.2):
+  - Applies only to role="menu"/"menubar" application menus. A site navigation whose
+    submenus are buttons with aria-expanded that reveal lists of links is the disclosure
+    navigation pattern: do not demand role="menu" or menuitem there. aria-haspopup="true"
+    on such a button IS a mismatch (it announces a menu the links do not behave as).
   - role="menu" or role="menubar" without role="menuitem" children
   - Menu opened without focus moved to first menuitem
   - Menu requires Tab to navigate items instead of Arrow keys (menus use roving tabindex)
@@ -236,7 +242,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip()
+""".strip() + "\n\n" + COMPONENT_LIBRARY_FULL
 
 
 async def run_widgets_a11y(html_content: str) -> AgentResult:

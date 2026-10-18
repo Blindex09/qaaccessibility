@@ -470,8 +470,9 @@ describe the missing verification only when it is materially important.
 COMPONENT CONTRACTS:
 
 ### DISCLOSURE / ACCORDION / SHOW-MORE (2.1.1, 4.1.2)
-- Reveal/hide triggers must be buttons with aria-expanded and aria-controls
-    pointing to a stable panel id.
+- Reveal/hide triggers must be native details/summary (state is exposed natively,
+    no aria-expanded or aria-controls required) or buttons with aria-expanded and
+    aria-controls pointing to a stable panel id.
   - The visibility state and aria-expanded state must not contradict each
     other in the rendered state.
   - A custom clickable div/span without equivalent keyboard semantics is a
@@ -688,7 +689,9 @@ Check for these form-specific accessibility failures:
   - Invalid fields missing aria-invalid="true"
   - Error messages only indicated by color change with no text or icon alternative
   - Form submitted with errors but focus not moved to error summary or first invalid field
-  - Error summary at top of form missing role="alert" or aria-live="assertive"
+  - Error summary at top of form that is neither moved to focus nor placed in a live region
+    (role="alert", or aria-live="polite" with focus moved to it, are both acceptable;
+    assertive is not required for a summary the user is taken to)
   - Inline error injected into DOM without being announced (no role="alert" or live region)
 
 ### AUTOCOMPLETE (WCAG 1.3.5)
@@ -2092,7 +2095,8 @@ Check for these widget-specific accessibility failures:
   - Dialog without focus trap (Tab cycles outside dialog while it is open)
   - aria-modal="true" used without background rendered inert (use inert attribute
     or aria-hidden="true" on #root; aria-modal alone is unreliable in Safari/iOS)
-  - Dialog trigger button without aria-haspopup="dialog"
+  - Dialog trigger button without aria-haspopup="dialog" (a recommendation only, never
+    a confirmed failure on its own; a native dialog opened with showModal does not need it)
   - alertdialog used for informational dialogs (use dialog; alertdialog implies
     immediate required user response)
 
@@ -2206,7 +2210,11 @@ Check for these widget-specific accessibility failures:
     report the contradiction explicitly and cite the measured elements.
 
 ### MENU / MENUBAR (WCAG 2.1.1, 4.1.2)
-- role="menu" or role="menubar" without role="menuitem" children
+- Applies only to role="menu"/"menubar" application menus. A site navigation whose
+    submenus are buttons with aria-expanded that reveal lists of links is the disclosure
+    navigation pattern: do not demand role="menu" or menuitem there. aria-haspopup="true"
+    on such a button IS a mismatch (it announces a menu the links do not behave as).
+  - role="menu" or role="menubar" without role="menuitem" children
   - Menu opened without focus moved to first menuitem
   - Menu requires Tab to navigate items instead of Arrow keys (menus use roving tabindex)
   - Menuitem that opens sub-menu missing aria-haspopup

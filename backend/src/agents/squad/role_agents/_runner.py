@@ -19,6 +19,7 @@ from typing import Any
 from backend.src.services import chat_progress
 from backend.src.services.llm_client import call_llm_structured
 from backend.src.services.public_updates import PublicUpdates
+from backend.src.shared.component_library_calibration import COMPONENT_LIBRARY_METHOD
 from backend.src.shared.error_formatter import format_human_friendly_error
 from backend.src.shared.normative_calibration import NORMATIVE_CALIBRATION
 
@@ -132,7 +133,7 @@ async def run_role(
         # blocker que nao existia de verdade. O projeto ja tinha o mecanismo
         # de retry/repair -- os papeis so nao o usavam.
         data = await call_llm_structured(
-            system_prompt=system_prompt + OUTPUT_CONTRACT + "\n\n" + NORMATIVE_CALIBRATION,
+            system_prompt=system_prompt + OUTPUT_CONTRACT + "\n\n" + COMPONENT_LIBRARY_METHOD + "\n\n" + NORMATIVE_CALIBRATION,
             user_prompt="Squad context so far:" + chr(10) + payload,
             build=_extract_json_object,
             temperature=0.2,

@@ -4,6 +4,7 @@ import re
 from bs4 import BeautifulSoup
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
+from backend.src.shared.component_library_calibration import COMPONENT_LIBRARY_METHOD
 from backend.src.shared.models import AccessibilityIssue, AgentResult
 
 logger = logging.getLogger(__name__)
@@ -104,7 +105,9 @@ ERROR HANDLING (WCAG 3.3.1, 3.3.3):
   - Invalid fields missing aria-invalid="true"
   - Error messages only indicated by color change with no text or icon alternative
   - Form submitted with errors but focus not moved to error summary or first invalid field
-  - Error summary at top of form missing role="alert" or aria-live="assertive"
+  - Error summary at top of form that is neither moved to focus nor placed in a live region
+    (role="alert", or aria-live="polite" with focus moved to it, are both acceptable;
+    assertive is not required for a summary the user is taken to)
   - Inline error injected into DOM without being announced (no role="alert" or live region)
 
 AUTOCOMPLETE (WCAG 1.3.5):
@@ -172,7 +175,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip()
+""".strip() + "\n\n" + COMPONENT_LIBRARY_METHOD
 
 
 async def run_forms_a11y(html_content: str) -> AgentResult:

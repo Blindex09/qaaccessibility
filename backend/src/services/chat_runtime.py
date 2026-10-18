@@ -48,6 +48,7 @@ from backend.src.services import (
 from backend.src.services.chat_tools import A11Y_CHAT_TOOLSET, CLARIFY_TOOLSET
 from backend.src.services.telemetry import agent_span
 from backend.src.services.tool_groups import GROUP_DESCRIPTIONS, offered_tools, tools_of_group
+from backend.src.shared.component_library_calibration import COMPONENT_LIBRARY_METHOD
 from backend.src.shared.error_formatter import format_human_friendly_error
 from backend.src.shared.normative_calibration import NORMATIVE_CALIBRATION
 from run_agent import AIAgent
@@ -972,7 +973,7 @@ async def _stream_chat_impl(
             "\nPassages retrieved from the local knowledge base for this question:\n\n"
             f"{a11y_ref}"
         )
-    dynamic_prompt += RESEARCH_PROTOCOL + "\n\n" + NORMATIVE_CALIBRATION
+    dynamic_prompt += RESEARCH_PROTOCOL + "\n\n" + COMPONENT_LIBRARY_METHOD + "\n\n" + NORMATIVE_CALIBRATION
     if offered_names is not None:
         pending = [
             f"{name} ({text})" for name, text in GROUP_DESCRIPTIONS.items()

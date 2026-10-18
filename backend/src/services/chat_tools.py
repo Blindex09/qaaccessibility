@@ -25,6 +25,7 @@ from typing import Any
 
 from backend.src.config.settings import get_settings
 from backend.src.services import chat_progress
+from backend.src.services.astro_source import source_map_for_text as astro_source_prefix
 from backend.src.services.tool_groups import ENABLE_TOOL_GROUP, GROUP_DESCRIPTIONS, TOOL_GROUPS
 
 logger = logging.getLogger(__name__)
@@ -283,6 +284,9 @@ async def _resolve_and_analyze(html: str, url: str, only_agents: list[str] | Non
     content = html
     source_document = html
     screenshot_base64 = None
+    if html:
+        # Astro/MDX são fonte, não HTML: o mapa diz que HTML cada componente usado renderiza.
+        content = astro_source_prefix(html) + html
     if url and not html:
         # Reaproveita o fetch com JS rendering + extracao semântica das rotas.
         from backend.src.routes.analyze import _extract_semantic_html
@@ -1443,6 +1447,8 @@ def unzip_and_list_files(args: dict[str, Any], **_kw: Any) -> str:
             ".pdf",
             ".pptx",
             ".epub",
+            ".astro",
+            ".mdx",
             ".swift",
             ".kt",
             ".dart",
@@ -1566,6 +1572,8 @@ _LOCAL_PROJECT_VALID_EXTENSIONS = {
     ".tsx",
     ".vue",
     ".svelte",
+    ".astro",
+    ".mdx",
     ".css",
     ".json",
     ".md",
@@ -1650,7 +1658,7 @@ def _walk_local_project_files(project_dir: str) -> list[dict[str, Any]]:
 _READ_LOCAL_PROJECT_FILES_SCHEMA: dict[str, Any] = {
     "description": (
         "Read a real local project directory on the backend machine's disk (HTML, CSS, JS, TS, "
-        "JSX, TSX, Vue, Svelte, Swift, Kotlin, Dart, Java, plus images) into your context, so you "
+        "JSX, TSX, Vue, Svelte, Astro, MDX, Swift, Kotlin, Dart, Java, plus images) into your context, so you "
         "can analyze/chat about it the same way as an uploaded ZIP -- but without requiring the "
         "user to zip and upload it first. Call this when the user tells you a local path where "
         "their project lives (e.g. 'o projeto está em C:\\meuprojeto') and wants you to work with "
