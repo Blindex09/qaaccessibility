@@ -13,6 +13,7 @@ import { getSettings, saveSettings, saveServiceKey, SettingsData } from "../serv
 import { describeTokenBudget, parseTokenBudget } from "../services/tokenBudget";
 import { getModels } from "../services/chat";
 import { colors, font, radius, space, shadow, a11y } from "../design/tokens";
+import { MemoryPanel } from "./MemoryPanel";
 import { displayFont, monoFont } from "../design/helpers";
 
 // Providers suportados (tool-capable, espelham CHAT_PROVIDERS do backend).
@@ -934,6 +935,8 @@ export function SettingsScreen({ onBack }: Props) {
           )}
         </TouchableOpacity>
       </View>
+
+      <MemoryPanel />
     </ScrollView>
   );
 }

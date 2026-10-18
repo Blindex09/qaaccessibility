@@ -1864,14 +1864,18 @@ _MCP_CALL_TOOL_SCHEMA: dict[str, Any] = {
 def mcp_register_server_tool(args: dict[str, Any], **_kw: Any) -> str:
     from backend.src.services import mcp_client
 
+    name, command = str(args.get("name") or ""), str(args.get("command") or "")
+    server_args, env_names = list(args.get("args") or []), list(args.get("env_names") or [])
     try:
-        saved = mcp_client.register_server(
-            str(args.get("name") or ""), str(args.get("command") or ""), list(args.get("args") or []),
-            list(args.get("env_names") or []), str(args.get("note") or ""),
-        )
+        mcp_client.validate_registration(name, command, server_args, env_names)
+        # Revisão automática: o servidor sobe SEM credencial e mostra o que oferece; se nem inicia, não é registrado.
+        review = _safe_async_run(mcp_client.review_before_registering(command, server_args))
+        if not review.get("started"):
+            return json.dumps({"registered": False, **review}, ensure_ascii=True)
+        saved = mcp_client.register_server(name, command, server_args, env_names, str(args.get("note") or ""))
     except mcp_client.McpClientError as exc:
         return json.dumps({"error": str(exc)}, ensure_ascii=True)
-    return json.dumps({"registered": True, **saved}, ensure_ascii=True)
+    return json.dumps({"registered": True, **saved, "review": review}, ensure_ascii=True)
 
 
 def mcp_list_tools_tool(args: dict[str, Any], **_kw: Any) -> str:

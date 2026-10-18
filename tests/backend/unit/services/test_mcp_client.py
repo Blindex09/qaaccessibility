@@ -113,3 +113,31 @@ class TestRotasDaPessoa:
         assert listado[0]["name"] == "eco" and "valor-declarado" not in json.dumps(listado)
         assert client.delete("/memory/mcp-servers/eco").json() == {"deleted": True}
         assert client.delete("/memory/mcp-servers/eco").status_code == 404
+
+
+class TestRevisaoAutomaticaAntesDeHabilitar:
+    async def test_servidor_real_sobe_sem_nenhuma_credencial_e_lista_o_que_oferece(self):
+        r = await mcp_client.review_before_registering(sys.executable, [SERVIDOR])
+        assert r["started"] is True and r["credentials_given"] == []
+        assert {t["name"] for t in r["tools"]} == {"eco", "ambiente"}
+        assert all(t["description"].startswith("<dado-de-servidor-mcp") for t in r["tools"])
+
+    async def test_a_revisao_nao_recebe_as_chaves_nem_as_declaradas(self):
+        r = await mcp_client.review_before_registering(sys.executable, [SERVIDOR])
+        assert r["started"]
+        # a revisao so lista ferramentas; para provar o ambiente, chama a ferramenta pelo mesmo caminho sem credencial
+        async with mcp_client._open({"command": sys.executable, "args": [SERVIDOR], "env_names": ["SEGREDO_DECLARADO"]}, with_credentials=False) as s:
+            ambiente = (await s.call_tool("ambiente", {})).content[0].text
+        assert "SEGREDO_DECLARADO" not in ambiente and "OPENAI_API_KEY" not in ambiente
+
+    async def test_servidor_que_nem_inicia_nao_e_aprovado(self):
+        r = await mcp_client.review_before_registering(sys.executable, ["-c", "import sys; sys.exit(3)"])
+        assert r["started"] is False and "não iniciou" in r["error"]
+
+    def test_pelo_chat_servidor_bom_e_registrado_com_a_revisao_junto(self):
+        out = json.loads(chat_tools.mcp_register_server_tool({"name": "eco", "command": sys.executable, "args": [SERVIDOR]}))
+        assert out["registered"] is True and {t["name"] for t in out["review"]["tools"]} == {"eco", "ambiente"}
+
+    def test_pelo_chat_servidor_que_nao_inicia_nao_e_registrado(self):
+        out = json.loads(chat_tools.mcp_register_server_tool({"name": "ruim", "command": sys.executable, "args": ["-c", "raise SystemExit(2)"]}))
+        assert out["registered"] is False and mcp_client.list_servers() == []
