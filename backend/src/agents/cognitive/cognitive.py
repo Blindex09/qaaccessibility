@@ -2,6 +2,7 @@ import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +25,15 @@ These map primarily to WCAG 3.x (Understandable) and COGA guidance.
 Check for these cognitive accessibility failures:
 
 AUTHENTICATION AND SECURITY (WCAG 3.3.8, 3.3.9):
-  - CAPTCHAs (text-based, image-based, math-based) without an accessible alternative
-    (audio CAPTCHA, biometric, passkey, or email magic link)
+  - CAPTCHAs that require transcription, spelling or a calculation (text-based, math-based, audio
+    transcription) without a non-cognitive alternative (passkey, email link, biometric). Under 3.3.8 an
+    object-recognition CAPTCHA and one based on the user's own images are allowed exceptions at AA (not at
+    3.3.9, AAA); they still need a text alternative that identifies their purpose (1.1.1)
   - Password fields with autocomplete="off" or autocomplete="new-password" on
     login forms — blocks password manager autofill which is critical for users with
     memory impairments (3.3.8)
-  - Password fields with no "show password" toggle (prevents users with cognitive
-    disabilities from verifying their input)
+  - Password fields with no "show password" toggle (a COGA recommendation to verify input, not a 3.3.8
+    requirement)
   - onpaste="return false" or event listeners that block paste on password/email fields
     — prevents password manager paste and manual copy-paste (3.3.8)
   - Input type="password" with maxlength below 8 — restricts use of passphrase or
@@ -53,10 +56,12 @@ FORMS AND ERROR RECOVERY (WCAG 3.3.1 to 3.3.4, 3.3.7):
 LANGUAGE AND READABILITY (WCAG 3.1.3, 3.1.4, 3.1.5):
   - Abbreviations or acronyms used without expansion on first use
   - Technical jargon without plain-language explanation or glossary
-  - Reading level above Grade 9 equivalent for general-audience content
+  - Reading level above lower secondary education (about Grade 9) without a simpler version or summary
+    (3.1.5 is Level AAA: report as a recommendation, not a failure of AA)
   - Idioms or figurative language without literal interpretation nearby
 
-NAVIGATION AND ORIENTATION (WCAG 2.4.8, 3.2.3, 3.2.4):
+NAVIGATION AND ORIENTATION (WCAG 3.2.3 and 3.2.4 are Level AA; 2.4.8 Location is AAA; breadcrumbs, site maps
+and step indicators are techniques and COGA recommendations, not requirements):
   - Page with no breadcrumb, no section heading, no site map — only nav menu
   - Inconsistent page titles across similar pages
   - No clear indication of current location in a multi-page flow
@@ -113,7 +118,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip()
+""".strip() + specialist_knowledge("cognitive")
 
 
 async def run_cognitive(html_content: str) -> AgentResult:

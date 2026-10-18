@@ -2,6 +2,7 @@ import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +186,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip()
+""".strip() + specialist_knowledge("perceiver")
 
 
 async def run_perceiver(html_content: str) -> AgentResult:

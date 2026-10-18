@@ -9,7 +9,7 @@ Este módulo dá ao chat e aos agentes de análise uma base pesquisada em docume
 
 ## O que foi entregue
 
-Quatro referências em backend/src/resources, todas no índice de busca do chat:
+Cinco referências sobre leitor de tela em backend/src/resources (a quinta, de ações, teclas e eventos, veio na segunda rodada; a terceira rodada acrescentou mais três, de frameworks, mobile e documentos, e cognitivo e conformidade), todas no índice de busca do chat:
 
 - leitor_de_tela_elementos_html.md: 14 famílias de elementos HTML (títulos e listas, links e botões, formulários, tabelas, imagens, pontos de referência, divulgação e diálogo, progresso, texto em linha, mídia e conteúdo incorporado, elementos sem interface), com os resultados de NVDA, JAWS, VoiceOver no macOS e no iOS, TalkBack e Narrator e as lacunas de cada um.
 - leitor_de_tela_aria_e_padroes.md: princípios de ARIA (nome acessível em ordem, papéis que não aceitam nome, atributos por papel, aria-hidden contra inert, presentation, modo de aplicativo) e os padrões do guia APG da W3C com teclado, papéis, estados e o que a pessoa vive quando falta (diálogo, abas, acordeão e divulgação, navegação por divulgação, menu de aplicativo, combobox, listbox, tooltip, alert, status, log, estados de formulário, botão, link, checkbox, rádio, switch, slider, toolbar, carrossel, breadcrumb, pontos de referência, tabela, grade e árvore).
@@ -41,6 +41,47 @@ Todos em tests/backend/unit/shared/test_leitor_de_tela_conhecimento.py.
 - Tratava a falta de h1, mais de um h1 e nível de título pulado como falha de critério e trazia isso como exemplo de achado com alta confiança. A W3C apresenta o nível pulado como orientação. Passou a recomendação, sem critério falho, e o exemplo virou botão sem nome (4.1.2).
 - Dizia que imagem sem alt sempre fala o nome do arquivo e que todo SVG decorativo é anunciado. Cada leitor se comporta de um jeito (VoiceOver lê o nome do arquivo, JAWS diz "sem rótulo", TalkBack diz que não está rotulada) e muitos ignoram SVG sem nome. Reescrito por leitor.
 - Dava 100 a 500 ms como regra de espera após AJAX. Não há número documentado; ficou como solução comum.
+
+## Segunda rodada: ações, teclas, eventos e mudanças de estado (2026-10-17)
+
+A pedido do dono, uma nova varredura procurou o que ainda faltava: como o leitor age em cada ação e tecla, em cada menu, lista suspensa e acordeão, o que fala, e como isso se liga a eventos de JavaScript, AJAX, conteúdo dinâmico, React e CSS. O que faltava e foi acrescentado:
+
+- Nova referência leitor_de_tela_acoes_teclas_e_eventos.md: quando cada leitor troca de modo (NVDA conferido no código-fonte do repositório nvaccess/nvda, com a lista exata de papéis que ligam o modo de foco e dos que não ligam; JAWS, Narrator, VoiceOver e TalkBack pelos guias disponíveis), como a ativação chega à página (a tecla de ativar em modo de navegação gera click; elemento com click é "clicável" mas não é botão), o que é anunciado quando um estado muda (expectativas por recurso do projeto Accessibility Support, ARIA a ARIA), menu, lista suspensa nativa e personalizada, combobox, acordeão, abas e diálogo, atributos HTML (required, disabled, readonly, maxlength, min, max, list, scope, headers, title, lang, inert), AJAX (padrão feed, mensagens de status, aria-busy) e os critérios 2.1.1, 2.2.2, 2.4.3, 3.2.1, 3.2.2 e 1.4.13.
+- Acréscimos às referências existentes: React (rótulos e campos controlados, documentação oficial do React Router), CSS (display contents, tabelas com display alterado, content-visibility, scroll-padding para o 2.4.11) e SVG em linha.
+- Correção de prompts: aria-controls é opcional na divulgação do APG e a maioria dos leitores não o anuncia, então os especialistas de widgets, ARIA e componentes passaram a tratá-lo como recomendação, e os valores novos de aria-haspopup (dialog, grid, listbox, tree), mal suportados, ganharam o aviso de que podem ser falados como menu. O combobox exige aria-controls só enquanto o popup está visível.
+- O bloco curto dos agentes ganhou as regras de ativação e os alertas de suporte.
+
+Testes: TestActionsKeysAndEvents e TestAriaControlsIsNotATreatedAsMandatory, no mesmo arquivo de testes. A suíte unitária inteira passou: 2144 testes.
+
+Fontes que não puderam ser lidas nesta rodada: o guia de teclas do JAWS (Freedom Scientific, acesso negado), a página de gestos do VoiceOver no iPhone e o artigo da Vispero sobre eventos no JAWS e no NVDA (as páginas não trouxeram o conteúdo), e a especificação WAI-ARIA 1.2 completa. Os dados do projeto Accessibility Support são expectativas revisadas pela comunidade, de datas variadas (a maioria de 2019 a 2023), e não medições de uma versão de leitor.
+
+## Terceira rodada: frameworks, mobile, documentos, cognitivo, conformidade e conhecimento por especialista (2026-10-17)
+
+A pedido do dono, uma pesquisa exaustiva para que tanto o chat quanto cada especialista tenham o conhecimento. Duas frentes.
+
+Novas referências, todas no índice do chat (três, que somam oito com as anteriores):
+
+- acessibilidade_frameworks_e_componentes.md: guias oficiais do Vue (rota, formulários, ids com useId, RouterLink que já aplica aria-current), do Angular (elementos nativos, as duas formas de ligar ARIA, CDK, rota, @defer), todos os avisos de acessibilidade do compilador do Svelte, Tailwind (sr-only, variantes, outline-hidden, anéis que somem em cores forçadas, forced-color-adjust) e Web Components (ElementInternals, delegatesFocus, referências por id que não atravessam o shadow DOM, Reference Target).
+- acessibilidade_mobile_documentos_e_midia.md: rascunho móvel da W3C e os critérios 1.3.4, 1.4.4, 1.4.10, 2.5.1, 2.5.4, 2.5.7 e 2.5.8, princípios do Android, Word, Excel e PowerPoint da Microsoft, técnicas de PDF do WCAG, Protocolo Matterhorn, PDF/UA-1 e 2, EPUB Accessibility 1.1 e legendas (1.2.2).
+- acessibilidade_cognitiva_conformidade_e_metodologia.md: modelo de conformidade e lista dos 31 critérios A e 24 AA do WCAG 2.2, critérios de erro, rótulo, entrada redundante, autenticação, ajuda e tempo, COGA, Revised 508 Standards (lido no site do Access Board), EN 301 549 V3.2.1 (lida no texto da norma, cláusulas 4 a 12), Lei Europeia de Acessibilidade (sem texto oficial lido), VPAT, WCAG-EM, ACT e cobertura da automação.
+
+Conhecimento por especialista (backend/src/shared/specialist_knowledge.py): cada um dos 28 especialistas de análise recebe, no prompt, as seções do seu próprio domínio, com um teto de caracteres por especialista (de 4.000 a 8.000). Exemplos: leitor de tela recebe elementos HTML por leitor; formulários recebe campos, estado de formulário e validação; widgets recebe diálogo, abas, acordeão, menu e combobox; mobile recebe mobile; PDF recebe PDF; cognitivo e compreensão recebem erro, rótulo, autenticação, ajuda e tempo; Seção 508 e auditoria de conformidade recebem a base legal; cada framework recebe a própria seção. Custo medido: cerca de 126 mil caracteres somados se os 28 rodarem; o orquestrador só chama os que têm evidência no HTML, então uma análise comum paga uma fração disso. Os 28 estão em SLICES; um teste confere que cada seção pedida existe e que o teto é respeitado.
+
+Erros achados nos prompts e corrigidos (cada um com teste):
+
+- O especialista de Seção 508 e a auditoria de conformidade usavam os parágrafos 1194.21 e 1194.22, que são da norma de 2000, substituída pelas Revised 508 Standards (em vigor para TIC usada após 18 de janeiro de 2018), que incorporam o WCAG 2.0 A e AA (E205.4). Também havia regras inventadas ("vídeo produzido depois de 1997 precisa de audiodescrição", "CAPTCHA precisa de áudio, 508(f)", "páginas devem funcionar sem script"). Reescritos sobre E205.4 e E207, com a regra de que critérios novos do WCAG 2.1 e 2.2 são boa prática, não base legal, e com as quatro isenções de documentos fora da web.
+- O VPAT classificava 4.1.3 Mensagens de Status como nível A e 3.2.6 e 3.3.7 como AA. Os níveis certos são 4.1.3 AA, 3.2.6 A e 3.3.7 A; A tem 31 critérios e AA tem 24. Um teste compara a lista do código com a lista da referência.
+- Conselho de região viva com v-show (Vue, React/Vue, AJAX e Svelte com "visibility/display"): display none tira o elemento da árvore de acessibilidade, então v-show não resolve; a correção é manter o contêiner sempre renderizado e exposto e trocar só o texto.
+- O especialista de Angular dava como erro o [aria-label]="..." por sintaxe, e o guia oficial atual aceita as duas formas; o exemplo do prompt era esse falso erro e foi trocado por um div com clique sem teclado. O especialista de Vue cobrava aria-current em RouterLink, que o roteador já aplica.
+- O especialista de Tailwind sugeria outline-none com anel; os anéis são box-shadow e somem em cores forçadas, e o Tailwind v4 tem outline-hidden para isso.
+- O especialista mobile atribuía type email, tel e number ao 1.3.5 (que trata de autocomplete) e mandava trocar todo campo numérico por type number (a orientação do W3C é não usar number para códigos como CEP).
+- O especialista cognitivo tratava todo CAPTCHA como falha de 3.3.8 (as exceções de reconhecimento de objetos e de conteúdo pessoal valem no AA), o botão de mostrar senha como exigência (é recomendação do COGA), nível de leitura e breadcrumb como falha (3.1.5 é AAA; breadcrumb é técnica).
+- O especialista de leitor de tela citava "30 a 50 por cento" para a cobertura da automação sem fonte; o estudo da Deque (2021, fornecedor) mede 57 por cento em volume de ocorrências.
+- A referência do chat e a regra 18 afirmavam "Safari obrigatório" no VoiceOver e "NVDA com Firefox é a combinação mais completa". Os testes públicos da TetraLogical mostram que o VoiceOver funciona no Chrome e no Firefox com diferenças, e a pesquisa da WebAIM mostra NVDA com Chrome (21,3 por cento) mais usado que com Firefox (10,0 por cento). Reescritos.
+
+Testes: tests/backend/unit/shared/test_conhecimento_ampliado_dos_especialistas.py (80 casos). A suíte unitária inteira: 2224 aprovados.
+
+Não conferido nesta rodada: o texto oficial da Diretiva (UE) 2019/882 (EUR-Lex devolveu página vazia), a ISO 14289 (paga), a página do Adobe, a página de acessibilidade da Apple (44 pontos no iOS), o mínimo de 48 dp do Android na página lida, as páginas do PDF Association (acesso negado; o conteúdo vem de resumos de busca), o guia oficial de teclas do JAWS, a especificação WAI-ARIA 1.2 completa. Os resultados de leitor continuam sendo de testes públicos em versões datadas e a fala exata continua pendente de teste manual.
 
 ## Orçamento de contexto
 

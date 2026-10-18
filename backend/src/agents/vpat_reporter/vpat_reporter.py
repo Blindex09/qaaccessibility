@@ -12,6 +12,7 @@ from backend.src.shared.models import (
     VPATCriterion,
     VPATReport,
 )
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +62,11 @@ _WCAG_22_CRITERIA = {
         ("3.1.1", "Language of Page"),
         ("3.2.1", "On Focus"),
         ("3.2.2", "On Input"),
+        ("3.2.6", "Consistent Help"),
         ("3.3.1", "Error Identification"),
         ("3.3.2", "Labels or Instructions"),
+        ("3.3.7", "Redundant Entry"),
         ("4.1.2", "Name, Role, Value"),
-        ("4.1.3", "Status Messages"),
     ],
     "AA": [
         ("1.2.4", "Captions (Live)"),
@@ -87,11 +89,10 @@ _WCAG_22_CRITERIA = {
         ("3.1.2", "Language of Parts"),
         ("3.2.3", "Consistent Navigation"),
         ("3.2.4", "Consistent Identification"),
-        ("3.2.6", "Consistent Help"),
         ("3.3.3", "Error Suggestion"),
         ("3.3.4", "Error Prevention (Legal, Financial, Data)"),
-        ("3.3.7", "Redundant Entry"),
         ("3.3.8", "Accessible Authentication (Minimum)"),
+        ("4.1.3", "Status Messages"),
     ],
 }
 
@@ -154,7 +155,7 @@ Each remarks must:
 }
 
 Return ONLY valid JSON. No markdown fences.
-""".strip()
+""".strip() + specialist_knowledge("vpat_reporter")
 
 
 SYSTEM_PROMPT_NIVEL = """
@@ -291,7 +292,7 @@ async def run_vpat_reporter(
     )
 
     try:
-        # Um VPAT completo sao 55 criterios (30 A + 25 AA), cada um com
+        # Um VPAT completo sao 55 criterios (31 A + 24 AA), cada um com
         # `remarks` em texto livre. Pedir os 55 numa unica resposta estourava o
         # orcamento de saida de forma nao confiavel: medido em 2026-08-30, o
         # modelo devolvia VAZIO com 16k e AINDA truncava com 32k (a escalada

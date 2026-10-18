@@ -2,6 +2,7 @@ import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,11 @@ Look especially for:
 1. Focus visibility removal (WCAG 2.4.7):
    - Classes containing "outline-none" or "focus:outline-none" or "outline-0" or "focus:outline-0" without also including focus indicators like "focus-visible:ring", "focus-visible:outline", or "focus:ring".
    - Removing the outline without a keyboard-visible alternative makes keyboard navigation impossible.
+   - Tailwind rings (ring-*) are built on box-shadow, and forced colors mode (Windows high contrast) sets
+     box-shadow to none, so "outline-none" plus a ring leaves no focus indicator there. In Tailwind v4,
+     "outline-hidden" compiles to a transparent 2px outline that still shows in forced colors mode; prefer it
+     (or a real outline) when the ring is the visible style. Report the outline-none plus ring case at low or
+     medium confidence as a forced-colors risk to verify, not as a confirmed 2.4.7 failure for everyone.
 2. Hiding elements incorrectly (WCAG 1.3.1):
    - Using the "hidden" class for screen reader content. "hidden" compiles to display:none, removing the element from the accessibility tree entirely.
    - For element labels intended for screen readers (like icon-only button labels), use "sr-only" instead of "hidden".
@@ -49,7 +55,7 @@ find in the input; never copy this example verbatim):
     "why_simple": "A sighted keyboard-only user tabbing to this button cannot tell it is selected before pressing Enter.",
     "why_technical": "Tailwind's outline-none utility maps to outline: none in CSS; without a focus-visible: variant providing an alternative indicator, keyboard focus becomes invisible.",
     "suggestion": "Keep a visible ring or outline on the button when it is focused via keyboard.",
-    "suggestion_technical": "Add \"focus-visible:ring-2 focus-visible:ring-blue-500\" (or similar) alongside \"outline-none\".",
+    "suggestion_technical": "Add \"focus-visible:ring-2 focus-visible:ring-blue-500\" (or similar) and use \"outline-hidden\" (Tailwind v4) instead of \"outline-none\" so an outline still shows in forced colors mode.",
     "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html"
   }
 ]
@@ -74,7 +80,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip()
+""".strip() + specialist_knowledge("tailwind_css")
 
 
 async def run_tailwind_css(html_content: str) -> AgentResult:

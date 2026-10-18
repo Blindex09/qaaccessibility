@@ -40,6 +40,12 @@ Fontes: MDN (regiões vivas, papéis alert, status e log, aria-busy, tabindex, i
 - Outras indicações do React: defina o idioma da página, defina um título descritivo por página, garanta contraste, mantenha o contorno de foco, ofereça link para pular a navegação, use landmarks. Teste com o teclado sozinho, com a árvore de acessibilidade do navegador e com um leitor de tela; ferramentas automáticas (eslint-plugin-jsx-a11y, axe) cobrem só parte.
 - Roteadores de página sem recarga: o Next.js tem um anunciador de rota por padrão, que lê document.title, depois o primeiro h1 e por fim o caminho da URL; cada página precisa de título único e descritivo.
 
+## React: formulários, rótulos e roteador (acréscimos)
+
+- react.dev (input): envolva o campo em label, ou use htmlFor com useId; o leitor fala o texto do rótulo ao entrar no campo. A página não trata de aria-describedby nem de texto de ajuda; use o MDN para isso.
+- Campo controlado: value ou checked exigem onChange, senão o campo vira somente leitura e o React registra erro; não troque entre controlado e não controlado; inicialize com string vazia e não com null ou undefined; atualize de forma síncrona com e.target.value, porque transformar o valor ou atualizar de forma assíncrona faz o cursor de texto pular, e chaves que remontam o campo a cada render também. Para quem usa leitor de tela, remontar o campo perde o foco e o cursor.
+- React Router (documentação oficial, reactrouter.com/how-to/accessibility): Link renderiza uma âncora comum, NavLink acrescenta contexto de página atual (útil em menus e breadcrumbs). Após a primeira carga, o roteador impede a navegação padrão e não decide nada sobre a interface: o foco depois da troca de rota e o anúncio de mudança de rota, inclusive durante carregamentos longos, ficam a cargo de quem desenvolve; a página aponta a pesquisa de Marcy Sutton de 2019 como referência e não prescreve uma técnica. Mover o foco para o título da página é um padrão comum, descrito em artigos de terceiros, que exige tabIndex -1 no elemento.
+
 ## Astro e roteamento por view transitions
 
 - O componente ClientRouter do Astro (a partir da versão 3.2) acrescenta um elemento com aria-live assertive que anuncia a nova página lendo, nessa ordem, o title, depois o primeiro h1, depois o caminho. Os documentos recomendam fortemente um title por página. Não duplique o anúncio com outra região viva ao mudar de rota; o foco após a navegação não é descrito na documentação, então confirme em runtime onde o foco fica.

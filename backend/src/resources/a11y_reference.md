@@ -190,16 +190,16 @@ Cada combinação de leitor de tela + navegador interpreta ARIA/HTML de forma di
 
 | Ambiente | Leitor de tela recomendado | Navegador obrigatório/recomendado | Atalho para ligar |
 |---|---|---|---|
-| Windows desktop (gratuito) | NVDA | Firefox (combinação mais completa) ou Chrome | `Ctrl+Alt+N` (se configurado) ou atalho do instalador |
-| Windows desktop (enterprise) | JAWS | Chrome ou Edge (padrão de mercado); também funciona com Firefox | Atalho do JAWS no desktop |
+| Windows desktop (gratuito) | NVDA | Chrome ou Firefox (pesquisa WebAIM 2024: NVDA com Chrome 21,3% e com Firefox 10,0% dos respondentes) | `Ctrl+Alt+N` (se configurado) ou atalho do instalador |
+| Windows desktop (enterprise) | JAWS | Chrome ou Edge (pesquisa WebAIM 2024: JAWS com Chrome 24,7% e com Edge 11,4%); também funciona com Firefox | Atalho do JAWS no desktop |
 | Windows desktop (built-in, sem instalar nada) | Narrator | Edge | `Ctrl+Win+Enter` |
-| macOS desktop | VoiceOver | **Safari obrigatório** — é o único navegador que expõe a API de acessibilidade do macOS por completo ao VoiceOver | `Cmd+F5` |
+| macOS desktop | VoiceOver | **Safari recomendado** (par de referência da WebAIM e o mais usado, 7,0% das combinações). Chrome e Firefox funcionam, mas os testes públicos da TetraLogical mostram diferenças de fala entre eles e o Safari, então teste também no navegador do seu público | `Cmd+F5` |
 | iOS (iPhone/iPad) | VoiceOver | Safari | Ajustes > Acessibilidade > VoiceOver, ou pedir ao Siri |
 | Android | TalkBack | Chrome | Ajustes > Acessibilidade > TalkBack |
 
 Regras práticas para a IA usar ao orientar um teste:
 * Nunca dar instrução genérica de "ative o leitor de tela do seu computador" quando o combo puder ser identificado — cada combo tem atalho e comportamento próprios.
-* VoiceOver + Chrome/Firefox no macOS não é uma combinação confiável — sempre indicar Safari.
+* VoiceOver com Chrome ou Firefox no macOS funciona, mas fala algumas coisas de outro jeito que no Safari (por exemplo o select e o nível de título acima de 9): indique o Safari como referência e avise que a fala pode diferir em outros navegadores.
 * NVDA e JAWS interpretam alguns padrões ARIA de forma diferente (ex.: `aria-activedescendant`, `role="application"`) — um problema real pode aparecer só em um dos dois.
 * Se o usuário não disser o ambiente, perguntar antes de dar o passo a passo: sistema operacional, navegador, e se já tem um leitor de tela específico em mente.
 

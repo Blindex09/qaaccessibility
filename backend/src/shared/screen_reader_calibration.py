@@ -26,6 +26,14 @@ TetraLogical HTML support tests; the full references are in the knowledge base):
   missed; offer them in a dialog that takes focus or a permanent control. Moving focus is how a new screen,
   dialog or error summary is conveyed, and the router may already announce the page (Astro ClientRouter and
   Next.js read the title, then the h1, then the path), so do not require two mechanisms.
+- Activation: in reading (browse) mode the reader's activate command produces a click event, and key events may
+  not reach the page, so a custom control must handle click as well as Enter and Space keydown; a div with a
+  click handler is exposed as clickable at most and is not a button. Readers switch to focus/forms mode by
+  themselves for editable fields and for roles such as combobox, listbox, slider, tab, menu items, tree and grid
+  cells, but not for button, link, checkbox or dialog; role=application turns browse mode off in that region.
+- Support caveats: most readers do not announce aria-controls, and the newer aria-haspopup values (dialog,
+  listbox, grid, tree) may be spoken as "menu". The state of the focused control is re-announced when
+  aria-expanded, aria-pressed, aria-checked or aria-selected changes; name or description changes need focus.
 - A navigation menu of links is a disclosure pattern (button with aria-expanded and a list of links), not a
   role=menu widget; role=menu belongs to application menus with the full menu keyboard model.
 """.strip()

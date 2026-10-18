@@ -3,6 +3,7 @@ import logging
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.component_library_calibration import COMPONENT_LIBRARY_FULL
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +54,18 @@ TABS (WCAG 2.1.1, 4.1.2):
 ACCORDION (WCAG 2.1.1, 4.1.2):
   - Accordion trigger button missing aria-expanded="true|false"
   - aria-expanded not toggled dynamically when panel opens/closes
-  - Accordion button missing aria-controls pointing to panel id
-  - Accordion panel missing id referenced by button aria-controls
+  - Accordion button missing aria-controls pointing to panel id (the APG lists it for accordions, but most
+    screen readers do not announce aria-controls; report at low severity as a recommendation, never as a failure)
+  - Accordion panel missing id referenced by button aria-controls (same: recommendation only)
   - Accordion panel not hidden via hidden attribute or display:none when collapsed
 
 COMBOBOX / AUTOCOMPLETE (WCAG 4.1.2):
   - role="combobox" missing aria-expanded="true|false"
-  - role="combobox" without aria-haspopup="listbox" (or tree, grid, dialog)
-  - role="combobox" without aria-controls pointing to listbox id
+  - role="combobox" whose popup is a tree, grid or dialog without aria-haspopup (a listbox popup is the default and
+    needs none); note that the newer aria-haspopup values (dialog, grid, listbox, tree) are poorly supported and
+    may be announced as a menu, so do not rely on them alone to describe the popup
+  - role="combobox" without aria-controls pointing to the popup while the popup is displayed (the APG requires it
+    only while the popup is visible)
   - Listbox options (role="option") without aria-selected state
   - Active option not tracked with aria-activedescendant on combobox
   - Keyboard pattern missing: Alt+Down opens list, Escape cancels, Enter selects
@@ -128,7 +133,7 @@ TOAST / NOTIFICATION / STATUS (WCAG 4.1.3, 3.2.1):
 
 DISCLOSURE / SHOW-MORE (WCAG 2.1.1, 4.1.2):
   - A button-like trigger that reveals or hides content without aria-expanded
-    and aria-controls connecting it to a stable panel id
+    (aria-controls to a stable panel id is optional in the APG disclosure pattern)
   - aria-expanded changes visually but not in the same runtime update as the
     content visibility, leaving assistive technology with stale state
   - Revealed interactive content is inserted before the current focus without
@@ -242,7 +247,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip() + "\n\n" + COMPONENT_LIBRARY_FULL
+""".strip() + specialist_knowledge("widgets_a11y") + "\n\n" + COMPONENT_LIBRARY_FULL
 
 
 async def run_widgets_a11y(html_content: str) -> AgentResult:

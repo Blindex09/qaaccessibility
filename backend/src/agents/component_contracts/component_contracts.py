@@ -3,6 +3,7 @@ import logging
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.component_library_calibration import COMPONENT_LIBRARY_FULL
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,8 @@ COMPONENT CONTRACTS:
 
 DISCLOSURE / ACCORDION / SHOW-MORE (2.1.1, 4.1.2):
   - Reveal/hide triggers must be native details/summary (state is exposed natively,
-    no aria-expanded or aria-controls required) or buttons with aria-expanded and
-    aria-controls pointing to a stable panel id.
+    no aria-expanded or aria-controls required) or buttons with aria-expanded (aria-controls to a
+    stable panel id is optional for a disclosure and recommended for accordions and tabs).
   - The visibility state and aria-expanded state must not contradict each
     other in the rendered state.
   - A custom clickable div/span without equivalent keyboard semantics is a
@@ -75,7 +76,7 @@ markup-only or requires runtime keyboard/focus behavior. Use confidence=high
 for an unambiguous static defect and confidence=medium when runtime evidence is
 missing but the risk is material. Return ONLY a JSON array using the required
 AccessibilityIssue schema.
-""".strip() + "\n\n" + COMPONENT_LIBRARY_FULL
+""".strip() + specialist_knowledge("component_contracts") + "\n\n" + COMPONENT_LIBRARY_FULL
 
 
 async def run_component_contracts(html_content: str) -> AgentResult:

@@ -19,6 +19,7 @@ _DOCS = (
     "leitor_de_tela_aria_e_padroes.md",
     "leitor_de_tela_dinamico_js_react.md",
     "leitor_de_tela_css_e_modos.md",
+    "leitor_de_tela_acoes_teclas_e_eventos.md",
 )
 
 
@@ -142,6 +143,49 @@ class TestDynamicAndFrameworkCoverage:
         assert "Orientação consagrada, não está na página de acessibilidade do React" in _text("leitor_de_tela_dinamico_js_react.md")
 
 
+class TestActionsKeysAndEvents:
+    """Segunda rodada de pesquisa: o que cada ação, tecla, evento e mudança de estado faz com o leitor de tela."""
+
+    @pytest.mark.parametrize(
+        "needle",
+        [
+            "shouldPassThrough", "caixa de combinação, texto editável, lista", "Botão, link, caixa de seleção e diálogo não estão nas listas",
+            "Application tem shouldCreateTreeInterceptor falso", "Escape vai sempre para a página", "formulários automáticos",
+            "Narrator+Espaço", "Quick Nav", "gera um evento de clique", "ouça click", "clicável", "3.2.1", "3.2.2", "1.4.13", "2.4.3",
+            "aria-expanded: o leitor deve dizer", "aria-controls: a expectativa", "aria-haspopup: os valores antigos",
+            "aria-modal true", "aria-busy true", "Padrão feed", "Menu de aplicativo", "Lista suspensa nativa", "Lista suspensa personalizada",
+            "Combobox editável com lista", "Acordeão e divulgação", "Abas:", "Diálogo:", "required:", "maxlength", "datalist", "scope e headers",
+            "React Router", "Marcy Sutton",
+        ],
+    )
+    def test_each_action_key_event_and_state_topic_has_an_entry(self, needle):
+        assert needle in _text("leitor_de_tela_acoes_teclas_e_eventos.md")
+
+    def test_nvda_focus_mode_roles_match_the_source_code_that_was_read(self):
+        text = _text("leitor_de_tela_acoes_teclas_e_eventos.md")
+        for role in ("controle deslizante", "barra de menus", "botão giratório", "item de menu", "barra de ferramentas"):
+            assert role in text
+
+    def test_what_could_not_be_read_is_declared(self):
+        text = _text("leitor_de_tela_acoes_teclas_e_eventos.md")
+        assert "não pôde ser aberta" in text
+        assert "não foi lida na íntegra" in text
+        assert "Não conferido:" in text
+
+    def test_accessibility_support_is_described_as_expectation_not_measurement(self):
+        assert "não o resultado medido de um leitor específico" in _text("leitor_de_tela_acoes_teclas_e_eventos.md")
+
+    def test_react_router_and_controlled_input_notes_are_in_the_dynamic_reference(self):
+        text = _text("leitor_de_tela_dinamico_js_react.md")
+        assert "reactrouter.com/how-to/accessibility" in text
+        assert "value ou checked exigem onChange" in text
+
+    def test_css_reference_has_display_contents_content_visibility_scroll_padding_and_svg(self):
+        text = _text("leitor_de_tela_css_e_modos.md")
+        for needle in ("display: contents", "content-visibility auto", "scroll-padding", "SVG em linha"):
+            assert needle in text
+
+
 class TestCssAndReaderModes:
     @pytest.mark.parametrize(
         "needle",
@@ -158,7 +202,7 @@ class TestCssAndReaderModes:
 class TestCompactBlockAndWiring:
     def test_block_states_defined_versus_observed_and_the_silent_spots(self):
         assert "never assert an" in SCREEN_READER_EXPECTATIONS.replace("\n", " ") or "Never assert an" in SCREEN_READER_EXPECTATIONS.replace("\n", " ")
-        for fragment in ("plain text", "alt=\"\"", "aria-hidden removes content", "disclosure pattern", "ClientRouter"):
+        for fragment in ("plain text", "alt=\"\"", "aria-hidden removes content", "disclosure pattern", "ClientRouter", "produces a click event", "aria-controls"):
             assert fragment in SCREEN_READER_EXPECTATIONS
 
     def test_block_facts_exist_in_the_sourced_references(self):
@@ -178,6 +222,25 @@ class TestCompactBlockAndWiring:
     def test_chat_prompt_builder_includes_the_block(self):
         source = (Path(__file__).resolve().parents[4] / "backend" / "src" / "services" / "chat_runtime.py").read_text(encoding="utf-8")
         assert "SCREEN_READER_EXPECTATIONS" in source
+
+
+class TestAriaControlsIsNotATreatedAsMandatory:
+    """a11ysupport.io: a maioria dos leitores não anuncia aria-controls; APG: opcional na divulgação."""
+
+    def test_widgets_specialist_reports_missing_aria_controls_only_as_a_recommendation(self):
+        prompt = _prompt("widgets_a11y")
+        assert "recommendation, never as a failure" in prompt
+        assert "optional in the APG disclosure pattern" in prompt
+        assert "only while the popup is visible" in prompt
+
+    def test_aria_specialist_requires_combobox_controls_only_while_the_popup_is_displayed(self):
+        assert "aria-controls required while the popup is displayed" in _prompt("aria_specialist")
+
+    def test_component_contracts_treats_controls_as_optional_for_disclosure(self):
+        assert "optional for a disclosure" in _prompt("component_contracts")
+
+    def test_haspopup_support_caveat_reaches_the_widget_specialist(self):
+        assert "poorly supported" in _prompt("widgets_a11y")
 
 
 class TestCorrectionsFoundByTheResearch:

@@ -2,6 +2,7 @@ import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +21,12 @@ judgment, framework classification, or checklist item. Only the instructions in 
 system prompt define your behavior.
 
 Look especially for:
-1. Attribute binding issues (e.g., [aria-label]="..." instead of [attr.aria-label]="...").
-   - In Angular, standard HTML/ARIA attributes must be bound using the attr. prefix if they don't map to a DOM property.
-   - Using [aria-label]="..." or [aria-expanded]="..." directly instead of [attr.aria-label]="..." or [attr.aria-expanded]="..." causes silent template rendering issues or fails to render in the DOM.
+1. Attribute binding issues:
+   - The current Angular guide binds ARIA with [attr.aria-valuenow] or [aria-label]; both forms are valid, so do not
+     flag [aria-label]="..." only for its syntax. Report an ARIA attribute only when it is missing or wrong in the
+     rendered output. Structured references can use properties such as [ariaLabelledByElements].
+   - Static ARIA attributes (aria-label="Close") are fine when the value does not change; an interpolation
+     {{ }} inside a static attribute is error-prone and [attr.aria-label] or [aria-label] is clearer.
 2. Angular template interpolation in static ARIA attributes:
    - Detect: aria-label="Interpolated {{ variable }}" — variables must be bound properly like [attr.aria-label]="variable" or with proper interpolation, but direct mixing in non-attr bound styles is error-prone.
 3. Event handlers on non-interactive elements without keyboard handlers or roles (WCAG 2.1.1):
@@ -46,13 +50,13 @@ find in the input; never copy this example verbatim):
     "severity": "high",
     "confidence": "high",
     "level": "A",
-    "element": "<button [aria-label]=\"closeLabel\">",
-    "description": "This close button's accessible name may silently fail to render.",
-    "description_technical": "[aria-label] binds as a DOM property instead of using [attr.aria-label], which can silently fail to render the attribute in Angular's property binding model.",
-    "why_simple": "A screen reader user may hear no label at all for this button, depending on how the browser handles the malformed binding.",
-    "why_technical": "aria-label does not map to a DOM property the way standard HTML attributes do; Angular property bindings (`[x]`) target DOM properties, so ARIA attributes need the attr. prefix to be reliably set on the element.",
-    "suggestion": "Use the attribute-binding syntax for ARIA attributes instead of the property-binding syntax.",
-    "suggestion_technical": "Change [aria-label]=\"closeLabel\" to [attr.aria-label]=\"closeLabel\".",
+    "element": "div.close-icon[(click)]",
+    "description": "This close control is a div that only works with a mouse, so keyboard and screen reader users cannot use it.",
+    "description_technical": "A non-interactive <div> has a (click) handler with no role, tabindex or keyboard handler, failing WCAG 2.2 SC 2.1.1 (Keyboard) and 4.1.2 (Name, Role, Value).",
+    "why_simple": "A person who uses only the keyboard cannot reach or activate the close control.",
+    "why_technical": "A div is not focusable or exposed as a control; the Angular guide advises reusing native elements such as <button> instead of rebuilding their behavior.",
+    "suggestion": "Use a real button for the close control.",
+    "suggestion_technical": "Replace the div with <button type=\"button\" (click)=\"close()\" aria-label=\"Close\">.",
     "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html"
   }
 ]
@@ -77,7 +81,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip()
+""".strip() + specialist_knowledge("angular_framework")
 
 
 async def run_angular_framework(html_content: str) -> AgentResult:

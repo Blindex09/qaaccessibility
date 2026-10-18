@@ -3,6 +3,7 @@ import logging
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
 from backend.src.shared.screen_reader_calibration import SCREEN_READER_EXPECTATIONS
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +43,10 @@ ARIA LIVE REGIONS (WCAG 4.1.3):
     OR absence of any aria-live container when page has toast/notification/status patterns
   - aria-atomic="true" missing on regions that should be read as a complete unit
     (e.g. countdown timers, status lines with incremental updates)
-  - Vue: v-if on aria-live elements must be changed to v-show (v-if removes node from
-    DOM; v-show only sets display:none, preserving the live region for announcements)
+  - Vue: v-if on the aria-live element itself removes it from the DOM, so it is inserted together with its
+    text and may not be announced. Keep the container always rendered and visible to assistive technology and
+    toggle only its children or text. v-show on the region does NOT fix this: display:none removes an element
+    from the accessibility tree, so showing it again is an insertion as well.
 
 SPA ROUTE CHANGES (WCAG 2.4.2, 4.1.3):
   - Single-page routing (<a> with JS navigation, pushState patterns) without
@@ -119,7 +122,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip() + "\n\n" + SCREEN_READER_EXPECTATIONS
+""".strip() + specialist_knowledge("ajax_dynamic") + "\n\n" + SCREEN_READER_EXPECTATIONS
 
 
 async def run_ajax_dynamic(html_content: str) -> AgentResult:

@@ -2,6 +2,7 @@ import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +34,8 @@ Look especially for:
      Svelte's #if block does not render the element at all when false (same failure mode
      as Vue v-if / React conditional && rendering): the live region does not exist in the
      DOM before content changes, so screen readers miss the first announcement.
-   - Fix: keep the aria-live container always mounted; toggle only its text content, or
-     use CSS visibility/display via a class binding instead of an #if block.
+   - Fix: keep the aria-live container always mounted and not hidden with display:none or
+     visibility:hidden (both remove it from the accessibility tree); toggle only its text content.
 3. Dangerous HTML injection ({@html}, WCAG 1.3.1 / 4.1.2; never cite 4.1.1, removed in 2.2):
    - {@html rawContent} rendering unsanitized content — like dangerouslySetInnerHTML in
      React or v-html in Vue, this can inject images without alt, broken heading order, or
@@ -94,7 +95,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip()
+""".strip() + specialist_knowledge("svelte_framework")
 
 
 async def run_svelte_framework(html_content: str) -> AgentResult:

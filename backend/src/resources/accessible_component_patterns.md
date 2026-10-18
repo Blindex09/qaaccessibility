@@ -26,8 +26,9 @@ teste manual ou automatizado falta.
 - O gatilho deve ser um `button` ou o `summary` de um `details` nativo, não um `div`
   clicável. `details` e `summary` expõem o estado sozinhos: nesse caso `aria-expanded` e
   `aria-controls` não são exigidos.
-- Quando o gatilho é um `button`, ele deve expor `aria-expanded="true|false"` e `aria-controls`
-  apontando para o painel correspondente.
+- Quando o gatilho é um `button`, ele deve expor `aria-expanded="true|false"`. `aria-controls`
+  apontando para o painel é opcional na divulgação do APG e recomendado em acordeões; a maioria dos
+  leitores de tela não o anuncia, então a falta dele é recomendação e não falha.
 - O painel deve ter um `id` estável; quando recolhido, deve estar realmente
   oculto para tecnologia assistiva (`hidden`, `display:none` ou equivalente
   comprovado).

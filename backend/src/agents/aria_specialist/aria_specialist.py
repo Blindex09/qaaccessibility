@@ -4,6 +4,7 @@ from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_str
 from backend.src.shared.component_library_calibration import COMPONENT_LIBRARY_METHOD
 from backend.src.shared.models import AccessibilityIssue, AgentResult
 from backend.src.shared.screen_reader_calibration import SCREEN_READER_EXPECTATIONS
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ ARIA RULES (mandatory, from WAI-ARIA specification and ARIA in HTML 2026):
 REQUIRED PROPERTIES PER ROLE & WAI-ARIA 1.3 SPECIFICATION:
   slider:      aria-valuenow + aria-valuemin + aria-valuemax required
   progressbar: aria-valuenow required (omit for indeterminate), aria-valuemax required
-  combobox:    aria-expanded required; aria-controls required (points to listbox/grid)
+  combobox:    aria-expanded required; aria-controls required while the popup is displayed (points to the popup)
   checkbox:    aria-checked required ("true" | "false" | "mixed")
   radio:       aria-checked required; must be child of radiogroup
   option:      aria-selected required; must be child of listbox/select
@@ -159,7 +160,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip() + "\n\n" + COMPONENT_LIBRARY_METHOD + "\n\n" + SCREEN_READER_EXPECTATIONS
+""".strip() + specialist_knowledge("aria_specialist") + "\n\n" + COMPONENT_LIBRARY_METHOD + "\n\n" + SCREEN_READER_EXPECTATIONS
 
 
 async def run_aria_specialist(html_content: str) -> AgentResult:

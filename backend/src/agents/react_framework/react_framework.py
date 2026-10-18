@@ -2,6 +2,7 @@ import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +45,9 @@ REACT-SPECIFIC PATTERNS:
 
 VUE-SPECIFIC PATTERNS:
   - aria-live regions that appear only conditionally (v-if renders as comments or
-    absent element when false) — live regions must always be present in DOM,
-    toggling content visibility should use v-show (which sets display:none but
-    keeps the element in DOM) not v-if
+    absent element when false) — live regions must already be present in the DOM and in the
+    accessibility tree before their text changes. Keep the container always rendered (display:none
+    would also remove it from the accessibility tree) and toggle only its children or text
   - Detect: aria-live on elements that are siblings of "v-if" blocks sharing same
     container — if the live region itself can be removed from DOM, announcements fail
 
@@ -140,7 +141,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip()
+""".strip() + specialist_knowledge("react_framework")
 
 
 async def run_react_framework(html_content: str) -> AgentResult:

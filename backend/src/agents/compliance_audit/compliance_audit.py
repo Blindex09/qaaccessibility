@@ -2,6 +2,7 @@ import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -86,16 +87,13 @@ SYSTEMIC PATTERNS:
   - All color-meaningful UI uses color alone (1.4.1)
 
 REGULATORY CROSS-REFERENCES:
-  Section 508 (2018 Revised, 36 CFR 1194) maps to WCAG 2.0 Level AA:
-  - 1194.22(a) = WCAG 1.1.1 Text Alternatives for non-text content
-  - 1194.22(b) = WCAG 1.2.x Multimedia synchronized alternatives
-  - 1194.22(c) = WCAG 1.4.1 Color not sole visual indicator
-  - 1194.22(d) = Readability without associated stylesheet
-  - 1194.22(g)(h) = WCAG 1.3.1 Data table headers identified
-  - 1194.22(i) = WCAG 4.1.2 Frames titled for navigation
-  - 1194.22(n) = WCAG 2.1.1 Forms operable with AT
-  - 1194.22(o) = WCAG 2.4.1 Skip navigation method present
-  - 1194.22(p) = WCAG 2.2.1 Timed responses notify user
+  Revised Section 508 Standards (36 CFR Part 1194 Appendix A, in effect since 18 January 2018):
+  - E205.4 incorporates WCAG 2.0 Level A and AA by reference for public-facing web content, and E207 does
+    the same for software user interfaces. Non-web documents are exempt from 2.4.1, 2.4.5, 3.2.3 and 3.2.4.
+  - The 1194.21 and 1194.22 paragraphs (a)-(p) are the superseded 2000 standards; do not cite them as the
+    current requirement.
+  - Criteria added in WCAG 2.1 and 2.2 are not part of the 508 baseline; report them as best practice for
+    Section 508 and as requirements only where a contract, EN 301 549 or another policy asks for them.
   EN 301 549 v3.2.1 (EU) maps to WCAG 2.1 Level AA:
   - Clause 9 covers all WCAG 2.1 AA; clause 10 covers non-web documents
   - 9.2.5.3 Label in Name (also WCAG 2.5.3) requires visible label in accessible name
@@ -153,7 +151,7 @@ Map severity to priority:
   low      = LOW / backlog
 
 Return ONLY valid JSON array. No markdown. Empty array [] if no issues.
-""".strip()
+""".strip() + specialist_knowledge("compliance_audit")
 
 
 async def run_compliance_audit(html_content: str) -> AgentResult:

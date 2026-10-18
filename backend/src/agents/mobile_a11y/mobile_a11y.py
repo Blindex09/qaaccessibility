@@ -2,6 +2,7 @@ import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,8 @@ Check for these mobile-specific accessibility failures:
 
 VIEWPORT AND ZOOM (WCAG 1.4.4):
   - <meta name="viewport"> with user-scalable=no or user-scalable=0
-    — prevents pinch-to-zoom; fails 1.4.4 Resize Text (Level AA)
+    — prevents pinch-to-zoom; the W3C ACT rule "Meta viewport allows for zoom" treats it as a failure of
+    1.4.4 Resize Text (Level AA), and W3C mobile guidance says to avoid viewport settings that block zoom
   - <meta name="viewport"> with maximum-scale=1 or maximum-scale < 2
     — restricts zoom; users with low vision cannot enlarge text
   - Missing <meta name="viewport" content="width=device-width">
@@ -49,10 +51,12 @@ TOUCH TARGET SIZE (WCAG 2.5.8 — Level AA, new in WCAG 2.2):
   - Read the `data-closest-spacing` attribute (distance to nearest target). If `data-closest-spacing` < 24 and the target size is also < 24, flag as a touch target spacing violation.
   - Icon-only buttons below 24×24 CSS pixels without offset compensation.
 
-TOUCH INPUT TYPES (WCAG 1.3.5 Identify Input Purpose):
+INPUT TYPES AND VIRTUAL KEYBOARDS (W3C mobile guidance: match the keyboard to the input with HTML5 types;
+this is a usability recommendation, not WCAG 1.3.5, which concerns autocomplete tokens for personal data):
   - <input type="text"> for email address — should be type="email" for mobile keyboard
   - <input type="text"> for phone number — should be type="tel"
-  - <input type="text"> for number — should be type="number"
+  - <input type="text"> for a quantity — type="number" fits quantities, but not codes such as postal codes,
+    phone or card numbers, where the W3C advises a text input with inputmode="numeric"
   - <input type="text"> for date — should be type="date"
   - <input type="text"> for search — should be type="search"
   - Missing inputmode attribute on numeric-style inputs (inputmode="numeric",
@@ -153,7 +157,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip()
+""".strip() + specialist_knowledge("mobile_a11y")
 
 
 async def run_mobile_a11y(html_content: str) -> AgentResult:

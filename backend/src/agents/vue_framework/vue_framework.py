@@ -2,6 +2,7 @@ import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.specialist_knowledge import specialist_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ Look especially for:
 1. Dynamic content visibility in Live Regions:
    - Using v-if on an element containing aria-live (or on the live region itself).
    - This conditionally removes the element from the DOM. When the variable becomes true, the live region is inserted, but screen readers often miss the initial announcement because the region did not exist in the DOM beforehand.
-   - Fix: Use v-show (which sets display:none but keeps the element in the DOM) or keep the aria-live container static in the DOM and only conditionally render its children.
+   - Fix: keep the aria-live container always rendered and exposed (not display:none: v-show on the region itself hides it from the accessibility tree like v-if removes it) and only conditionally render its children or text.
 2. Event handlers on non-interactive elements without keyboard handlers or roles (WCAG 2.1.1):
    - Detect: @click="handler()" or v-on:click="handler()" on div, span, li, p, section.
    - Missing: @keydown or @keypress equivalents.
@@ -32,7 +33,11 @@ Look especially for:
    - Detect: v-html="rawHtmlContent" or elements with v-html directives.
    - Just like innerHTML, this can bypass semantic controls, introducing unlabelled images, headers, or broken ARIA bindings.
 4. Accessible routing in single-page apps (SPAs) / Nuxt:
-   - NuxtLink/RouterLink elements without aria-current="page" on the active link (or failing to handle route announcements on page change).
+   - Vue Router's RouterLink sets aria-current (default value "page", prop ariaCurrentValue) on an exact-active
+     link by itself, so a missing aria-current is a defect only in the rendered output or on a plain <a> / custom
+     link. The Vue guide says to move focus on route change (for example to a tabindex="-1" element before the
+     skip link) and to put the skip link first; judge by whether focus or an announcement leads the person to
+     the new page, not by one technique.
 5. Dynamic input attributes (v-bind):
    - Incomplete validation: Inputs bound via v-model with validation errors in Vue/Nuxt state, but missing dynamic bindings for :aria-invalid="hasError" or :aria-describedby="errorId".
 
@@ -52,7 +57,7 @@ find in the input; never copy this example verbatim):
     "why_simple": "A blind user completes an action (e.g. saving a form) and may not hear the \"Saved\" confirmation the first time it appears.",
     "why_technical": "Assistive technology only reliably announces changes in aria-live regions that already existed in the DOM before the content changed; v-if's mount/unmount behavior breaks this priming requirement.",
     "suggestion": "Keep the status message container always present, and only show/hide its text.",
-    "suggestion_technical": "Replace v-if with v-show on the aria-live container (v-show only toggles display:none, keeping the element in the DOM), or keep the container static and update only its text content.",
+    "suggestion_technical": "Remove v-if from the aria-live container and keep it always rendered and exposed, updating only its text or children (v-show on the region would hide it with display:none, which removes it from the accessibility tree).",
     "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html"
   }
 ]
@@ -77,7 +82,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip()
+""".strip() + specialist_knowledge("vue_framework")
 
 
 async def run_vue_framework(html_content: str) -> AgentResult:
