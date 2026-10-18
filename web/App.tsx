@@ -117,7 +117,14 @@ export default function App() {
       </View>
 
       {/* Conteúdo principal — landmark main (WCAG 2.4.1) */}
-      <View role="main" style={styles.mainContent} nativeID="main-content">
+      {/* No chat, o landmark main e o alvo do skip link ficam na coluna da conversa
+          (ChatScreen), depois da barra lateral de conversas; nas demais telas
+          é este contêiner. */}
+      <View
+        role={screen === "chat" ? undefined : "main"}
+        style={styles.mainContent}
+        nativeID={screen === "chat" ? undefined : "main-content"}
+      >
         {screen === "chat" && <ChatScreen onOpenSettings={() => navigate("settings")} />}
         {screen === "settings" && <SettingsScreen onBack={() => navigate("chat")} />}
       </View>

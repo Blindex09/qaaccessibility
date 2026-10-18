@@ -19,7 +19,7 @@ def _provider_said(raw: str) -> str:
     """
     import re
 
-    found = re.search(r"""['"]message['"]\s*:\s*(['"])(.+?)\1\s*[,}]""", raw)
+    found = re.search(r"""['"](?:message|error)['"]\s*:\s*(['"])(.+?)\1\s*[,}]""", raw)
     if not found:
         return ""
     return "O provedor informou: " + found.group(2).strip()[:300] + "\n\n"
@@ -101,7 +101,18 @@ def format_human_friendly_error(raw_error: object, *, from_tool: bool = False) -
             "2. Ou troque de Provedor nas Configurações para um com chave válida."
         )
 
-    # 429 / Rate Limit / Too Many Requests / Resource Exhausted / Weekly Usage Limit
+    # Limite de uso acumulado (semanal/mensal) é outro caso do 429: esperar segundos não resolve.
+    if any(k in err_lower for k in ("weekly usage limit", "reached your weekly", "usage limit")):
+        return (
+            "Desculpe, ocorreu um erro: o limite de uso da sua conta no provedor de IA foi atingido, "
+            "e esperar alguns segundos não resolve.\n\n"
+            + _provider_said(err_str)
+            + "Como resolver:\n"
+            "1. Selecione outro Provedor nas Configurações para continuar agora.\n"
+            "2. Ou aguarde a renovação do limite, ou faça upgrade ou adicione créditos no painel do provedor."
+        )
+
+    # 429 / Rate Limit / Too Many Requests / Resource Exhausted
     if any(
         k in err_lower
         for k in (
@@ -112,9 +123,6 @@ def format_human_friendly_error(raw_error: object, *, from_tool: bool = False) -
             "quota exceeded",
             "resource_exhausted",
             "resource_exceeded",
-            "weekly usage limit",
-            "usage limit",
-            "reached your weekly",
         )
     ):
         return (

@@ -30,8 +30,12 @@ describe("WCAG 2.4.1 Bypass Blocks -- skip link", () => {
     // O meu apontava para `#root`, que CONTEM o cabecalho -- pular para ele nao
     // pula nada. O do App aponta para o `role="main"`.
     expect(APP).toMatch(/href:\s*"#main-content"/);
-    expect(APP).toMatch(/nativeID="main-content"/);
-    expect(APP).toMatch(/role="main"/);
+    // Nas telas que não são o chat o landmark é do App; no chat é a coluna da
+    // conversa, depois da barra lateral de conversas -- senão o skip link cairia
+    // antes dela e deixaria de pular a navegação.
+    expect(APP).toMatch(/nativeID=\{screen === "chat" \? undefined : "main-content"\}/);
+    expect(APP).toMatch(/role=\{screen === "chat" \? undefined : "main"\}/);
+    expect(CHAT).toMatch(/role="main" nativeID="main-content"/);
     expect(TEMPLATE).not.toMatch(/href="#root"/);
   });
 

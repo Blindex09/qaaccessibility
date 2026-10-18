@@ -16,23 +16,25 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
 
     <style>
       /* ─── CSS Design Tokens ─────────────────────────────────── */
       :root {
-        --color-bg-root: #0B1120;
-        --color-bg-surface: #111827;
-        --color-bg-elevated: #1E293B;
-        --color-text-primary: #F1F5F9;
-        --color-text-secondary: #94A3B8;
-        --color-accent: #14B8A6;
-        --color-accent-hover: #0D9488;
-        --color-border: #1E293B;
-        --color-border-strong: #334155;
-        --color-focus: #14B8A6;
+        /* Fonte única das cores: tokens.ts injeta --c-* (tema claro/escuro). Os
+           valores depois da vírgula só valem até o bundle executar. */
+        --color-bg-root: var(--c-bg-root, #0B1120);
+        --color-bg-surface: var(--c-bg-surface, #111827);
+        --color-bg-elevated: var(--c-bg-elevated, #1E293B);
+        --color-text-primary: var(--c-text-primary, #F1F5F9);
+        --color-text-secondary: var(--c-text-secondary, #94A3B8);
+        --color-accent: var(--c-accent, #0F766E);
+        --color-accent-hover: var(--c-accent-hover, #115E59);
+        --color-border: var(--c-border, #1E293B);
+        --color-border-strong: var(--c-border-strong, #334155);
+        --color-focus: var(--c-border-focus, #14B8A6);
         --font-display: 'Plus Jakarta Sans', sans-serif;
         --font-body: 'DM Sans', sans-serif;
         --font-mono: 'JetBrains Mono', monospace;
@@ -133,7 +135,7 @@
         top: 0;
       }
 
-      /* ─── Scrollbar Styling (dark theme) ────────────────── */
+      /* ─── Scrollbar Styling ─────────────────────────────── */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -201,7 +203,7 @@
         inset: 0;
         z-index: 9998;
         pointer-events: none;
-        opacity: 0.025;
+        opacity: 0.02;
         background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
         background-size: 256px 256px;
         animation: grain 8s steps(10) infinite;

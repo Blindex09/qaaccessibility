@@ -19,6 +19,7 @@ resultados. A segunda tela configura provider, chave de API, modelo e URL base.
 |------|---------|------------------|
 | ChatScreen | `web/src/screens/ChatScreen.tsx` | Chat com streaming token-a-token, anexos, eventos de progresso dos agentes e respostas de esclarecimento |
 | SettingsScreen | `web/src/screens/SettingsScreen.tsx` | Provider, chave de API, última escolha de modelo por provedor para análise e chat, controle de aprovação, Base URL opcional e chaves de serviço próprias (BYOK) via `POST /settings/service-key` |
+| ConversationSidebar | `web/src/screens/ConversationSidebar.tsx` | Barra lateral fixa (landmark `navigation`, a partir de 900px de largura) com nova conversa, conversas recentes via `GET /chat/conversations`, acesso a "Gerenciar conversas" (o modal acima), configurações e `ThemeToggle` (automático, claro ou escuro). Abaixo de 900px os mesmos controles ficam no cabeçalho do `ChatScreen` |
 | ConversationHistoryModal | `web/src/screens/ConversationHistoryModal.tsx` | Lista/abre/apaga conversas salvas via `GET /chat/conversations`, `GET /chat/history/{id}` e `DELETE /chat/history/{id}`; aberto a partir do `ChatScreen` |
 
 `web/App.tsx` faz a navegação simples entre `chat` e `settings`, define `lang="pt-BR"`,

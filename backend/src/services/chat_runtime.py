@@ -592,6 +592,10 @@ async def stream_chat(
                 break
             if event.get("type") == "token":
                 partial.append(str(event.get("text", "")))
+            if event.get("type") == "error":
+                # Falha do turno (limite do provedor, chave, rede...): a explicação fica no histórico, para
+                # a conversa reaberta mostrar o motivo em vez de uma pergunta sem resposta.
+                chat_history_store.append_message("assistant", str(event.get("error", "")), session_id=conversation_id)
             if event.get("type") in ("done", "error", "cancelled"):
                 terminal = True
             yield event

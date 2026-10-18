@@ -31,10 +31,14 @@ def test_format_429_rate_limit():
 
 
 def test_format_429_weekly_usage_limit():
-    err = "you have reached your weekly usage limit for this model"
+    err = 'Error code: 429 - {"error":"you (Ana) have reached your weekly usage limit, upgrade for higher limits"}'
     out = format_human_friendly_error(err)
-    assert "cota semanal foi atingido" in out
     assert "Desculpe, ocorreu um erro" in out
+    assert "limite de uso da sua conta" in out
+    # Esperar segundos não resolve um limite semanal: a mensagem não manda fazer isso.
+    assert "Aguarde alguns segundos" not in out
+    # A explicação do próprio provedor aparece, para a pessoa saber a causa real.
+    assert "O provedor informou: you (Ana) have reached your weekly usage limit" in out
 
 
 def test_format_services_error_formatter_import_reexport():

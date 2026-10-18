@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -17,9 +18,10 @@ import { isBinaryAttachment } from "../services/attachments";
 import { toolStatusText, type ToolCallData } from "../services/toolPresentation";
 import { getToolLabel } from "../services/toolMeta";
 import { type TokenUsage } from "../services/usage";
-import { a11y, colors, font } from "../design/tokens";
+import { a11y, colors, font, radius, shadow } from "../design/tokens";
 import { ClarifyPanel } from "./ClarifyPanel";
 import { ConversationHistoryModal } from "./ConversationHistoryModal";
+import { ConversationSidebar, ThemeToggle } from "./ConversationSidebar";
 import { LivePreviewModal } from "./LivePreviewModal";
 
 
@@ -37,7 +39,7 @@ function ToolCallCard({ toolCall, messageIndex }: { toolCall: ToolCallData; mess
   const isRunning = toolCall.status === "running";
   const isError = toolCall.status === "failed";
   const statusLabel = toolStatusText(toolCall);
-  const statusColor = isError ? "#f87171" : isRunning ? "#fbbf24" : "#34d399";
+  const statusColor = isError ? colors.chat.toolError : isRunning ? colors.warning.text : colors.success.text;
 
   return (
     <View
@@ -673,6 +675,7 @@ function renderProse(text: string) {
 
 // O campo mostra o texto visível e o nome acessível é derivado dele para
 // satisfazer o WCAG 2.5.3 (Label in Name): o nome precisa CONTER o visível.
+const SIDEBAR_MIN_WIDTH = 900;
 const PLACEHOLDER_MENSAGEM = "Mensagem para o assistente";
 const ROTULO_ACESSIVEL_MENSAGEM = `${PLACEHOLDER_MENSAGEM} — pergunte, cole uma URL, ou anexe arquivos`;
 
@@ -698,6 +701,9 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
   } = useChat();
   setLinkConversationId(conversationId);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  // Barra lateral fixa só quando cabe; abaixo disso os mesmos controles ficam no cabeçalho.
+  const { width: windowWidth } = useWindowDimensions();
+  const showSidebar = windowWidth >= SIDEBAR_MIN_WIDTH;
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
@@ -950,58 +956,76 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
     void steer(correction);
   }
 
+  function handleNewConversation() {
+    if (streaming) return;
+    startNewConversation();
+    setInput("");
+    setAttachments([]);
+    setTimeout(() => {
+      if (chatInputRef.current) {
+        chatInputRef.current.focus();
+      }
+    }, 60);
+  }
+
   return (
     <View
       style={[
-        styles.root,
+        styles.shell,
         previewModalVisible && Platform.OS === "web"
           ? ({ width: "55%", maxWidth: "none", alignSelf: "flex-start" } as any)
           : null,
       ]}
     >
+      {showSidebar && (
+        <ConversationSidebar
+          currentConversationId={conversationId}
+          streaming={streaming}
+          onSelect={(id) => switchConversation(id)}
+          onNew={handleNewConversation}
+          onManage={() => setHistoryModalVisible(true)}
+          onOpenSettings={onOpenSettings}
+        />
+      )}
+      <View role="main" nativeID="main-content" style={styles.root}>
       <View style={styles.header}>
         <Text accessibilityRole="header" aria-level={2} style={styles.title}>
           QA Accessibility — Assistente
         </Text>
         <View style={styles.headerSpacer} />
         <UsageNote usage={sessionUsage} scope="session" />
-        <TouchableOpacity
-          onPress={() => setHistoryModalVisible(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Ver conversas anteriores"
-          style={styles.backBtn}
-        >
-          <Text style={styles.backText}>Conversas</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => {
-            if (streaming) return;
-            startNewConversation();
-            setInput("");
-            setAttachments([]);
-            setTimeout(() => {
-              if (chatInputRef.current) {
-                chatInputRef.current.focus();
-              }
-            }, 60);
-          }}
-          disabled={streaming}
-          accessibilityRole="button"
-          accessibilityLabel="Iniciar uma nova conversa"
-          accessibilityState={{ disabled: streaming }}
-          style={[styles.backBtn, streaming && styles.backBtnDisabled]}
-        >
-          <Text style={styles.backText}>Nova conversa</Text>
-        </TouchableOpacity>
-        {onOpenSettings && (
-          <TouchableOpacity
-            onPress={onOpenSettings}
-            accessibilityRole="button"
-            accessibilityLabel="Abrir configurações de IA"
-            style={styles.backBtn}
-          >
-            <Text style={styles.backText}>Configurações</Text>
-          </TouchableOpacity>
+        {!showSidebar && (
+          <>
+            <TouchableOpacity
+              onPress={() => setHistoryModalVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Ver conversas anteriores"
+              style={styles.backBtn}
+            >
+              <Text style={styles.backText}>Conversas</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleNewConversation}
+              disabled={streaming}
+              accessibilityRole="button"
+              accessibilityLabel="Iniciar uma nova conversa"
+              accessibilityState={{ disabled: streaming }}
+              style={[styles.backBtn, streaming && styles.backBtnDisabled]}
+            >
+              <Text style={styles.backText}>Nova conversa</Text>
+            </TouchableOpacity>
+            <ThemeToggle variant="header" />
+            {onOpenSettings && (
+              <TouchableOpacity
+                onPress={onOpenSettings}
+                accessibilityRole="button"
+                accessibilityLabel="Abrir configurações de IA"
+                style={styles.backBtn}
+              >
+                <Text style={styles.backText}>Configurações</Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
       </View>
 
@@ -1065,7 +1089,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                       "h2",
                       {
                         style: {
-                          color: "#06b6d4",
+                          color: colors.chat.userAccent,
                           fontFamily: font.body,
                           fontSize: 12,
                           marginBottom: 4,
@@ -1152,7 +1176,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                 </View>
 
                 {/* 3. Balão do qaaccessibility - apenas o texto da resposta */}
-                {(!!turn.assistant?.content || (!isTurnBusy && !turn.statuses.length)) && (
+                {!!turn.assistant?.content && (
                   <View
                     style={[styles.bubble, styles.assistantBubble]}
                     {...(Platform.OS === "web"
@@ -1164,7 +1188,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                         "h2",
                         {
                           style: {
-                            color: "#818cf8",
+                            color: colors.chat.assistantAccent,
                             fontFamily: font.body,
                             fontSize: 12,
                             marginBottom: 4,
@@ -1194,6 +1218,12 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
                       <SourcesSection sources={turnSources} />
                     )}
                   </View>
+                )}
+
+                {/* Turno terminado sem resposta registrada (ex.: interrompido): nada de cabeçalho
+                    "disse" vazio, só um aviso factual. */}
+                {!turn.assistant?.content && !isTurnBusy && !turn.statuses.length && (
+                  <Text style={styles.statusLineText}>Nenhuma resposta foi registrada para esta mensagem.</Text>
                 )}
               </React.Fragment>
             );
@@ -1432,6 +1462,7 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
         />
       )}
 
+      </View>
     </View>
   );
 }
@@ -1439,11 +1470,14 @@ export function ChatScreen({ onOpenSettings }: { onOpenSettings?: () => void }) 
 
 
 const styles = StyleSheet.create({
-  root: {
+  shell: {
     flex: 1,
     width: "100%",
-    maxWidth: 1200,
-    alignSelf: "center",
+    flexDirection: "row",
+    backgroundColor: colors.bg.root,
+  },
+  root: {
+    flex: 1,
     backgroundColor: colors.bg.root,
     padding: 16,
     gap: 16,
@@ -1455,10 +1489,10 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 16,
     paddingHorizontal: 24,
-    backgroundColor: colors.bg.elevated,
+    backgroundColor: colors.bg.surface,
     borderWidth: 1,
-    borderColor: colors.border.strong,
-    borderRadius: 12,
+    borderColor: colors.border.DEFAULT,
+    borderRadius: radius.lg,
   },
   headerSpacer: { flex: 1 },
   // WCAG 2.5.8: alvo mínimo de 44px, igual ao backBtn do SettingsScreen.
@@ -1489,12 +1523,10 @@ const styles = StyleSheet.create({
   choiceText: { color: colors.text.primary, fontFamily: font.body, fontSize: 14, fontWeight: "600" },
   messages: {
     flex: 1,
-    backgroundColor: colors.bg.elevated,
-    borderWidth: 1,
-    borderColor: colors.border.strong,
-    borderRadius: 12,
+    backgroundColor: colors.bg.root,
   },
-  messagesContent: { padding: 24, gap: 24, flexGrow: 1 },
+  // Coluna de leitura centralizada, sem caixa em volta da conversa.
+  messagesContent: { padding: 24, gap: 24, flexGrow: 1, width: "100%", maxWidth: 760, alignSelf: "center" },
   emptyState: { alignItems: "center", justifyContent: "center", flex: 1, paddingVertical: 48 },
   emptyTitle: { color: colors.text.secondary, fontFamily: font.display, fontSize: 18, fontWeight: "700", marginBottom: 8 },
   bubble: {
@@ -1504,10 +1536,10 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
     borderLeftWidth: 4,
   },
-  userBubble: { backgroundColor: "rgba(6, 182, 212, 0.05)", borderLeftColor: "#06b6d4" },
-  assistantBubble: { backgroundColor: "rgba(99, 102, 241, 0.05)", borderLeftColor: "#6366f1" },
+  userBubble: { backgroundColor: colors.chat.userBg, borderLeftColor: colors.chat.userAccent },
+  assistantBubble: { backgroundColor: colors.chat.assistantBg, borderLeftColor: colors.chat.assistantAccent },
   roleLabel: { color: colors.text.tertiary, fontFamily: font.body, fontSize: 12, marginBottom: 4 },
-  bubbleText: { color: colors.text.primary, fontFamily: font.body, fontSize: 15, lineHeight: 22 },
+  bubbleText: { color: colors.text.primary, fontFamily: font.serif, fontSize: 16, lineHeight: 25 },
   srOnly: a11y.srOnly as any,
   webSrOnly: {
     position: "absolute",
@@ -1534,27 +1566,30 @@ const styles = StyleSheet.create({
   statusLineText: { color: colors.text.tertiary, fontFamily: font.body, fontSize: 13, lineHeight: 19 },
   usageNoteRow: { marginTop: 8 },
   usageNote: { color: colors.text.tertiary, fontFamily: font.body, fontSize: 11 },
+  // Campo de mensagem arredondado e centralizado na mesma coluna de leitura.
   inputPanel: {
-    gap: 12,
-    padding: 16,
-    backgroundColor: colors.bg.elevated,
+    gap: 8,
+    padding: 12,
+    width: "100%",
+    maxWidth: 760,
+    alignSelf: "center",
+    backgroundColor: colors.bg.surface,
     borderWidth: 1,
     borderColor: colors.border.strong,
-    borderRadius: 12,
+    borderRadius: radius.composer,
+    ...shadow.sm,
   },
   promptActions: { flexDirection: "row", alignItems: "center", gap: 12 },
   inputHint: { color: colors.text.secondary, fontFamily: font.body, fontSize: 13 },
   input: {
     width: "100%",
-    minHeight: 70,
-    maxHeight: 120,
-    backgroundColor: colors.bg.root,
+    minHeight: 56,
+    maxHeight: 160,
+    backgroundColor: "transparent",
     color: colors.text.primary,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.strong,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderWidth: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     fontFamily: font.body,
     fontSize: 16,
   },
@@ -1562,8 +1597,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: 16,
     justifyContent: "center",
-    backgroundColor: colors.border.strong,
-    borderRadius: 6,
+    backgroundColor: colors.bg.subtle,
+    borderRadius: radius.full,
   },
   attachActionText: { color: colors.text.primary, fontFamily: font.body, fontSize: 14, fontWeight: "600" },
   sendBtn: {
@@ -1572,15 +1607,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#4f46e5",
-    borderRadius: 6,
+    backgroundColor: colors.chat.sendBg,
+    borderRadius: radius.full,
   },
   stopBtn: {
     backgroundColor: colors.danger.DEFAULT,
   },
   // Não reduzir opacity: o texto branco precisa manter contraste AA no estado
   // desabilitado (o navegador já comunica a indisponibilidade pelo atributo).
-  sendBtnDisabled: { backgroundColor: "#373890" },
+  sendBtnDisabled: { backgroundColor: colors.chat.sendDisabledBg },
   sendText: { color: colors.text.onAccent, fontFamily: font.display, fontSize: 15, fontWeight: "700" },
   statusGroupContainer: {
     marginVertical: 6,
@@ -1613,7 +1648,7 @@ const styles = StyleSheet.create({
   },
   toolRegion: {
     marginVertical: 8,
-    backgroundColor: "#090d16",
+    backgroundColor: colors.chat.toolBg,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border.strong,
@@ -1623,25 +1658,25 @@ const styles = StyleSheet.create({
   toolHeader: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: "#131b2e",
+    backgroundColor: colors.chat.toolHeaderBg,
     borderBottomWidth: 1,
     borderBottomColor: colors.border.strong,
   },
   toolLogContainer: {
     padding: 16,
     maxHeight: 200,
-    backgroundColor: "#050811",
+    backgroundColor: colors.chat.toolLogBg,
   },
-  toolLogText: { color: "#a7f3d0", fontFamily: font.mono, fontSize: 13, lineHeight: 19 },
+  toolLogText: { color: colors.chat.toolLogText, fontFamily: font.mono, fontSize: 13, lineHeight: 19 },
   toolLogMuted: { color: colors.text.secondary, fontFamily: font.mono, fontSize: 13 },
-  toolError: { color: "#f87171", fontFamily: font.body, fontSize: 13, paddingHorizontal: 16, paddingVertical: 12 },
+  toolError: { color: colors.chat.toolError, fontFamily: font.body, fontSize: 13, paddingHorizontal: 16, paddingVertical: 12 },
   modalOverlay: {
     position: "absolute",
     top: 0,
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: colors.bg.overlay,
     justifyContent: "center",
     alignItems: "center",
     padding: 16,

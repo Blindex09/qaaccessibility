@@ -85,3 +85,20 @@ async def test_disconnect_preserves_visible_progress(monkeypatch):
     await stream.aclose()
     assert "nome do controle" in stored[0]
     assert "parciais" in stored[0]
+
+
+@pytest.mark.asyncio
+async def test_turn_error_is_saved_in_history_with_the_friendly_explanation(monkeypatch):
+    stored = []
+    explanation = "Desculpe, ocorreu um erro: o limite de uso da sua conta no provedor de IA foi atingido."
+
+    async def failing(*args):
+        yield {"type": "error", "error": explanation}
+
+    monkeypatch.setattr(chat_runtime, "_stream_chat_impl", failing)
+    monkeypatch.setattr(
+        chat_runtime.chat_history_store, "append_message", lambda role, content, **kw: stored.append((role, content))
+    )
+    events = [event async for event in chat_runtime.stream_chat("audit")]
+    assert events[-1] == {"type": "error", "error": explanation}
+    assert ("assistant", explanation) in stored

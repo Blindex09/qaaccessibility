@@ -5,22 +5,29 @@
  *
  *  Direction: "Technical Trust" — Industrial Utilitarian × Luxury Refined
  *
+ *  Dois temas, uma só fonte: `palettes.dark` e `palettes.light` (hex). Na web,
+ *  `colors` devolve `var(--c-...)` e o tema ativo é decidido pelo CSS
+ *  (preferência do sistema, ou `data-theme` escolhido pela pessoa); fora da
+ *  web e em testes, `colors` é a paleta escura em hex.
+ *
  *  Contrast: the pairings asserted in `__tests__/tokens.contrast.test.ts` are
- *  validated against WCAG 2.2 by computing the real ratio from these values —
- *  text tokens on their surfaces (1.4.3, ≥4.5:1), `text.onAccent` on every
- *  solid button background (1.4.3, ≥4.5:1) and accent borders/indicators on
- *  the dark surfaces (1.4.11, ≥3:1). Pairings outside that test are NOT
- *  claimed to be validated; add them to the test rather than assuming.
+ *  validated against WCAG 2.2 by computing the real ratio from these values,
+ *  in BOTH palettes — text tokens on their surfaces (1.4.3, ≥4.5:1),
+ *  `text.onAccent` on every solid button background (1.4.3, ≥4.5:1) and accent
+ *  borders/indicators on the surfaces (1.4.11, ≥3:1). Pairings outside that
+ *  test are NOT claimed to be validated; add them to the test rather than
+ *  assuming.
  *
  *  Fonts (loaded in index.html via Google Fonts):
  *    Display / Headings: Plus Jakarta Sans (700/800)
  *    Body:               DM Sans (400/500/600)
+ *    Reading (answers):  Source Serif 4 (400/600)
  *    Code:               JetBrains Mono (400)
  */
 
-// ─── Color Palette ───────────────────────────────────────────────────────────
-export const colors = {
-  // Core surfaces (dark-first)
+// ─── Color Palettes ──────────────────────────────────────────────────────────
+const darkPalette = {
+  // Core surfaces
   bg: {
     root: "#0B1120",          // deepest background
     surface: "#111827",       // cards, panels
@@ -86,27 +93,187 @@ export const colors = {
     focus: "#14B8A6",         // focus ring color (teal)
   },
 
+  // Chat — papéis na conversa, rolagem de ferramentas e botão de envio
+  chat: {
+    userBg: "rgba(6,182,212,0.07)",
+    userAccent: "#22D3EE",    // rótulo/borda da mensagem da pessoa
+    assistantBg: "rgba(99,102,241,0.07)",
+    assistantAccent: "#A5B4FC", // rótulo/borda da resposta do assistente
+    sendBg: "#4F46E5",        // botão enviar (5.7:1 com #FFFFFF)
+    sendDisabledBg: "#373890",
+    toolBg: "#090D16",
+    toolHeaderBg: "#131B2E",
+    toolLogBg: "#050811",
+    toolLogText: "#A7F3D0",
+    toolError: "#F87171",
+  },
+
   // Severity palette (for issue cards)
   severity: {
-    critical: { bg: "#2D1215", text: "#FCA5A5", border: "#7F1D1D", badge: "#DC2626", label: "Crítico" },
-    high:     { bg: "#2D1A05", text: "#FDBA74", border: "#78350F", badge: "#EA580C", label: "Alto" },
-    medium:   { bg: "#2D2305", text: "#FCD34D", border: "#78350F", badge: "#D97706", label: "Médio" },
-    low:      { bg: "#052E16", text: "#86EFAC", border: "#166534", badge: "#16A34A", label: "Baixo" },
+    critical: { bg: "#2D1215", text: "#FCA5A5", border: "#7F1D1D", badge: "#DC2626" },
+    high:     { bg: "#2D1A05", text: "#FDBA74", border: "#78350F", badge: "#EA580C" },
+    medium:   { bg: "#2D2305", text: "#FCD34D", border: "#78350F", badge: "#D97706" },
+    low:      { bg: "#052E16", text: "#86EFAC", border: "#166534", badge: "#16A34A" },
   },
 
   // Checklist status
   status: {
-    pass:           { color: "#22C55E", bg: "#052E16", label: "Aprovado" },
-    fail:           { color: "#EF4444", bg: "#2D1215", label: "Falhou" },
-    manual:         { color: "#F59E0B", bg: "#2D2305", label: "Verificação manual" },
-    not_applicable: { color: "#64748B", bg: "#1E293B", label: "Não aplicável" },
+    pass:           { color: "#22C55E", bg: "#052E16" },
+    fail:           { color: "#EF4444", bg: "#2D1215" },
+    manual:         { color: "#F59E0B", bg: "#2D2305" },
+    not_applicable: { color: "#64748B", bg: "#1E293B" },
   },
-} as const;
+};
+
+type Palette = typeof darkPalette;
+
+/** Tema claro quente: papel off-white, tinta quase preta, o mesmo teal de marca. */
+const lightPalette: Palette = {
+  bg: {
+    root: "#F5F4EE",
+    surface: "#FFFFFF",
+    elevated: "#FBFAF6",
+    subtle: "#EFEDE4",
+    overlay: "rgba(31,30,27,0.45)",
+  },
+  text: {
+    primary: "#1F1E1B",
+    secondary: "#55524A",
+    tertiary: "#67645B",
+    inverse: "#FAF9F5",
+    onAccent: "#FFFFFF",
+  },
+  accent: {
+    DEFAULT: "#0F766E",
+    hover: "#115E59",
+    subtle: "#E1F0ED",
+    muted: "rgba(15,118,110,0.10)",
+    text: "#0B5F58",
+  },
+  danger: { DEFAULT: "#DC2626", bg: "#FDECEC", text: "#B91C1C", border: "#FCA5A5" },
+  warning: { DEFAULT: "#D97706", bg: "#FEF3C7", text: "#92400E", border: "#FCD34D" },
+  success: { DEFAULT: "#16A34A", bg: "#DCFCE7", text: "#166534", border: "#86EFAC" },
+  info: { DEFAULT: "#2563EB", bg: "#DBEAFE", text: "#1E40AF", border: "#93C5FD" },
+  border: {
+    DEFAULT: "#E4E1D6",
+    strong: "#CFCBBD",
+    focus: "#0F766E",
+  },
+  chat: {
+    userBg: "rgba(8,145,178,0.08)",
+    userAccent: "#0E7490",
+    assistantBg: "rgba(79,70,229,0.06)",
+    assistantAccent: "#4338CA",
+    sendBg: "#4F46E5",
+    sendDisabledBg: "#373890",
+    toolBg: "#F0EEE6",
+    toolHeaderBg: "#E8E5DA",
+    toolLogBg: "#F7F6F1",
+    toolLogText: "#065F46",
+    toolError: "#B91C1C",
+  },
+  severity: {
+    critical: { bg: "#FDECEC", text: "#991B1B", border: "#FCA5A5", badge: "#DC2626" },
+    high:     { bg: "#FFEDD5", text: "#9A3412", border: "#FDBA74", badge: "#EA580C" },
+    medium:   { bg: "#FEF3C7", text: "#92400E", border: "#FCD34D", badge: "#D97706" },
+    low:      { bg: "#DCFCE7", text: "#166534", border: "#86EFAC", badge: "#16A34A" },
+  },
+  status: {
+    pass:           { color: "#15803D", bg: "#DCFCE7" },
+    fail:           { color: "#DC2626", bg: "#FDECEC" },
+    manual:         { color: "#B45309", bg: "#FEF3C7" },
+    not_applicable: { color: "#64748B", bg: "#ECEAE0" },
+  },
+};
+
+export const palettes = { dark: darkPalette, light: lightPalette } as const;
+
+// ─── Tema em runtime (web) ───────────────────────────────────────────────────
+const isBrowser = typeof document !== "undefined" && typeof window !== "undefined";
+
+/** `--c-bg-root`, `--c-accent` (DEFAULT some do nome), `--c-severity-high-bg`. */
+function cssVarName(path: string[]): string {
+  const parts = path[path.length - 1] === "DEFAULT" ? path.slice(0, -1) : path;
+  return `--c-${parts.join("-").replace(/_/g, "-")}`;
+}
+
+function mapPalette<T>(node: T, path: string[], leaf: (value: string, path: string[]) => string): T {
+  if (typeof node === "string") return leaf(node, path) as unknown as T;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    out[key] = mapPalette(value, [...path, key], leaf);
+  }
+  return out as T;
+}
+
+function declarations(palette: Palette): string {
+  const lines: string[] = [];
+  mapPalette(palette, [], (value, path) => {
+    lines.push(`${cssVarName(path)}:${value};`);
+    return value;
+  });
+  return lines.join("");
+}
+
+/** CSS completo dos dois temas: sistema por padrão, `data-theme` força um. */
+export function themeCss(): string {
+  const dark = declarations(darkPalette);
+  const light = declarations(lightPalette);
+  return (
+    `:root{color-scheme:dark light;${dark}}` +
+    `@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){${light}}}` +
+    `:root[data-theme="light"]{${light}}` +
+    `:root[data-theme="dark"]{${dark}}`
+  );
+}
+
+export type ThemePreference = "system" | "light" | "dark";
+
+const THEME_STORAGE_KEY = "qa-theme";
+
+export function readThemePreference(): ThemePreference {
+  if (!isBrowser) return "system";
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === "light" || stored === "dark" ? stored : "system";
+  } catch {
+    return "system";
+  }
+}
+
+export function applyThemePreference(preference: ThemePreference): void {
+  if (!isBrowser) return;
+  const root = document.documentElement;
+  if (preference === "system") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", preference);
+  try {
+    if (preference === "system") window.localStorage.removeItem(THEME_STORAGE_KEY);
+    else window.localStorage.setItem(THEME_STORAGE_KEY, preference);
+  } catch {
+    // Sem armazenamento (modo privado): o tema vale só nesta sessão.
+  }
+}
+
+if (isBrowser) {
+  let style = document.getElementById("qa-theme-vars") as HTMLStyleElement | null;
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "qa-theme-vars";
+    document.head.appendChild(style);
+  }
+  style.textContent = themeCss();
+  applyThemePreference(readThemePreference());
+}
+
+export const colors: Palette = isBrowser
+  ? mapPalette(darkPalette, [], (_value, path) => `var(${cssVarName(path)})`)
+  : darkPalette;
 
 // ─── Typography ──────────────────────────────────────────────────────────────
 export const font = {
   display: '"Plus Jakarta Sans", sans-serif',
   body: '"DM Sans", sans-serif',
+  serif: '"Source Serif 4", Georgia, serif',
   mono: '"JetBrains Mono", monospace',
 
   // Sizes (rem-based in concept, px for RN)
@@ -169,6 +336,7 @@ export const radius = {
   md: 10,
   lg: 14,
   xl: 20,
+  composer: 24,
   full: 9999,
 } as const;
 

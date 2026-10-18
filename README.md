@@ -139,10 +139,10 @@ qaaccessibility/
 │   └── requirements.txt
 ├── web/                            # Chat-first (o assistente faz tudo)
 │   ├── src/
-│   │   ├── screens/                 # ChatScreen, SettingsScreen
+│   │   ├── screens/                 # ChatScreen, ConversationSidebar, SettingsScreen
 │   │   ├── services/                # api.ts (settings) + chat.ts (streaming SSE + getModels)
 │   │   ├── hooks/                   # useChat
-│   │   └── design/                  # tokens + helpers
+│   │   └── design/                  # tokens (temas claro e escuro) + helpers
 │   ├── index.js                      # ponto de entrada local do Expo (compatível com pnpm)
 │   ├── App.tsx
 │   ├── package.json
@@ -517,3 +517,75 @@ dependência do web instala.
 - `scripts/ci_a11y_check.py` — portão de acessibilidade para o pipeline de
   quem **usa** o produto (aponta para um backend de pé e falha em achado
   crítico/alto), não para o CI deste repositório.
+
+## Plano para os conceitos agênticos de 2026 (ainda não implementado)
+
+Esta seção é um plano. Ela não descreve o comportamento atual do projeto.
+
+Quando começar: só depois de terminar o teste real ponta a ponta de todos os módulos que existem hoje. Depois disso, seguir a
+regra 15 do `CLAUDE.md`: um item de cada vez, testado ao vivo na interface real, com teste de regressão, README do módulo
+em `docs/modules/` e commit. Não começar um item com o anterior em aberto.
+
+O que é exigido e por quê está na regra 18 do `CLAUDE.md`. Última revisão: 2026-10-08. Os estados abaixo vieram de busca no
+código nessa data. Antes de começar cada item, conferir de novo se ainda é lacuna.
+
+Em todos os itens, o princípio das regras 1 a 17 continua valendo: a IA decide o significado, o código só protege e mede, e
+nenhum limite fixo de tempo, tokens ou etapas pode cortar uma execução que continua avançando.
+
+### Ordem sugerida para o Qaaccessibility
+
+O Qaaccessibility já tem servidor MCP, A2A, hooks, replay de trajetória, estatística de evals, roteamento por complexidade,
+failover, inferência em lote e três scripts de matriz de cobertura. O plano é fechar as lacunas declaradas e provar o que existe.
+
+1. Rodar a matriz que já existe (`scripts/run_2026_agentic_coverage_matrix.py`, `scripts/run_15_agentic_concepts_2026.py`,
+   `scripts/run_2026_trajectory_and_agent_evals.py`) contra o sistema real e registrar o resultado verdadeiro. Os resultados
+   gravados não foram reverificados em 2026-10-08.
+2. Limite de tokens cobrindo também o servidor MCP por stdio e o protocolo A2A. Confirmado em 2026-10-08, por leitura do código:
+   o `mcp_server.py` não abre orçamento e o middleware só atua em HTTP, então no MCP por stdio só o cancelamento encerra. No
+   A2A a requisição passa pelo middleware e o trabalhador em segundo plano (`asyncio.create_task` em `a2a_service.py`) herda
+   o orçamento por cópia de contexto, então o limite vale, mas ao atingi-lo o `except Exception` marca a tarefa como `failed`
+   em vez de entregar o parcial como o chat faz. Hipótese a testar: a janela de travamento aberta no POST pode encerrar uma
+   tarefa longa depois que a resposta já voltou. Não há teste cobrindo A2A com orçamento.
+3. Sandbox uniforme e credenciais curtas por execução. Confirmado em 2026-10-08, por leitura do código: não há isolamento
+   uniforme. O Chromium do Playwright usa o sandbox padrão (não achei opção que o desligue), mas os runners de Newman,
+   Cypress e testes do projeto (`remote_runners.py`, `chat_tools.py`) rodam como subprocesso com os privilégios da pessoa, no
+   diretório do projeto e herdando o ambiente do processo (`env=dict(os.environ)`). Há aprovação, consentimento local
+   (`local_exec_consent_store.py`) e proteção de caminho (`local_project_guard.py`), mas nenhum limite de isolamento. O
+   `remote_runners.py` também altera `os.environ["CYPRESS_LOCAL_PROJECT_DIR"]`, que é estado global compartilhado entre
+   execuções simultâneas. Credenciais: não há credencial de curta duração, escopo por execução nem troca de token; as chaves
+   dos provedores são estáticas, no cofre DPAPI com Fernet (`security/secret_store.py`) ou no ambiente. O que fazer: rodar os
+   runners com ambiente mínimo e, idealmente, em contêiner ou job object, e emitir credenciais por execução com o menor escopo.
+4. Recuperação durável de todos os módulos, retomando falha parcial sem refazer o que já foi provado. Achado confirmado em
+   2026-10-08: o histórico de conversas, as lições, a última análise, o plano da squad, os jobs em lote e os checkpoints são
+   gravados em `tempfile.gettempdir()`, pasta que o sistema pode limpar. Mover para uma pasta de dados da aplicação (o
+   `remote_runners.py` já usa `LOCALAPPDATA`), sem perder o que já existe.
+5. Redirecionamento em tempo real (steer) no Factory. Correção em 2026-10-08: o `CLAUDE.md` dizia que Gemini e Factory não
+   tinham steer, mas o código mostra o Gemini com steer ligado (`run_agent.py::_run_gemini`, por `user_input` da Interactions
+   API), sem prova ao vivo registrada: provar com um teste real. O Factory só tem `cancel_check` (`factory_adapter.py`) e
+   nenhum `steer_check`.
+6. Latência da primeira atualização ao usuário, medida e reduzida.
+7. Cliente MCP para consumir ferramentas externas. Confirmado em 2026-10-08: não existe nenhum cliente MCP. O projeto só tem
+   o servidor (`backend/src/services/mcp_server.py`) e, no `factory_adapter.py`, um servidor MCP embutido do SDK do Factory
+   para expor ferramentas a ele. O que fazer: um cliente com ferramenta negada por padrão, aprovação, validação de schema e a
+   descrição da ferramenta tratada como dado.
+8. Memória de longo prazo visível e editável pela pessoa, sem guardar segredo. Confirmado em 2026-10-08: existe só em parte.
+   O histórico de conversas persiste por conversa e a pessoa pode listar, ler e apagar (`/chat/conversations` e
+   `/chat/history/{id}`), mas não é memória de longo prazo. As lições (`services/lessons_store.py`) são persistentes, mas
+   guardam apenas padrões de falso positivo, só aparecem depois de três repetições e a pessoa não consegue ver nem editar.
+   Não há memória de preferências ou de fatos entre conversas, nem rota para editá-la.
+9. Segurança de cadeia de suprimentos para skills e servidores MCP de terceiros: varredura antes de habilitar e menor privilégio.
+10. Provar com chamada real o que hoje foi coberto só com mocks: o padrão de 32000 tokens da Anthropic e a autocorreção pelo
+    limite que o provedor informa.
+11. Revisão do harness a cada modelo novo: rodar os evals sem o andaime e remover o que o modelo já dispensa.
+12. Cancelamento e estado do A2A. Achado em 2026-10-08, por leitura do código, sem executar: `cancel_a2a_task` só grava
+    `canceled` no dicionário em memória; a tarefa criada com `asyncio.create_task` continua rodando (a referência não é
+    guardada) e, ao terminar, grava `completed` por cima, gastando custo depois do cancelamento. O que fazer: guardar a tarefa,
+    cancelá-la de verdade e impedir que um estado final sobrescreva `canceled`, com teste de regressão. O armazenamento das
+    tarefas A2A é um dicionário em memória e some ao reiniciar (ligado ao item 4).
+
+### Quando o plano estará concluído
+
+- Todos os itens acima têm módulo, teste de regressão, teste real ponta a ponta na interface e README do módulo.
+- A matriz de cobertura da regra 18 roda contra o sistema real e passa, com o resultado verdadeiro registrado.
+- Os evals rodam sem o andaime antigo a cada modelo novo, e o que o modelo já dispensa foi removido.
+- A parte específica do `CLAUDE.md` deixa de listar pendências e registra a data da última revisão.
