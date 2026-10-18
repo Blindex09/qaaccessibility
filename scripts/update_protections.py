@@ -186,8 +186,33 @@ def render(data: dict, write: bool) -> list[str]:
     return changed
 
 
-def problems(data: dict) -> list[str]:
+def registry_problems(data: dict, root: Path = ROOT, tags: dict[str, str] | None = None) -> list[str]:
+    """Regra 15: todo módulo tem seus testes automáticos, e a tag do último estado provado aponta para o commit declarado."""
     found: list[str] = []
+    for key, module in data["modulos"].items():
+        tests = module.get("testes_automaticos")
+        if not tests:
+            found.append(f"{key}: sem testes automáticos registrados")
+        for test in tests or []:
+            if not (root / test).exists():
+                found.append(f"{key}: teste registrado não existe: {test}")
+        tag, commit = module.get("tag_ultimo_estado_provado"), module.get("commit_ultimo_estado_provado")
+        if bool(tag) != bool(commit):
+            found.append(f"{key}: tag e commit do último estado provado precisam vir juntos")
+        if tag and tags is not None and not tags.get(tag, "").startswith(commit or "?"):
+            found.append(f"{key}: a tag {tag} não existe ou não aponta para o commit {commit}")
+    return found
+
+
+def local_tags() -> dict[str, str]:
+    import subprocess
+
+    out = subprocess.run(["git", "-C", str(ROOT), "tag", "--format=%(refname:short) %(objectname)"], capture_output=True, text=True).stdout
+    return dict(line.split(" ", 1) for line in out.splitlines() if " " in line)
+
+
+def problems(data: dict) -> list[str]:
+    found: list[str] = registry_problems(data, ROOT, local_tags() or None)
     for provider_id, provider in data["provedores"].items():
         used = {k: e for k, e in provider["modulos"].items() if e["estado"] != "NÃO TESTADO"}
         for key, entry in provider["modulos"].items():

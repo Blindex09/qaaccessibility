@@ -16,7 +16,10 @@ spec.loader.exec_module(protections)
 
 def sample() -> dict:
     return {
-        "modulos": {"m1": {"titulo": "Conversa", "readme": "x.md"}, "m2": {"titulo": "URL", "readme": "y.md"}},
+        "modulos": {
+            "m1": {"titulo": "Conversa", "readme": "x.md", "testes_automaticos": ["tests/backend/unit/test_update_protections.py"]},
+            "m2": {"titulo": "URL", "readme": "y.md", "testes_automaticos": ["tests/backend/unit/test_update_protections.py"]},
+        },
         "provedores": {
             "a": {
                 "nome": "Provedor A", "ficha": "a.md", "contrato": None, "contrato_pendente": "falta cota",
@@ -68,3 +71,29 @@ def test_a_stub_ficha_is_flagged_until_it_is_filled_in():
 @pytest.mark.parametrize("day,expected", [("2026-10-09", "09/10/2026"), (None, "sem data")])
 def test_dates_are_shown_in_brazilian_format(day, expected):
     assert protections.br(day) == expected
+
+
+class TestRegistroDeModulos:
+    """Regra 15: cada módulo registra seus testes automáticos e a tag do último estado provado."""
+
+    def test_modulo_sem_testes_registrados_reprova(self):
+        data = sample()
+        del data["modulos"]["m1"]["testes_automaticos"]
+        assert any("m1: sem testes automáticos" in p for p in protections.registry_problems(data))
+
+    def test_teste_registrado_que_nao_existe_reprova(self):
+        data = sample()
+        data["modulos"]["m2"]["testes_automaticos"] = ["tests/backend/unit/nao_existe.py"]
+        assert any("não existe" in p for p in protections.registry_problems(data))
+
+    def test_tag_e_commit_precisam_vir_juntos_e_bater(self):
+        data = sample()
+        data["modulos"]["m1"]["tag_ultimo_estado_provado"] = "modulo-1-x"
+        assert any("precisam vir juntos" in p for p in protections.registry_problems(data))
+        data["modulos"]["m1"]["commit_ultimo_estado_provado"] = "abc1234"
+        assert any("não existe ou não aponta" in p for p in protections.registry_problems(data, tags={}))
+        assert protections.registry_problems(data, tags={"modulo-1-x": "abc1234ffffffff"}) == []
+
+    def test_registro_real_do_projeto_esta_em_dia(self):
+        data = protections.load()
+        assert protections.registry_problems(data, tags=protections.local_tags() or None) == []

@@ -147,6 +147,12 @@ Defesa contra a volta: `tests/backend/unit/test_sem_relogio_fixo.py` varre o bac
 
 Não provado: nenhum teste ao vivo foi rodado depois desta mudança (Selenium, Newman e Cypress reais, nem o `/fix` com self-healing contra um modelo real). A cobertura é de testes unitários e de integração com processos simulados.
 
+### Registro de mudança de instrução ao modelo (regra 15), 2026-10-18
+
+Mudança: o SYSTEM_PROMPT do chat ganhou as regras 21 (narração durante o trabalho) e 22 (autonomia e entrega honesta), que são as regras 3 e 5 do CLAUDE.md e tinham ficado sem texto: as regras 15 e 17 do prompt apontavam para uma "regra 5 de explicação falada" que já não existia. As referências agora apontam para a 21, e a regra duplicada 20 virou 20b. Vale para todos os provedores (texto sem ramo por modelo).
+Testes que rodaram: tests/backend/unit/services/test_prompt_regras_de_comportamento.py (numeração única, referências existentes, conteúdo das duas regras) e a suíte unitária do backend.
+Portão NÃO cumprido: conjunto amplo de avaliações ao vivo em tentativas repetidas, ablação (ligar e desligar as duas regras e comparar a taxa) e período de observação. Motivo: não há chave de provedor no ambiente desta sessão e a cota do Ollama Cloud estava esgotada. A mudança entra por ordem do dono e fica marcada como pendente de avaliação; se a taxa dos fluxos de narração ou de custo piorar ao voltar a rodar ao vivo, desfazer.
+
 ### Nicho (regra 5)
 
 Acessibilidade digital. Um pedido fora dela é recusado com educação, como descreve a regra 5.

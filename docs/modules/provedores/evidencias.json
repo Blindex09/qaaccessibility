@@ -2,19 +2,50 @@
   "modulos": {
     "m1": {
       "titulo": "Conversa, triagem e roteamento",
-      "readme": "chat_triagem_roteamento.md"
+      "readme": "chat_triagem_roteamento.md",
+      "testes_automaticos": [
+        "tests/backend/unit/services/test_chat_turn_supervision.py",
+        "tests/backend/unit/services/test_route_advisor.py",
+        "tests/backend/unit/services/test_tool_groups.py",
+        "tests/backend/unit/services/test_complexity_router.py",
+        "tests/backend/unit/services/test_execution_contract.py",
+        "tests/backend/unit/routes/test_chat_route.py"
+      ],
+      "tag_ultimo_estado_provado": "modulo-1-conversa-triagem-roteamento-provado-gemini",
+      "commit_ultimo_estado_provado": "589d3c9"
     },
     "m2": {
       "titulo": "Auditoria de URL e especialistas",
-      "readme": "auditoria_url_especialistas.md"
+      "readme": "auditoria_url_especialistas.md",
+      "testes_automaticos": [
+        "tests/backend/unit/services/test_audit_observability.py",
+        "tests/backend/unit/services/test_chat_tools_analyze_site_parallel.py",
+        "tests/backend/unit/routes/test_analyze_crawl_batch.py"
+      ],
+      "tag_ultimo_estado_provado": "modulo-2-auditoria-url-especialistas-provado-gemini",
+      "commit_ultimo_estado_provado": "589d3c9"
     },
     "m3": {
       "titulo": "Código, anexos, ZIP e projeto local",
-      "readme": "codigo_anexos_zip.md"
+      "readme": "codigo_anexos_zip.md",
+      "testes_automaticos": [
+        "tests/backend/unit/services/test_chat_attachments.py",
+        "tests/backend/unit/services/test_chat_runtime_anexos.py",
+        "tests/backend/unit/routes/test_routes_zip.py",
+        "tests/backend/unit/routes/test_agent_project_routes.py"
+      ],
+      "tag_ultimo_estado_provado": "modulo-3-codigo-anexos-zip-provado-gemini",
+      "commit_ultimo_estado_provado": "589d3c9"
     },
     "m4": {
       "titulo": "Documentos e imagens",
-      "readme": "documentos_imagens.md"
+      "readme": "documentos_imagens.md",
+      "testes_automaticos": [
+        "tests/backend/unit/services/test_document_facts.py",
+        "tests/backend/unit/services/test_browser_raw_document.py"
+      ],
+      "tag_ultimo_estado_provado": null,
+      "commit_ultimo_estado_provado": null
     }
   },
   "provedores": {
@@ -279,5 +310,6 @@
       },
       "cenarios": {}
     }
-  }
+  },
+  "registro_nota": "Regra 15: testes automaticos de cada modulo e o commit do ultimo estado provado ao vivo (Gemini, 09/10/2026). O modulo 4 esta PARCIAL e por isso nao tem tag. A regressao conjunta ao vivo depende de cota dos provedores e de chave no ambiente; ver docs/modules/paridade_provedores.md."
 }
