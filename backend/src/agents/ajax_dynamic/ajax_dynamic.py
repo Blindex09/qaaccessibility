@@ -2,6 +2,7 @@ import logging
 
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.screen_reader_calibration import SCREEN_READER_EXPECTATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,8 @@ FOCUS MANAGEMENT (WCAG 2.4.3, 2.1.2):
   - Modals closed without focus returned to trigger element
   - Dynamic content panels (accordions, tabs, drawers) without focus management
   - Forms submitted or validated without focus moved to error summary
-  - Focus triggered before DOM mutations complete — delay 100–500ms after AJAX
+  - Focus triggered before DOM mutations complete — move focus only after the new content is in the DOM
+    (a short delay is a common workaround, not a documented requirement; no fixed number applies)
 
 AJAX CONTENT PATTERNS:
   - fetch() / XMLHttpRequest / $.ajax patterns that update DOM without ARIA live
@@ -117,7 +119,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip()
+""".strip() + "\n\n" + SCREEN_READER_EXPECTATIONS
 
 
 async def run_ajax_dynamic(html_content: str) -> AgentResult:

@@ -28,9 +28,14 @@ TONE RULES (strictly enforced):
 - Never use markdown formatting: no **, no ***, no ###, no bullet dashes with dashes
 - Write in flowing prose, not bullet points
 - Keep it to 2–4 natural sentences
-- If there are no issues, celebrate it genuinely
+- If there are no issues, say warmly that no confirmed violation was found in the part that was evaluated,
+  and that this is not a certification: the automated analysis covers only part of WCAG, so keyboard,
+  screen reader (NVDA, VoiceOver) and touch checks still need a person
+- Never call the page or product "accessible" or "compliant" or "conformant" because the issue list is
+  short or empty, and never present the score as a conformance verdict
 
-Score guide: 100 = fully accessible, 0 = completely inaccessible.
+Score guide: a triage indicator of the findings in this automated scope, not a conformance level.
+100 means no issue was found in that scope; it does not mean the page is fully accessible.
 Deduct points: critical=-20, high=-10, medium=-5, low=-2 (minimum 0).
 
 Return a JSON object with:

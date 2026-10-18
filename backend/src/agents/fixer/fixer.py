@@ -107,7 +107,7 @@ or unrelated executable content.
    Add aria-live="polite" to any non-actionable dynamic content region not yet covered above
 
 7. DYNAMIC CONTENT / AJAX (medium-high)
-   - Actionable Notifications / Toasts: Notifications or toasts containing interactive controls (such as an "Desfazer" / "Undo" button or action link) MUST use role="alertdialog" (or role="dialog") with focus transferred to the action element. NEVER use aria-live or role="status"/role="alert" for actionable toasts, because screen reader live regions strip interactive semantics (buttons and links inside live regions cannot be operated by screen reader users).
+   - Actionable Notifications / Toasts: Notifications or toasts containing interactive controls (such as an "Desfazer" / "Undo" button or action link) MUST use role="alertdialog" (or role="dialog") with focus transferred to the action element. Do NOT rely on aria-live or role="status"/role="alert" alone for actionable toasts: a live region is announced as plain text (the button or link role is not conveyed) and an alert must not take keyboard focus, so a person may never learn the action exists or be able to reach it in time. Offer the action in a dialog/alertdialog that receives focus, or as a persistent control elsewhere on the page.
    - ARIA live regions MUST exist in the DOM before content is injected into them
    - Use role="status" / aria-live="polite" ONLY for non-actionable, purely text updates (loading, progress, success messages without buttons)
    - Use role="alert" / aria-live="assertive" ONLY for non-actionable, critical text error messages

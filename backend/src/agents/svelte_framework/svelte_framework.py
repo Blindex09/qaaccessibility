@@ -35,7 +35,7 @@ Look especially for:
      DOM before content changes, so screen readers miss the first announcement.
    - Fix: keep the aria-live container always mounted; toggle only its text content, or
      use CSS visibility/display via a class binding instead of an #if block.
-3. Dangerous HTML injection ({@html}, WCAG 1.3.1 / 4.1.1):
+3. Dangerous HTML injection ({@html}, WCAG 1.3.1 / 4.1.2; never cite 4.1.1, removed in 2.2):
    - {@html rawContent} rendering unsanitized content — like dangerouslySetInnerHTML in
      React or v-html in Vue, this can inject images without alt, broken heading order, or
      malformed ARIA attributes that bypass the framework's own template safety.

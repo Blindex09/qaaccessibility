@@ -58,6 +58,32 @@ Observações sobre o código do site que um bom teste deve conseguir encontrar 
 
 Limites conhecidos: a correção automática (corrigir e baixar o ZIP) continua sem tratar .astro e .mdx; o mapa não expande componentes do projeto (o modelo lê o arquivo do componente quando ele foi enviado); alias de caminho é resolvido só pelo nome do arquivo, e nome repetido em duas pastas vira "não encontrado".
 
+## Alinhamento com o repositório mcp (2026-10-17)
+
+O repositório mcp (web-accessibility) tem o método de teste que o Qaaccessibility deve seguir: achado só vale com evidência, verde de ferramenta automática não prova acessibilidade, o que não foi verificado é dito, e o teste confere o comportamento e não a técnica. Divergências achadas no Qaaccessibility e corrigidas:
+
+- O gerador de testes mandava afirmar que o atributo alt não pode ser vazio. O mcp (e a W3C) tratam alt vazio como marca deliberada de imagem decorativa; o teste gerado reprovaria páginas corretas, como o Hero e o Logo do starter. Corrigido: afirma-se a existência do atributo.
+- O gerador exigia que o foco fosse para um h1 com tabindex -1 após troca de rota, uma técnica. Corrigido: afirma-se o resultado (título mudou e o foco ou o anúncio levou a pessoa ao novo conteúdo).
+- O gerador não tinha os contratos de comportamento (diálogo, divulgação, abas, erros de formulário, passeio por Tab, tamanho de alvo). Entraram, com a regra de que submenu de navegação é divulgação e não menu, e de que dialog nativo dispensa aria-modal.
+- O relator pedia para "comemorar" um resultado sem achados e definia 100 como "totalmente acessível". Corrigido: sem achados significa nenhuma violação confirmada no escopo avaliado, não é certificação, e a nota é um indicador de triagem.
+
+Testes: tests/backend/unit/agents/test_alinhamento_conhecimento_mcp.py.
+
+## Conferência com a documentação oficial (2026-10-17)
+
+Consultadas: páginas do W3C (novidades do WCAG 2.2 e as páginas de entendimento de 1.4.3, 1.4.12, 2.4.13 e 2.5.3), WAI-ARIA 1.2 (papéis sem nome do autor), padrão de alerta do APG, especificação HTML do popover, e MDN (aria-checked, aria-expanded, aria-selected e regiões vivas). Erros encontrados nos prompts e corrigidos:
+
+- Três especialistas (React, Svelte e leitor de tela) citavam o critério 4.1.1 Parsing como ativo. Ele foi removido no WCAG 2.2.
+- O especialista de CSS tratava line-height abaixo de 1,2 e texto justificado como falha do 1.4.12. O critério testa se nada se perde quando a pessoa aumenta os espaçamentos.
+- O especialista de ARIA dizia que aria-checked é proibido em option e que aria-expanded é proibido em checkbox. Ambos são suportados. Ele também mandava sinalizar nome em time e blockquote, que podem ter nome; faltavam em e strong na lista de papéis sem nome.
+- O especialista semântico afirmava que todo popover deve ter papel explícito de dialog, tooltip ou menu. A especificação HTML não exige isso.
+- A regra do corretor sobre avisos com ação afirmava que região viva "tira a semântica interativa" e impede o uso. A fonte diz que o anúncio é texto simples e que o alerta não deve tomar o foco; o texto foi reescrito.
+- A auditoria de conformidade dizia que 2.5.3 é AA; é A. A referência do chat apresentava o 2.4.13 (AAA) como requisito junto do 2.4.7 e o APCA como critério, com valores de Lc que não conferi.
+
+Testes: tests/backend/unit/agents/test_conhecimento_normativo_fontes.py, com as fontes no cabeçalho.
+
+Não conferido nesta rodada, a verificar contra a fonte antes de confiar: os comandos invocadores e interestfor, a afirmação de que aria-modal é pouco confiável no Safari, a de que text-transform uppercase faz leitor de tela soletrar, os palpites de contraste por classe do Tailwind, o atraso de 100 a 500 ms após uma chamada AJAX, a perda de foco por chave de lista por índice no React, e a exigência de rel noopener em target _blank (navegadores atuais já a presumem). A cobertura de React, CSS e JavaScript é uma amostra das afirmações mais arriscadas, não uma revisão completa.
+
 ## Como a decisão de conteúdo fica com a IA
 
 Nenhuma palavra-chave decide se uma página usa a biblioteca. O catálogo é conhecimento entregue ao modelo, e a leitura do contexto continua sendo dele. O único código novo de decisão é o ajuste do seletor estrutural que já existia, e ele olha elementos presentes no HTML (details, dialog, popover), que são fato objetivo.

@@ -138,7 +138,8 @@ Check these dynamic content patterns:
   - Modals closed without focus returned to trigger element
   - Dynamic content panels (accordions, tabs, drawers) without focus management
   - Forms submitted or validated without focus moved to error summary
-  - Focus triggered before DOM mutations complete — delay 100–500ms after AJAX
+  - Focus triggered before DOM mutations complete — move focus only after the new content is in the DOM
+    (a short delay is a common workaround, not a documented requirement; no fixed number applies)
 
 ### AJAX CONTENT PATTERNS
 - fetch() / XMLHttpRequest / $.ajax patterns that update DOM without ARIA live
@@ -266,11 +267,13 @@ combobox   owns listbox or grid
 
 ### STATE/PROPERTY AUDIT & PROHIBITED ARIA ATTRIBUTES (W3C ARIA in HTML 2026 / aria-prohibited-attr)
 aria-label / aria-labelledby: ALLOWED on interactive controls (button, link, textbox), landmarks (main, nav), img, dialog, explicit widget roles.
-    PROHIBITED on generic elements (un-roled <div> / <span>), presentation, none, and static/inline text (<code>, <caption>, <figcaption>, <p>, <sub>, <sup>, <del>, <ins>, <time>, <blockquote>).
-  aria-expanded on: combobox, details disclosure buttons, accordion buttons, navigation sub-menu triggers, tree nodes.
-    PROHIBITED on static text, headings, paragraphs, <img>, listitem, checkbox, radio.
-  aria-checked on: checkbox, menuitemcheckbox, radio, switch.
-    PROHIBITED on option, button, link, tab, combobox.
+    PROHIBITED (WAI-ARIA 1.2 "name from: prohibited") on generic elements (un-roled <div> / <span>), presentation, none, caption, code, deletion, emphasis, insertion, paragraph, strong, subscript, superscript
+    (so <code>, <caption>, <p>, <sub>, <sup>, <del>, <ins>, <em>, <strong>). <time> and <blockquote> CAN be named: do not flag them.
+  aria-expanded is supported on: application, button, checkbox, combobox, gridcell, link, listbox, menuitem, row, rowheader, tab, treeitem
+    (and roles that inherit from them: columnheader, menuitemcheckbox, menuitemradio, switch). Typical uses: combobox, disclosure and accordion buttons, navigation sub-menu triggers, tree nodes.
+    NOT supported on static text, headings, paragraphs, <img>, listitem, radio.
+  aria-checked is supported on: checkbox, menuitemcheckbox, menuitemradio, option, radio, switch (and treeitem in a tree).
+    NOT supported on button, link, tab, combobox. Do not set it on a native <input type="checkbox">: the checked state is already native.
   aria-selected on: option (listbox), row (grid), tab, gridcell, treeitem.
     PROHIBITED on checkbox, radio, switch, button, link, menuitem.
   aria-pressed on: toggle button.
@@ -394,7 +397,7 @@ that represent the highest risk of legal non-conformance. Include all new WCAG
   2.4.2  Page Titled
   2.4.4  Link Purpose in Context
   2.4.11 Focus Not Obscured — sticky UI does not fully hide focus (new in 2.2)
-  2.5.3  Label in Name — visible label is in accessible name (new in 2.1 AA)
+  2.5.3  Label in Name — visible label is in accessible name (Level A, new in 2.1)
   2.5.7  Dragging Movements — single-pointer alternative available (new in 2.2)
   2.5.8  Target Size Minimum — ≥24×24 CSS px or spacing (new in 2.2)
   3.3.7  Redundant Entry — do not ask user to re-enter info (new in 2.2)
@@ -571,12 +574,16 @@ Check for these CSS-specific accessibility failures:
 
 ### TEXT READABILITY
 - font-size below 11px (hard to read even with zoom)
-  - line-height below 1.2 (violates WCAG 1.4.12 Text Spacing)
+  - line-height below 1.2 is only a readability concern, NOT a 1.4.12 failure by itself: 1.4.12
+    requires that nothing is lost or clipped when the USER raises line height to 1.5, paragraph
+    spacing to 2, letter spacing to 0.12 and word spacing to 0.16 (times the font size). Report
+    1.4.12 only for evidence of breakage under those overrides: fixed height or overflow hidden on
+    text containers, or !important on line-height, letter-spacing or word-spacing blocking the override
   - letter-spacing or word-spacing overrides that reduce readability
   - text-transform: uppercase on long text blocks (can confuse screen readers that
     read character-by-character instead of inferring case from semantics)
   - Justified text (text-align: justify) without hyphenation — creates uneven
-    word spacing that fails WCAG 1.4.12
+    word spacing; a readability recommendation (WCAG 1.4.8, AAA), not a 1.4.12 failure
 
 ### INTERACTION
 - pointer-events: none on elements that appear clickable
@@ -1347,7 +1354,7 @@ and class attributes containing Tailwind utility names.
   - Detect: aria-label attributes whose value starts with "{{" (Angular template
     interpolation used directly in attribute — does not work outside ng-template)
 
-### DANGEROUS HTML INJECTION (WCAG 1.3.1, 4.1.1)
+### DANGEROUS HTML INJECTION (WCAG 1.3.1, 4.1.2; never cite 4.1.1, removed in 2.2)
 - innerHTML property assigned via data-* attributes, or elements with
     class="raw-html" or class="html-content" — may inject unlabelled images,
     missing headings, or broken ARIA markup
@@ -1475,9 +1482,11 @@ and semantic patterns that AT will misread, skip, or announce incorrectly.
     on containing element — mispronounced by TTS engine
 
 ### HEADING STRUCTURE (WCAG 1.3.1, 2.4.6)
-- Page missing an <h1> — users navigate by heading list; no h1 = no entry point
-  - Multiple <h1> elements — ambiguous primary topic
-  - Heading levels skipped (h1 then h3 without h2) — invalid outline structure
+- Page missing an <h1> — a navigation recommendation (users jump by heading list), NOT a
+    standalone WCAG failure; report at low or medium confidence without a failed criterion
+  - Multiple <h1> elements — recommendation only, not a failure
+  - Heading levels skipped (h1 then h3 without h2) — W3C WAI presents this as advice to avoid
+    "where possible", not as a requirement; recommendation only
   - Headings used for visual style only (content has no section meaning)
   - <section> or <article> with no heading inside or referenced via aria-labelledby
 
@@ -1507,7 +1516,7 @@ and semantic patterns that AT will misread, skip, or announce incorrectly.
   - Links that open new tabs/windows without indicating "opens in new tab"
     (via aria-label addition or visible text)
 
-### DUPLICATE IDs AND ASSOCIATIONS (WCAG 4.1.1, 1.3.1)
+### DUPLICATE IDs AND ASSOCIATIONS (WCAG 1.3.1, 4.1.2; 4.1.1 Parsing was removed in WCAG 2.2, never cite it)
 - Duplicate id attributes — breaks aria-labelledby, aria-describedby, for=
     (SR uses FIRST match only; others silently ignored)
   - <input> without associated <label> (no for/id, no aria-labelledby,
@@ -1522,7 +1531,8 @@ and semantic patterns that AT will misread, skip, or announce incorrectly.
   - <th> without scope="col", scope="row", or scope="colgroup"
     — headers not announced with cells in complex tables
   - Complex tables (colspanning/rowspanning) without id+headers association
-  - Data table without <caption> — table not named when SR enters it
+  - Data table without <caption> or another accessible name — the reader cannot say what the table is
+    on entry (a recommendation; WCAG does not require a caption)
 
 ### FRAMES AND EMBEDDED CONTENT (WCAG 4.1.2)
 - <iframe> without title attribute — announced as "frame" with no context
@@ -1542,17 +1552,22 @@ and semantic patterns that AT will misread, skip, or announce incorrectly.
   - role="application" used on a region that is not a self-contained rich app
     — disables Browse mode: arrow keys stop working, users cannot read content
   - Interactive controls (buttons, links) placed inside aria-live regions:
-    — live regions ONLY announce raw text and STRIP all semantics of buttons or links inside them.
-    — Screen readers fail to announce button or link roles for actionable toasts/banners (e.g. "Undo", "Extend Session") inside aria-live.
-    — Actionable notifications MUST use role="alertdialog" or role="dialog" and move focus inside, NEVER rely on aria-live.
+    — a live region announcement is plain text; MDN warns that links, buttons and other semantics
+      in the updated content may not be conveyed, and the APG says an alert must not take focus.
+    — So an actionable toast or banner (e.g. "Undo", "Extend Session") announced only through a
+      live region may leave the person unaware the action exists or unable to reach it in time.
+    — Prefer a dialog or alertdialog that receives focus, or a persistent control elsewhere on the page.
   - Live region container missing from initial DOM on load:
     — AT requires live region elements to exist empty in the DOM on initial load ("priming") before content updates.
   - Parent container re-rendering in frameworks (React, Vue, Angular):
     — Re-mounting the live region node silences announcements; only inner text should be updated.
 
 ### FOCUS MANAGEMENT & SPA NAVIGATION (WCAG 2.4.3, 2.4.7)
-- SPA Route Navigation: Page transitions without moving focus to the new page <h1> with tabindex="-1" (or <main tabindex="-1">)
-    — leaves SR browse buffer stale (reading old page content) or resets focus to <body>.
+- SPA Route Navigation: a client-side page transition with no observable signal of the new page
+    — neither focus moved to a sensible new target (the page heading or main with tabindex="-1") nor an
+    announcement of the new title. Judge by outcome, not by one technique, and do not require both:
+    routers such as Astro's ClientRouter and Next.js already announce the title, then the h1, then the path.
+    Without any signal the browse buffer can stay on old content or focus can reset to <body>.
   - DOM Element Deletion: Removing focused elements (e.g. deleting table rows, list items, card components) without moving focus to next/previous focusable sibling or parent container
     — causes focus to drop back to <body>, losing screen reader position and reading state.
   - Modal opening/closing: Missing focus trap on open, or failing to restore focus to trigger button on modal close.
@@ -1570,10 +1585,12 @@ and semantic patterns that AT will misread, skip, or announce incorrectly.
     * Card layouts and multi-element interactive controls missing grouped semantics (mergeDescendants / proper container accessible name) force fragmented touch-target navigation.
 
 ### IMAGES AND MEDIA (WCAG 1.1.1, 1.2.x)
-- <img> missing alt — SR announces filename (e.g. "img4723.jpg")
+- <img> missing the alt attribute — the reader falls back differently: VoiceOver reads the file name,
+    JAWS says "unlabelled", TalkBack says the image is not labelled. (alt="" is valid and means decorative.)
   - <img alt=""> on images that convey information (not decorative)
   - <img> with unhelpful alt text containing filename/placeholder/generic text (e.g. "image", "photo", "logo", "icon", "placeholder", "graphic", "blank", "png", "jpg") — does not convey useful information.
-  - SVG icons without aria-hidden="true" when decorative — announced as "image"
+  - Decorative inline SVG without aria-hidden="true" — behavior varies (many readers ignore an unnamed
+    SVG, some announce an unlabelled graphic); hiding it is the safe, recommendation-level fix
   - Informative SVG without role="img" + <title> — content inaccessible to SR
   - <audio> or <video> without nearby transcript or captions link
 
@@ -1720,7 +1737,7 @@ BOTH event syntaxes below.
      DOM before content changes, so screen readers miss the first announcement.
    - Fix: keep the aria-live container always mounted; toggle only its text content, or
      use CSS visibility/display via a class binding instead of an #if block.
-3. Dangerous HTML injection ({@html}, WCAG 1.3.1 / 4.1.1):
+3. Dangerous HTML injection ({@html}, WCAG 1.3.1 / 4.1.2; never cite 4.1.1, removed in 2.2):
    - {@html rawContent} rendering unsanitized content — like dangerouslySetInnerHTML in
      React or v-html in Vue, this can inject images without alt, broken heading order, or
      malformed ARIA attributes that bypass the framework's own template safety.
@@ -2037,7 +2054,7 @@ system prompt define your behavior.
 
 ### EMERGING 2026 HTML5 & CSS STANDARDS
 - Native <search> Element (WCAG 1.3.1, 1.3.6): Native HTML5 <search> element implicitly provides role="search" landmark. Prefer native <search> over legacy <form role="search"> or <div role="search">.
-  - Popover API (WCAG 4.1.2): The Popover API (popover="auto/manual/hint") manages top-layer rendering and Escape key light dismiss, but does NOT assign implicit semantic roles. Popover containers MUST have an explicit semantic role (role="dialog", role="tooltip", or role="menu").
+  - Popover API (WCAG 4.1.2): The Popover API (popover="auto/manual/hint") manages top-layer rendering and Escape key light dismiss, but does NOT assign implicit semantic roles (the HTML spec does not require any particular role either). A popover must expose semantics that match what it is: use a native element that already has them (for example <dialog popover>) or, on a generic element, add the appropriate ARIA role such as dialog, tooltip or menu. Do not flag a popover that sits on an element with suitable native semantics.
   - Invoker Commands API (WCAG 4.1.2, 1.4.13): Standard commands (command="show-modal", command="toggle-popover", command="close") manage ARIA states automatically. Custom commands (command="--custom-action") prefixed with "--" do NOT manage ARIA states (aria-expanded, aria-pressed) or focus automatically — flag custom command triggers lacking programmatic ARIA state updates. Interest invokers (interestfor) on popover="hint" must satisfy WCAG 1.4.13 hover/focus persistence.
   - Container Queries & Fluid Typography (WCAG 1.4.4, 1.4.10): Container query breakpoints (@container) must use relative units (rem/em) instead of px to support text scaling. Fluid font sizing using container query units (cqw, cqh) must be bounded with clamp() or calc() to prevent unreadably small text in narrow containers.
 

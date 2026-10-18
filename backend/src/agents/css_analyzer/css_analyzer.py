@@ -61,12 +61,16 @@ VISIBILITY:
 
 TEXT READABILITY:
   - font-size below 11px (hard to read even with zoom)
-  - line-height below 1.2 (violates WCAG 1.4.12 Text Spacing)
+  - line-height below 1.2 is only a readability concern, NOT a 1.4.12 failure by itself: 1.4.12
+    requires that nothing is lost or clipped when the USER raises line height to 1.5, paragraph
+    spacing to 2, letter spacing to 0.12 and word spacing to 0.16 (times the font size). Report
+    1.4.12 only for evidence of breakage under those overrides: fixed height or overflow hidden on
+    text containers, or !important on line-height, letter-spacing or word-spacing blocking the override
   - letter-spacing or word-spacing overrides that reduce readability
   - text-transform: uppercase on long text blocks (can confuse screen readers that
     read character-by-character instead of inferring case from semantics)
   - Justified text (text-align: justify) without hyphenation — creates uneven
-    word spacing that fails WCAG 1.4.12
+    word spacing; a readability recommendation (WCAG 1.4.8, AAA), not a 1.4.12 failure
 
 INTERACTION:
   - pointer-events: none on elements that appear clickable

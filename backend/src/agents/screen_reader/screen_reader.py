@@ -3,6 +3,7 @@ import logging
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.component_library_calibration import COMPONENT_LIBRARY_METHOD
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.screen_reader_calibration import SCREEN_READER_EXPECTATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +42,11 @@ ANNOUNCEMENT ON PAGE LOAD (WCAG 2.4.2, 3.1.1):
     on containing element — mispronounced by TTS engine
 
 HEADING STRUCTURE (WCAG 1.3.1, 2.4.6):
-  - Page missing an <h1> — users navigate by heading list; no h1 = no entry point
-  - Multiple <h1> elements — ambiguous primary topic
-  - Heading levels skipped (h1 then h3 without h2) — invalid outline structure
+  - Page missing an <h1> — a navigation recommendation (users jump by heading list), NOT a
+    standalone WCAG failure; report at low or medium confidence without a failed criterion
+  - Multiple <h1> elements — recommendation only, not a failure
+  - Heading levels skipped (h1 then h3 without h2) — W3C WAI presents this as advice to avoid
+    "where possible", not as a requirement; recommendation only
   - Headings used for visual style only (content has no section meaning)
   - <section> or <article> with no heading inside or referenced via aria-labelledby
 
@@ -73,7 +76,7 @@ LINK AND BUTTON LABELS (WCAG 2.4.4, 4.1.2):
   - Links that open new tabs/windows without indicating "opens in new tab"
     (via aria-label addition or visible text)
 
-DUPLICATE IDs AND ASSOCIATIONS (WCAG 4.1.1, 1.3.1):
+DUPLICATE IDs AND ASSOCIATIONS (WCAG 1.3.1, 4.1.2; 4.1.1 Parsing was removed in WCAG 2.2, never cite it):
   - Duplicate id attributes — breaks aria-labelledby, aria-describedby, for=
     (SR uses FIRST match only; others silently ignored)
   - <input> without associated <label> (no for/id, no aria-labelledby,
@@ -88,7 +91,8 @@ SCREEN READER TABLE NAVIGATION (WCAG 1.3.1):
   - <th> without scope="col", scope="row", or scope="colgroup"
     — headers not announced with cells in complex tables
   - Complex tables (colspanning/rowspanning) without id+headers association
-  - Data table without <caption> — table not named when SR enters it
+  - Data table without <caption> or another accessible name — the reader cannot say what the table is
+    on entry (a recommendation; WCAG does not require a caption)
 
 FRAMES AND EMBEDDED CONTENT (WCAG 4.1.2):
   - <iframe> without title attribute — announced as "frame" with no context
@@ -108,17 +112,22 @@ ARIA ANNOUNCEMENTS & LIVE REGIONS (WCAG 4.1.2, 4.1.3):
   - role="application" used on a region that is not a self-contained rich app
     — disables Browse mode: arrow keys stop working, users cannot read content
   - Interactive controls (buttons, links) placed inside aria-live regions:
-    — live regions ONLY announce raw text and STRIP all semantics of buttons or links inside them.
-    — Screen readers fail to announce button or link roles for actionable toasts/banners (e.g. "Undo", "Extend Session") inside aria-live.
-    — Actionable notifications MUST use role="alertdialog" or role="dialog" and move focus inside, NEVER rely on aria-live.
+    — a live region announcement is plain text; MDN warns that links, buttons and other semantics
+      in the updated content may not be conveyed, and the APG says an alert must not take focus.
+    — So an actionable toast or banner (e.g. "Undo", "Extend Session") announced only through a
+      live region may leave the person unaware the action exists or unable to reach it in time.
+    — Prefer a dialog or alertdialog that receives focus, or a persistent control elsewhere on the page.
   - Live region container missing from initial DOM on load:
     — AT requires live region elements to exist empty in the DOM on initial load ("priming") before content updates.
   - Parent container re-rendering in frameworks (React, Vue, Angular):
     — Re-mounting the live region node silences announcements; only inner text should be updated.
 
 FOCUS MANAGEMENT & SPA NAVIGATION (WCAG 2.4.3, 2.4.7):
-  - SPA Route Navigation: Page transitions without moving focus to the new page <h1> with tabindex="-1" (or <main tabindex="-1">)
-    — leaves SR browse buffer stale (reading old page content) or resets focus to <body>.
+  - SPA Route Navigation: a client-side page transition with no observable signal of the new page
+    — neither focus moved to a sensible new target (the page heading or main with tabindex="-1") nor an
+    announcement of the new title. Judge by outcome, not by one technique, and do not require both:
+    routers such as Astro's ClientRouter and Next.js already announce the title, then the h1, then the path.
+    Without any signal the browse buffer can stay on old content or focus can reset to <body>.
   - DOM Element Deletion: Removing focused elements (e.g. deleting table rows, list items, card components) without moving focus to next/previous focusable sibling or parent container
     — causes focus to drop back to <body>, losing screen reader position and reading state.
   - Modal opening/closing: Missing focus trap on open, or failing to restore focus to trigger button on modal close.
@@ -136,10 +145,12 @@ SCREEN READER SPECIFIC BEHAVIORS (NVDA 2026.1, VoiceOver, TalkBack):
     * Card layouts and multi-element interactive controls missing grouped semantics (mergeDescendants / proper container accessible name) force fragmented touch-target navigation.
 
 IMAGES AND MEDIA (WCAG 1.1.1, 1.2.x):
-  - <img> missing alt — SR announces filename (e.g. "img4723.jpg")
+  - <img> missing the alt attribute — the reader falls back differently: VoiceOver reads the file name,
+    JAWS says "unlabelled", TalkBack says the image is not labelled. (alt="" is valid and means decorative.)
   - <img alt=""> on images that convey information (not decorative)
   - <img> with unhelpful alt text containing filename/placeholder/generic text (e.g. "image", "photo", "logo", "icon", "placeholder", "graphic", "blank", "png", "jpg") — does not convey useful information.
-  - SVG icons without aria-hidden="true" when decorative — announced as "image"
+  - Decorative inline SVG without aria-hidden="true" — behavior varies (many readers ignore an unnamed
+    SVG, some announce an unlabelled graphic); hiding it is the safe, recommendation-level fix
   - Informative SVG without role="img" + <title> — content inaccessible to SR
   - <audio> or <video> without nearby transcript or captions link
 
@@ -153,18 +164,18 @@ find in the input; never copy this example verbatim):
   {
     "id": "screen-reader-1",
     "guideline": "WCAG 2.2",
-    "criterion": "2.4.6 Headings and Labels",
+    "criterion": "4.1.2 Name, Role, Value",
     "severity": "high",
     "confidence": "high",
-    "level": "AA",
-    "element": "<body> (no <h1> present)",
-    "description": "This page has no main heading, so screen reader users cannot quickly find where the content starts.",
-    "description_technical": "The page contains no <h1> element, breaking the heading navigation model relied on by WCAG 2.2 SC 2.4.6 (Headings and Labels).",
-    "why_simple": "A screen reader user who jumps by heading (a common navigation shortcut) finds nothing — there is no entry point into the page's content.",
-    "why_technical": "Screen readers build a heading outline (h1-h6) that users navigate with a single keystroke; without an h1, there is no top-level entry point and the outline is ambiguous.",
-    "suggestion": "Add one clear, descriptive main heading near the top of the page.",
-    "suggestion_technical": "Add a single <h1> describing the page's primary topic, placed inside the main landmark.",
-    "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/headings-and-labels.html"
+    "level": "A",
+    "element": "button.search-toggle",
+    "description": "The search button has only an icon, so a screen reader user hears just \"button\" and cannot tell what it does.",
+    "description_technical": "The <button> contains an SVG with no accessible name and no text, so its computed accessible name is empty, failing WCAG 2.2 SC 4.1.2 (Name, Role, Value).",
+    "why_simple": "A person who navigates by buttons hears \"button\" with no purpose and has to guess or skip it.",
+    "why_technical": "The accessible name computation finds no aria-labelledby, aria-label, text content or title, so the control is exposed with a role but no name.",
+    "suggestion": "Give the button a short visible or hidden text label that says what it does.",
+    "suggestion_technical": "Add visually hidden text such as <span class=\"sr-only\">Search</span> inside the button and mark the decorative SVG aria-hidden=\"true\".",
+    "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html"
   }
 ]
 
@@ -188,7 +199,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""" + "\n\n" + COMPONENT_LIBRARY_METHOD
+""" + "\n\n" + COMPONENT_LIBRARY_METHOD + "\n\n" + SCREEN_READER_EXPECTATIONS
 
 
 async def run_screen_reader(html_content: str) -> AgentResult:

@@ -104,15 +104,36 @@ Generate REAL, RUNNABLE test code the development team can paste into CI for Pla
 4. Include waitFor/waitForSelector for dynamic content
 
 ## WCAG 2.2 test patterns:
-- Missing alt text: check img.getAttribute("alt") not null/empty
+- Missing alt text: assert the alt ATTRIBUTE EXISTS on content images (getAttribute("alt") !== null).
+  An empty alt="" is a deliberate "decorative" mark and is valid; never assert that alt is non-empty
+  unless the issue says this specific image is informative.
 - Keyboard access: Tab navigation, verify focus reaches interactive element
-- SPA routing focus: verify focus moves to h1[tabindex="-1"] on route change
+- SPA routing focus: assert the observable outcome, not one implementation. After a route change the
+  document title changed and focus moved to a sensible place (the page heading, main, or another
+  announced target) or the new page was announced. Do not require h1[tabindex="-1"] specifically.
 - Element deletion focus: verify focus moves to sibling control after item deletion
 - ARIA labels: check accessible name via aria-label or aria-labelledby
 - Color contrast: use axe-core "color-contrast" rule
 - Form errors: verify aria-describedby links to error element
 - Focus management: verify focus moves correctly after user action
 
+## Behavior contracts (test what the person experiences, not how the code is written):
+- Assert the observable contract of the component the issue is about, then name which parts a script
+  cannot prove and leave those as manual steps. A green axe run is not proof of accessibility.
+- Dialog: opened by keyboard, focus moves inside, it has an accessible name, Tab stays inside, Escape
+  closes, focus returns to the trigger. A native <dialog> opened with showModal() is modal without
+  aria-modal; do not assert aria-modal on it.
+- Disclosure (accordion, FAQ, details/summary, and a navigation submenu of links): Enter and Space
+  toggle the state and the content. A navigation submenu is a disclosure, not a menu: never assert
+  role="menu" or menuitem for it.
+- Tabs: roving tabindex, arrow keys move between tabs, the selected tab is tied to its panel, Tab enters
+  the panel. Menu (role="menu" application commands only): arrows, Home/End, Escape returns focus.
+- Form errors: submit by keyboard; the field is marked invalid, the error is tied to the field, and focus
+  or an announcement leads the person to it.
+- Tab walk: no keyboard trap, visible focus, focus not hidden under a sticky header.
+- Target size: pointer targets are at least 24 by 24 CSS px unless an exception applies.
+- Prefer measuring the computed accessible name and role (getByRole with a name) over asserting
+  attributes; assert an attribute only when the issue is about that attribute.
 - Each test targets ONE specific issue
 - Descriptive names: "should have alt text on hero image"
 - Critical/high: Playwright E2E tests (most reliable)

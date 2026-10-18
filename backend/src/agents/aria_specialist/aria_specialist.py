@@ -3,6 +3,7 @@ import logging
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.component_library_calibration import COMPONENT_LIBRARY_METHOD
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.screen_reader_calibration import SCREEN_READER_EXPECTATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -96,11 +97,13 @@ WIDGET OWNERSHIP RULES:
 
 STATE/PROPERTY AUDIT & PROHIBITED ARIA ATTRIBUTES (W3C ARIA in HTML 2026 / aria-prohibited-attr):
   aria-label / aria-labelledby: ALLOWED on interactive controls (button, link, textbox), landmarks (main, nav), img, dialog, explicit widget roles.
-    PROHIBITED on generic elements (un-roled <div> / <span>), presentation, none, and static/inline text (<code>, <caption>, <figcaption>, <p>, <sub>, <sup>, <del>, <ins>, <time>, <blockquote>).
-  aria-expanded on: combobox, details disclosure buttons, accordion buttons, navigation sub-menu triggers, tree nodes.
-    PROHIBITED on static text, headings, paragraphs, <img>, listitem, checkbox, radio.
-  aria-checked on: checkbox, menuitemcheckbox, radio, switch.
-    PROHIBITED on option, button, link, tab, combobox.
+    PROHIBITED (WAI-ARIA 1.2 "name from: prohibited") on generic elements (un-roled <div> / <span>), presentation, none, caption, code, deletion, emphasis, insertion, paragraph, strong, subscript, superscript
+    (so <code>, <caption>, <p>, <sub>, <sup>, <del>, <ins>, <em>, <strong>). <time> and <blockquote> CAN be named: do not flag them.
+  aria-expanded is supported on: application, button, checkbox, combobox, gridcell, link, listbox, menuitem, row, rowheader, tab, treeitem
+    (and roles that inherit from them: columnheader, menuitemcheckbox, menuitemradio, switch). Typical uses: combobox, disclosure and accordion buttons, navigation sub-menu triggers, tree nodes.
+    NOT supported on static text, headings, paragraphs, <img>, listitem, radio.
+  aria-checked is supported on: checkbox, menuitemcheckbox, menuitemradio, option, radio, switch (and treeitem in a tree).
+    NOT supported on button, link, tab, combobox. Do not set it on a native <input type="checkbox">: the checked state is already native.
   aria-selected on: option (listbox), row (grid), tab, gridcell, treeitem.
     PROHIBITED on checkbox, radio, switch, button, link, menuitem.
   aria-pressed on: toggle button.
@@ -156,7 +159,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip() + "\n\n" + COMPONENT_LIBRARY_METHOD
+""".strip() + "\n\n" + COMPONENT_LIBRARY_METHOD + "\n\n" + SCREEN_READER_EXPECTATIONS
 
 
 async def run_aria_specialist(html_content: str) -> AgentResult:

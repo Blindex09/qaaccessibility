@@ -56,7 +56,7 @@ ANGULAR-SPECIFIC PATTERNS:
   - Detect: aria-label attributes whose value starts with "{{" (Angular template
     interpolation used directly in attribute — does not work outside ng-template)
 
-DANGEROUS HTML INJECTION (WCAG 1.3.1, 4.1.1):
+DANGEROUS HTML INJECTION (WCAG 1.3.1, 4.1.2; never cite 4.1.1, removed in 2.2):
   - innerHTML property assigned via data-* attributes, or elements with
     class="raw-html" or class="html-content" — may inject unlabelled images,
     missing headings, or broken ARIA markup

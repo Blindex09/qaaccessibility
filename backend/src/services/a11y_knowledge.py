@@ -45,6 +45,10 @@ _CORPUS_FILES = (
     "agent_knowledge.md",
     "accessible_component_patterns.md",
     "component_library_knowledge.md",
+    "leitor_de_tela_elementos_html.md",
+    "leitor_de_tela_aria_e_padroes.md",
+    "leitor_de_tela_dinamico_js_react.md",
+    "leitor_de_tela_css_e_modos.md",
 )
 
 # Embedding models per provider family. Both are the current small/cheap tier,
@@ -85,6 +89,29 @@ class KnowledgeChunk:
         return f"#### {self.title}\n{self.text}"
 
 
+# Um trecho recuperado entra inteiro no prompt do turno. Seção maior que isto é repartida em linhas
+# inteiras (nunca no meio de uma frase), para a busca devolver só a parte pertinente e não a seção toda.
+# É medida de tamanho, não julgamento de conteúdo.
+_MAX_CHUNK_CHARS = 2400
+
+
+def _split_by_size(body: str) -> list[str]:
+    if len(body) <= _MAX_CHUNK_CHARS:
+        return [body]
+    parts: list[str] = []
+    current: list[str] = []
+    size = 0
+    for line in body.splitlines():
+        if current and size + len(line) + 1 > _MAX_CHUNK_CHARS:
+            parts.append("\n".join(current).strip())
+            current, size = [], 0
+        current.append(line)
+        size += len(line) + 1
+    if current:
+        parts.append("\n".join(current).strip())
+    return [part for part in parts if part]
+
+
 def chunk_markdown(content: str, source: str) -> list[KnowledgeChunk]:
     """Split a markdown document into one chunk per heading section.
 
@@ -103,14 +130,16 @@ def chunk_markdown(content: str, source: str) -> list[KnowledgeChunk]:
         body = "\n".join(buffer).strip()
         if not body or not current_title:
             return
-        chunks.append(
-            KnowledgeChunk(
-                chunk_id=f"{source}#{len(chunks)}",
-                source=source,
-                title=current_title,
-                text=body,
+        parts = _split_by_size(body)
+        for number, part in enumerate(parts, start=1):
+            chunks.append(
+                KnowledgeChunk(
+                    chunk_id=f"{source}#{len(chunks)}",
+                    source=source,
+                    title=current_title if len(parts) == 1 else f"{current_title} (parte {number} de {len(parts)})",
+                    text=part,
+                )
             )
-        )
 
     for line in content.splitlines():
         heading = re.match(r"^(#{2,3})\s+(.*)$", line)

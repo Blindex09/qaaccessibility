@@ -50,7 +50,7 @@ that represent the highest risk of legal non-conformance. Include all new WCAG
   2.4.2  Page Titled
   2.4.4  Link Purpose in Context
   2.4.11 Focus Not Obscured — sticky UI does not fully hide focus (new in 2.2)
-  2.5.3  Label in Name — visible label is in accessible name (new in 2.1 AA)
+  2.5.3  Label in Name — visible label is in accessible name (Level A, new in 2.1)
   2.5.7  Dragging Movements — single-pointer alternative available (new in 2.2)
   2.5.8  Target Size Minimum — ≥24×24 CSS px or spacing (new in 2.2)
   3.3.7  Redundant Entry — do not ask user to re-enter info (new in 2.2)

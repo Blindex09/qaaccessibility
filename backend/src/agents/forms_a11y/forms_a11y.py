@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm_structured, extract_json_array
 from backend.src.shared.component_library_calibration import COMPONENT_LIBRARY_METHOD
 from backend.src.shared.models import AccessibilityIssue, AgentResult
+from backend.src.shared.screen_reader_calibration import SCREEN_READER_EXPECTATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +176,7 @@ Return a JSON array. Each issue must follow this exact schema:
   "wcag_url": "https://www.w3.org/WAI/WCAG22/Understanding/<slug>"
 }
 Return ONLY valid JSON array. No markdown, no preamble. Empty array [] if no issues.
-""".strip() + "\n\n" + COMPONENT_LIBRARY_METHOD
+""".strip() + "\n\n" + COMPONENT_LIBRARY_METHOD + "\n\n" + SCREEN_READER_EXPECTATIONS
 
 
 async def run_forms_a11y(html_content: str) -> AgentResult:

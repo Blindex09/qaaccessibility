@@ -124,8 +124,8 @@ Ao tirar dúvidas ou analisar código de frameworks modernos, a IA deve aplicar 
 ## 6. Diretrizes de CSS, Contraste Visual e APCA
 
 * **WCAG 2.2 Contraste Mínimo (Critério 1.4.3):** Texto normal exige relação mínima de `4.5:1`; texto grande (18pt ou 14pt em negrito) exige no mínimo `3.0:1`.
-* **Algoritmo APCA (Advanced Perceptual Contrast Algorithm):** Avalia a relação de contraste percebido com base na espessura e tamanho da fonte (Lc 60 para texto do corpo, Lc 45 para texto grande).
-* **Indicadores Visuais de Foco (Critério 2.4.13 / 2.4.7):** Todo elemento focável deve ter um indicador visual claro com área mínima de 2px e contraste suficiente contra o fundo. Proibido remover outline (`outline: none` ou `outline: 0`) sem fornecer um estilo alternativo em `:focus` / `:focus-visible`.
+* **Algoritmo APCA (Advanced Perceptual Contrast Algorithm):** Avalia o contraste percebido com base no tamanho e no peso da fonte. Não faz parte do WCAG 2.2: a conformidade com o WCAG 2.2 usa só a razão de contraste do WCAG 2 (4.5:1 e 3:1). Cite o APCA apenas como referência informativa (candidato para o WCAG 3, ainda rascunho), nunca como critério de conformidade, e não afirme valores de Lc sem consultar a tabela do algoritmo.
+* **Indicadores Visuais de Foco (Critério 2.4.7, nível AA; 2.4.13, nível AAA):** O 2.4.7 exige que exista um indicador de foco visível. O 2.4.13 (Aparência do Foco) é AAA: pede uma área de pelo menos o perímetro de 2 px do componente e uma mudança de contraste de 3:1 entre foco e sem foco. Não apresente o 2.4.13 como requisito AA. Remover o outline (`outline: none` ou `outline: 0`) sem fornecer um estilo alternativo em `:focus` / `:focus-visible` reprova o 2.4.7.
 * **Dimensão do Alvo de Toque (Critério 2.5.8):** O tamanho mínimo do alvo de toque deve ser de 24x24 pixels (ou espaçamento equivalente), recomendando-se 44x44 pixels para mobile.
 
 ---

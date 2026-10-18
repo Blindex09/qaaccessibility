@@ -5,6 +5,7 @@ from backend.src.services.llm_client import ISSUES_RESPONSE_SCHEMA, call_llm, ex
 from backend.src.shared.component_library_calibration import COMPONENT_LIBRARY_METHOD
 from backend.src.shared.models import AccessibilityIssue, AgentResult
 from backend.src.shared.normative_calibration import NORMATIVE_CALIBRATION
+from backend.src.shared.screen_reader_calibration import SCREEN_READER_EXPECTATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ Enrich the 'description' field to specify the exact location of the element on t
 - NEVER modify id, guideline, criterion, element, wcag_url, criterion_pt
 
 Return ONLY valid JSON array. No markdown. Empty array [] if all false positives.
-""".strip() + "\n\n" + COMPONENT_LIBRARY_METHOD + "\n\n" + NORMATIVE_CALIBRATION
+""".strip() + "\n\n" + COMPONENT_LIBRARY_METHOD + "\n\n" + SCREEN_READER_EXPECTATIONS + "\n\n" + NORMATIVE_CALIBRATION
 
 
 async def run_a11y_expert_reviewer(
