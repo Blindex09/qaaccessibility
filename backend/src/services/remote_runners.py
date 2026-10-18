@@ -44,6 +44,7 @@ from typing import Any
 
 import requests
 
+from backend.src.security.process_env import clean_env
 from backend.src.services.execution_scope import run_until_stalled
 
 logger = logging.getLogger(__name__)
@@ -380,6 +381,7 @@ async def _run_newman(collection: dict[str, Any]) -> dict[str, Any] | None:
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
+                env=clean_env(),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -845,6 +847,7 @@ async def _try_run_local_cypress(
             "cypress",
             "version",
             cwd=project_dir,
+            env=clean_env(),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -887,7 +890,7 @@ async def _try_run_local_cypress(
     # (o cypress.config.js deste diretorio e gerado por nos e nao tem o id).
     # Sem isso, `--record --key` falha com "You passed the --record flag but
     # this project has not been setup to record".
-    run_env = dict(os.environ)
+    run_env: dict[str, str] = {}  # so o que a execucao pede; o ambiente do backend (chaves de provedor) nao passa
     dashboard_url: str | None = None
     motivo_gravacao: str | None = None
     project_id = os.getenv("CYPRESS_PROJECT_ID", "").strip()
@@ -903,7 +906,7 @@ async def _try_run_local_cypress(
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             cwd=project_dir,
-            env=run_env,
+            env=clean_env(run_env),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -1094,6 +1097,7 @@ async def _install_local_cypress() -> str | None:
             "cypress",
             "cypress-axe",
             cwd=str(project_dir),
+            env=clean_env(),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

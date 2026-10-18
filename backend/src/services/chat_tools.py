@@ -24,6 +24,7 @@ from collections.abc import Callable
 from typing import Any
 
 from backend.src.config.settings import get_settings
+from backend.src.security.process_env import clean_env
 from backend.src.services import chat_progress
 from backend.src.services.astro_source import source_map_for_text as astro_source_prefix
 from backend.src.services.tool_groups import ENABLE_TOOL_GROUP, GROUP_DESCRIPTIONS, TOOL_GROUPS
@@ -753,7 +754,7 @@ def _run_verapdf_audit(pdf_path: str) -> list[str]:
     try:
         # Executa o validador veraPDF no modo de validação PDF/UA (processor: rmd)
         res = subprocess.run(
-            ["verapdf", "--format", "xml", "--processor", "rmd", pdf_path], capture_output=True, text=True
+            ["verapdf", "--format", "xml", "--processor", "rmd", pdf_path], capture_output=True, text=True, env=clean_env()
         )
         xml_content = res.stdout
         if not xml_content or "<report>" not in xml_content:
@@ -1716,6 +1717,46 @@ def read_local_project_files(args: dict[str, Any], **_kw: Any) -> str:
     except Exception as exc:
         logger.error("[a11y_chat] read_local_project_files falhou: %s", exc)
         return json.dumps({"error": f"Falha ao ler o projeto local: {exc}"}, ensure_ascii=True)
+
+
+_RUN_CODE_IN_SANDBOX_SCHEMA: dict[str, Any] = {
+    "description": (
+        "Run code from a project folder the person gave you inside an isolated, disposable Linux container with NO network, no "
+        "host files and no credentials (Docker). Use it to check that generated or corrected code, unit tests or scripts really "
+        "run, before delivering them. It is development evidence only: a pass here never proves the application works on the "
+        "person's machine, and it cannot run browsers or tests that need the network. If Docker is missing or stopped the "
+        "result says so; report that plainly instead of claiming the code ran."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "pre_exec_msg": {
+                "type": "string",
+                "description": "Uma mensagem curta em português avisando a pessoa que o código vai rodar num contêiner isolado e sem rede.",
+            },
+            "project_dir": {"type": "string", "description": "Caminho absoluto da pasta, exatamente como a pessoa informou."},
+            "command": {
+                "type": "array", "items": {"type": "string"},
+                "description": "Comando e argumentos, um item por posição (ex.: [\"python\", \"-m\", \"pytest\"]). Não é um shell.",
+            },
+            "runtime": {"type": "string", "enum": ["python", "node"], "description": "Imagem de execução."},
+        },
+        "required": ["pre_exec_msg", "project_dir", "command"],
+    },
+}
+
+
+def run_code_in_sandbox_tool(args: dict[str, Any], **_kw: Any) -> str:
+    from pathlib import Path
+
+    from backend.src.services.code_sandbox import run_code_in_sandbox
+
+    project_dir = str(args.get("project_dir") or "").strip()
+    if not project_dir or not os.path.isdir(project_dir):
+        return json.dumps({"error": f"Diretório não encontrado: {project_dir}"}, ensure_ascii=True)
+    chat_progress.emit_tool_progress(None, "run_code_in_sandbox", "Rodando o código num contêiner isolado e sem rede...")
+    result = _safe_async_run(run_code_in_sandbox(Path(project_dir), list(args.get("command") or []), str(args.get("runtime") or "python")))
+    return json.dumps(result, ensure_ascii=True)
 
 
 _FIX_AND_ZIP_FILES_SCHEMA = {
@@ -4075,6 +4116,7 @@ def install_playwright_browsers_tool(args: dict, **_kw: Any) -> str:
             [sys.executable, "-m", "playwright", "install", "chromium", "firefox", "webkit"],
             capture_output=True,
             text=True,
+            env=clean_env(),
         )
         if proc.returncode != 0:
             logger.error("[a11y_chat] install_playwright_browsers falhou: %s", proc.stderr[-2000:])
@@ -4298,6 +4340,18 @@ def register_chat_tools() -> None:
         precheck=_precheck_local_path,
     )
     logger.info("[a11y_chat] toolset '%s' registrado (read_local_project_files)", A11Y_CHAT_TOOLSET)
+
+    registry.register(
+        name="run_code_in_sandbox",
+        toolset=A11Y_CHAT_TOOLSET,
+        schema=_RUN_CODE_IN_SANDBOX_SCHEMA,
+        handler=run_code_in_sandbox_tool,
+        is_async=False,
+        emoji="",
+        requires_approval=True,
+        precheck=_precheck_local_path,
+    )
+    logger.info("[a11y_chat] toolset '%s' registrado (run_code_in_sandbox)", A11Y_CHAT_TOOLSET)
 
     registry.register(
         name="fix_local_project_files",

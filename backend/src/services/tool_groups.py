@@ -28,7 +28,7 @@ TOOL_GROUPS: dict[str, tuple[str, ...]] = {
     ),
     "testes": (
         "generate_test_suite", "generate_automation_script", "run_remote_test", "run_cross_browser_test",
-        "install_playwright_browsers",
+        "install_playwright_browsers", "run_code_in_sandbox",
     ),
     "pesquisa": ("tavily_search", "exa_search", "evaluate_research", "run_deep_research"),
     "integracoes": ("create_github_issue", "create_jira_issue", "create_azure_devops_work_item"),
