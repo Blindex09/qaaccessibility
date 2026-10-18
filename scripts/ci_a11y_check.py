@@ -35,7 +35,7 @@ def run_ci_audit():
         req_url = f"{api_url}/analyze/url"
         req = urllib.request.Request(req_url, data=data, headers=headers, method="POST")
 
-        with urllib.request.urlopen(req, timeout=120) as response:
+        with urllib.request.urlopen(req) as response:
             res_data = json.loads(response.read().decode("utf-8"))
 
         if not res_data.get("success"):

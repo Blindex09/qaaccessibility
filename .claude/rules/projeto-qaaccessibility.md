@@ -131,6 +131,22 @@ latência de primeira atualização e comportamento de todos os providers ainda
 exigem evidência adicional. Consulte
 `docs/implementacao-regras-mestras-2026-09-30.md` para testes e limitações reais.
 
+### Revisão de relógios fixos de 2026-10-18
+
+Varredura do backend, dos scripts e dos testes ao vivo contra a regra 8. O que cortava trabalho em andamento saiu:
+- `routes/fix.py`: o teto de 420 s do corretor (`_FIX_TIMEOUT_SECONDS`) virou `run_until_stalled`; o 504 agora diz que o corretor parou de avançar.
+- `services/remote_runners.py`: Selenium (60/180 s), Newman (90 s), Cypress (120 s), instalação do Cypress (300 s) e a checagem de versão do Cypress (15 s) usam `run_until_stalled`; o processo só é morto se travar ou se a pessoa cancelar. As chamadas ao Postman limitam só a conexão (tupla com leitura sem limite).
+- `services/self_healing.py`: acabou o contador `max_retries`. O laço termina por sucesso, falha do corretor, assinatura de violações já vista antes (inclui oscilação entre dois estados), cancelamento ou parada de avanço; cada volta chama `check_execution`.
+- `services/chat_tools.py` e `services/browser.py`: instalação do Playwright (600 s) e veraPDF (30 s) sem prazo; Tavily, Exa e Firecrawl limitam só a conexão. `services/crawler.py` (mapa do Firecrawl), `github_service.py` e `ticket_integrations.py` também.
+- `agents/deep_research`: `max_iterations=8` removido (era inerte, o laço com ferramentas não tem contador).
+- Scripts e testes ao vivo: clientes httpx e `urlopen` sem prazo de resposta (só a conexão), esperas de fim de turno do navegador com `timeout=0`.
+
+Continua, de propósito: a janela de silêncio do orçamento do turno (`agent_timeout_seconds`, que desliza a cada progresso); os timeouts de navegação e de rede ociosa do Playwright, que têm saída graciosa e seguem com o que já carregou; as consultas ao catálogo do Ollama Cloud (metadado); as esperas curtas que só avisam progresso e não cancelam nada; as pausas de acomodação de tela (`wait_for_timeout`) dos scripts.
+
+Defesa contra a volta: `tests/backend/unit/test_sem_relogio_fixo.py` varre o backend e reprova `asyncio.wait_for` com prazo, `subprocess` com `timeout` e chamada de rede com número fixo de segundos, fora de uma lista pequena e justificada.
+
+Não provado: nenhum teste ao vivo foi rodado depois desta mudança (Selenium, Newman e Cypress reais, nem o `/fix` com self-healing contra um modelo real). A cobertura é de testes unitários e de integração com processos simulados.
+
 ### Nicho (regra 5)
 
 Acessibilidade digital. Um pedido fora dela é recusado com educação, como descreve a regra 5.

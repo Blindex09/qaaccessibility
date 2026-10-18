@@ -183,7 +183,7 @@ def make_judge_asker(tested_provider: str) -> tuple[str, Callable[[str, str], st
     def ollama_cloud(system: str, prompt: str, key: str = "") -> str:
         import ollama
 
-        client = ollama.Client(host="https://ollama.com", headers={"Authorization": f"Bearer {key}"}, timeout=300)
+        client = ollama.Client(host="https://ollama.com", headers={"Authorization": f"Bearer {key}"}, timeout=None)
         response = client.chat(
             model="gpt-oss:20b",
             messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],

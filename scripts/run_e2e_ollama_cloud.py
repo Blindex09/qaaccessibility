@@ -182,7 +182,7 @@ async def test_8_backend_stream_endpoint():
 
     chunks_count = 0
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req) as resp:
             for line in resp:
                 if line:
                     chunks_count += 1

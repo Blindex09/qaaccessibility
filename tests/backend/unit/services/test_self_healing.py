@@ -45,8 +45,7 @@ async def test_self_healing_loop_success_on_first_try():
 
         html, changes, issues = await run_self_healing_loop(
             html_content="<html><body><img/></body></html>",
-            initial_issues=initial_issues,
-            max_retries=3
+            initial_issues=initial_issues
         )
 
     assert html == "<html><body><img alt='description'/></body></html>"
@@ -119,8 +118,7 @@ async def test_self_healing_loop_runs_multiple_iterations():
 
         html, changes, issues = await run_self_healing_loop(
             html_content="<html><body><img/><input/></body></html>",
-            initial_issues=initial_issues,
-            max_retries=3
+            initial_issues=initial_issues
         )
 
     assert "label for='name'" in html
@@ -135,9 +133,10 @@ async def test_self_healing_loop_runs_multiple_iterations():
 
 
 @pytest.mark.asyncio
-async def test_self_healing_loop_stops_at_max_retries():
+async def test_self_healing_loop_ends_when_the_same_violation_keeps_coming_back():
     # Arrange:
-    # Always returns a violation, should stop after max_retries limit.
+    # O verificador sempre devolve a mesma violacao e nao existe contador de tentativas:
+    # o laco termina porque a assinatura repetida e detectada (regressao: "IA sempre diz siga").
     initial_issues = [
         AccessibilityIssue(
             id="issue-1",
@@ -177,21 +176,18 @@ async def test_self_healing_loop_stops_at_max_retries():
 
         html, changes, issues = await run_self_healing_loop(
             html_content="<html><body><img/></body></html>",
-            initial_issues=initial_issues,
-            max_retries=2
+            initial_issues=initial_issues
         )
 
-    # Attempt 1: initial run
-    # Attempt 2: retry 1 (loop iteration 1)
-    # Attempt 3: retry 2 (loop iteration 2)
+    # Fixer inicial + 2 tentativas; a terceira auditoria repete a assinatura pela segunda vez e encerra.
     assert mock_run_fixer.call_count == 3
-    assert mock_verify_axe.call_count == 2
+    assert mock_verify_axe.call_count == 3
 
 
 @pytest.mark.asyncio
 async def test_self_healing_loop_detects_repeated_failure_signature_and_stops_early():
     """Se a mesma violacao (mesmo criterion+element) persiste por rodadas
-    consecutivas, o loop deve parar de insistir antes de esgotar max_retries
+    consecutivas, o loop deve parar de insistir antes de insistir sem fim
     -- em vez de so contar tentativas, ele compara a ASSINATURA do erro entre
     auditorias consecutivas (ver docs/conceitos-ia-para-desenvolvimento-de-
     software.md, secao 7: deteccao de loop por assinatura, nao por contagem)."""
@@ -236,12 +232,11 @@ async def test_self_healing_loop_detects_repeated_failure_signature_and_stops_ea
 
         await run_self_healing_loop(
             html_content="<html><body><img class='stuck'/></body></html>",
-            initial_issues=initial_issues,
-            max_retries=5,  # sem deteccao de loop, chegaria a rodar bem mais tentativas
+            initial_issues=initial_issues
         )
 
     # 1 tentativa inicial + 2 retries de node_fix antes do loop detectar a
-    # repeticao e parar -- bem menos que o teto de max_retries=5.
+    # repeticao e parar -- sem nenhum teto de tentativas.
     assert mock_run_fixer.call_count == 3
     assert mock_verify_axe.call_count == 3
 
@@ -447,8 +442,7 @@ class TestPlanningIntegratesIntoFixerInstruction:
              patch("backend.src.services.llm_client.call_llm", AsyncMock(return_value=plan_json)):
             await run_self_healing_loop(
                 html_content="<html><body><img/></body></html>",
-                initial_issues=[_issue("issue-1")],
-                max_retries=1,
+                initial_issues=[_issue("issue-1")]
             )
 
         forwarded_instruction = mock_run_fixer.call_args_list[0][1]["custom_instruction"]
@@ -469,9 +463,36 @@ class TestPlanningIntegratesIntoFixerInstruction:
              patch("backend.src.services.llm_client.call_llm", AsyncMock(side_effect=Exception("planner down"))):
             html, changes, issues = await run_self_healing_loop(
                 html_content="<html><body><img/></body></html>",
-                initial_issues=[_issue("issue-1")],
-                max_retries=1,
+                initial_issues=[_issue("issue-1")]
             )
 
         assert mock_run_fixer.call_count == 1
         assert html == "<html></html>"
+
+
+@pytest.mark.asyncio
+async def test_self_healing_loop_ends_when_violations_oscillate_between_two_states():
+    """Oscilacao A, B, A, B: a assinatura nunca e igual a ULTIMA, mas ja foi vista antes.
+    Sem contador de tentativas, so a deteccao de estados repetidos impede o laco infinito."""
+    def violation(name: str) -> AccessibilityIssue:
+        return AccessibilityIssue(
+            id=name, guideline=Guideline.WCAG_2_2, criterion=name, severity=Severity.HIGH,
+            element=name, description=name, suggestion=name,
+        )
+
+    states = [[violation("a")], [violation("b")]]
+    calls = {"n": 0}
+
+    async def alternating(_html: str):
+        result = states[calls["n"] % 2]
+        calls["n"] += 1
+        return result
+
+    mock_run_fixer = AsyncMock(return_value=AgentResult(
+        agent="fixer", success=True,
+        data={"fixed_html": "<html></html>", "changes_summary": ["x"], "enriched_issues": []},
+    ))
+    with patch("backend.src.agents.fixer.fixer.run_fixer", mock_run_fixer),          patch("backend.src.services.self_healing.verify_html_with_axe", alternating),          patch("backend.src.services.self_healing.node_plan", AsyncMock(return_value={"strategy": "", "ordered_groups": []})):
+        await run_self_healing_loop(html_content="<html></html>", initial_issues=[violation("a")])
+
+    assert calls["n"] == 4  # A, B (novos), A (visto, 1), B (visto, 2): encerra

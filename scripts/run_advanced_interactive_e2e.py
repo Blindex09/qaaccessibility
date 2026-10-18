@@ -225,7 +225,7 @@ async def test_full_interactive_ui_playwright():
 async def main():
     await test_playwright_local_engine()
     await test_cypress_runners()
-    async with httpx.AsyncClient(timeout=90.0) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(None, connect=15.0)) as client:
         await test_deliverables_and_generators(client)
     await test_full_interactive_ui_playwright()
 

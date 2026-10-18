@@ -78,7 +78,7 @@ def record_gemini(model: str) -> dict:
 def record_ollama(model: str) -> dict:
     import ollama
 
-    client = ollama.Client(host="https://ollama.com", headers={"Authorization": f"Bearer {key_for('ollama-cloud')}"}, timeout=120)
+    client = ollama.Client(host="https://ollama.com", headers={"Authorization": f"Bearer {key_for('ollama-cloud')}"}, timeout=None)
     scenarios = {}
     tools = [{"type": "function", "function": {"name": TOOL["name"], "description": TOOL["description"], "parameters": TOOL["parameters"]}}]
     for name, kwargs in (

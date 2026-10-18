@@ -52,7 +52,7 @@ async def test_backend_direct_features(client: httpx.AsyncClient):
     issues = []
     try:
         files = {"file": ("index.html", sample_html.encode("utf-8"), "text/html")}
-        r = await client.post(f"{BACKEND_URL}/analyze/file", files=files, timeout=180.0)
+        r = await client.post(f"{BACKEND_URL}/analyze/file", files=files)
         data = r.json() if r.status_code == 200 else {}
         issues = data.get("data", {}).get("issues", [])
         log_test("Análise de Acessibilidade de Arquivo (/analyze/file)", r.status_code == 200 and len(issues) > 0, f"Status: {r.status_code}, {len(issues)} problemas identificados.")
@@ -69,7 +69,7 @@ async def test_backend_direct_features(client: httpx.AsyncClient):
 
     # 5. Geração de PDF do Checklist
     try:
-        r = await client.get(f"{BACKEND_URL}/export/last_checklist_pdf", timeout=90.0)
+        r = await client.get(f"{BACKEND_URL}/export/last_checklist_pdf")
         is_pdf = r.status_code == 200 and len(r.content) > 1000 and r.content.startswith(b"%PDF")
         log_test("Geração de PDF do Checklist (/export/last_checklist_pdf)", is_pdf, f"Status: {r.status_code}, Tamanho: {len(r.content)} bytes, Assinatura PDF válida.")
     except Exception as e:
@@ -204,7 +204,7 @@ async def test_frontend_ui_playwright():
 
 
 async def main():
-    async with httpx.AsyncClient(timeout=90.0) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(None, connect=15.0)) as client:
         await test_backend_direct_features(client)
     await test_frontend_ui_playwright()
 

@@ -44,12 +44,14 @@ from typing import Any
 
 import requests
 
+from backend.src.services.execution_scope import run_until_stalled
+
 logger = logging.getLogger(__name__)
 
 # A API do Postman respondeu em ~10s desta maquina em 2026-08-30. O timeout
 # anterior, de 5s, transformava latencia normal em "nao autenticado" e fazia
 # a collection do usuario ser silenciosamente ignorada.
-_POSTMAN_TIMEOUT_SECONDS = 30
+_POSTMAN_TIMEOUT = (15, None)  # so estabelecer a conexao tem limite; a resposta espera o tempo que precisar
 
 
 def _summarize_axe_results(axe_results: dict[str, Any]) -> dict[str, Any]:
@@ -96,7 +98,6 @@ def _summarize_axe_results(axe_results: dict[str, Any]) -> dict[str, Any]:
 
 async def _try_run_local_selenium(
     url: str,
-    timeout_seconds: float = 60.0,
     allow_driver_auto_install: bool = False,
 ) -> dict[str, Any] | None:
     """
@@ -145,7 +146,6 @@ async def _try_run_local_selenium(
         finally:
             driver.quit()
 
-    effective_timeout = timeout_seconds if chromedriver_path else max(timeout_seconds, 180.0)
     try:
         logger.info(
             "[RemoteRunner] Rodando Selenium local de verdade (chromedriver=%s, auto_install=%s) para %s",
@@ -153,9 +153,9 @@ async def _try_run_local_selenium(
             allow_driver_auto_install,
             url,
         )
-        return await asyncio.wait_for(asyncio.to_thread(_run_sync), timeout=effective_timeout)
+        return await run_until_stalled(asyncio.to_thread(_run_sync))
     except TimeoutError:
-        logger.warning("[RemoteRunner] Selenium local excedeu o timeout de %ss.", effective_timeout)
+        logger.warning("[RemoteRunner] Selenium local parou de avancar e foi encerrado.")
         return None
     except Exception as exc:
         logger.warning("[RemoteRunner] Falha ao executar Selenium local: %s", exc)
@@ -327,7 +327,7 @@ async def _fetch_real_postman_collection(postman_key: str) -> dict[str, Any] | N
         res = requests.get(
             f"https://api.getpostman.com/collections/{collection_id}",
             headers={"x-api-key": postman_key},
-            timeout=_POSTMAN_TIMEOUT_SECONDS,
+            timeout=_POSTMAN_TIMEOUT,
         )
         if res.status_code == 200:
             return res.json().get("collection")
@@ -341,11 +341,11 @@ async def _fetch_real_postman_collection(postman_key: str) -> dict[str, Any] | N
     return None
 
 
-async def _run_newman(collection: dict[str, Any], timeout_seconds: float = 90.0) -> dict[str, Any] | None:
+async def _run_newman(collection: dict[str, Any]) -> dict[str, Any] | None:
     """Roda a collection via Newman de verdade (`npx newman run ... --reporters json`),
     processo real do Node, não Python reimplementando os mesmos checks.
     Devolve None (não uma exceção) se npx/newman não estiver disponível ou
-    estourar o timeout -- o chamador decide o fallback, isso aqui só relata
+    travar -- o chamador decide o fallback, isso aqui só relata
     'não consegui rodar de verdade'."""
     import asyncio
     import shutil
@@ -384,10 +384,10 @@ async def _run_newman(collection: dict[str, Any], timeout_seconds: float = 90.0)
                 stderr=asyncio.subprocess.PIPE,
             )
             try:
-                await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
+                await run_until_stalled(proc.communicate())
             except TimeoutError:
                 proc.kill()
-                logger.warning("[RemoteRunner] Newman excedeu o timeout de %ss", timeout_seconds)
+                logger.warning("[RemoteRunner] Newman parou de avancar e foi encerrado.")
                 return None
         except FileNotFoundError:
             logger.warning("[RemoteRunner] npx/newman não encontrado no servidor -- caindo no fallback leve.")
@@ -479,7 +479,7 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
                 # ReadTimeout. A consequencia era SILENCIOSA -- caia para a
                 # collection gerada e o usuario, que tinha configurado a chave,
                 # nunca sabia por que a collection dele nao foi usada.
-                timeout=_POSTMAN_TIMEOUT_SECONDS,
+                timeout=_POSTMAN_TIMEOUT,
             )
             if pm_res.status_code == 200:
                 user_data = pm_res.json().get("user", {})
@@ -516,7 +516,7 @@ async def run_remote_postman_contract(api_url: str) -> dict[str, Any]:
 
         # Fallback honesto: newman indisponível/timeout -- mesmo check leve de
         # antes, mas rotulado como tal (newman_ran=False), nunca disfarçado.
-        response = requests.get(api_url, timeout=10)
+        response = requests.get(api_url, timeout=_POSTMAN_TIMEOUT)
         status_code = response.status_code
         try:
             data = response.json()
@@ -758,7 +758,6 @@ def _search_for_local_cypress_installations() -> list[str]:
 async def _try_run_local_cypress(
     url: str,
     scope_selector: str = "",
-    timeout_seconds: float = 120.0,
     project_dir_override: str | None = None,
 ) -> dict[str, Any] | None:
     """
@@ -849,7 +848,7 @@ async def _try_run_local_cypress(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        await asyncio.wait_for(probe.communicate(), timeout=15)
+        await run_until_stalled(probe.communicate())
         if probe.returncode != 0:
             logger.info("[RemoteRunner] Cypress não está instalado em %s -- usando motor via nuvem.", project_dir)
             return None
@@ -908,7 +907,7 @@ async def _try_run_local_cypress(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
+        stdout, stderr = await run_until_stalled(proc.communicate())
         saida = (stdout or b"").decode("utf-8", errors="ignore") + (stderr or b"").decode("utf-8", errors="ignore")
         codigo_saida = proc.returncode
         if recording_requested:
@@ -922,7 +921,7 @@ async def _try_run_local_cypress(
                 )
     except TimeoutError:
         proc.kill()
-        logger.warning("[RemoteRunner] Cypress local excedeu o timeout de %ss.", timeout_seconds)
+        logger.warning("[RemoteRunner] Cypress local parou de avancar e foi encerrado.")
         return None
     except Exception as exc:
         logger.warning("[RemoteRunner] Falha ao executar Cypress local: %s", exc)
@@ -1048,7 +1047,7 @@ def _default_local_cypress_dir() -> Path:
     return Path(base) / "qa_accessibility" / "cypress_local_project"
 
 
-async def _install_local_cypress(timeout_seconds: float = 300.0) -> str | None:
+async def _install_local_cypress() -> str | None:
     """
     Instala o Cypress + cypress-axe DE VERDADE (via `npm install`) num
     diretório persistente na máquina do backend -- só roda quando o usuário
@@ -1098,7 +1097,7 @@ async def _install_local_cypress(timeout_seconds: float = 300.0) -> str | None:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        _stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
+        _stdout, stderr = await run_until_stalled(proc.communicate())
         if proc.returncode != 0:
             logger.warning(
                 "[RemoteRunner] Instalação do Cypress falhou: %s", stderr.decode("utf-8", errors="ignore")[:500]
@@ -1106,7 +1105,7 @@ async def _install_local_cypress(timeout_seconds: float = 300.0) -> str | None:
             return None
     except TimeoutError:
         proc.kill()
-        logger.warning("[RemoteRunner] Instalação do Cypress excedeu o timeout de %ss.", timeout_seconds)
+        logger.warning("[RemoteRunner] Instalação do Cypress parou de avançar e foi encerrada.")
         return None
     except Exception as exc:
         logger.warning("[RemoteRunner] Falha ao instalar Cypress: %s", exc)

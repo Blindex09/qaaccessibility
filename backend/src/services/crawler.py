@@ -11,11 +11,10 @@ Regras (README):
 - Logger com getLogger(__name__)
 """
 
-import json
 import logging
-import urllib.error
-import urllib.request
 from urllib.parse import urljoin, urlparse
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -121,22 +120,21 @@ def _discover_site_links_firecrawl(url: str, api_key: str, limit: int = 10) -> l
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
     try:
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(req_url, data=data, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=15) as response:
-            res_data = json.loads(response.read().decode("utf-8"))
-            if res_data.get("success") and isinstance(res_data.get("links"), list):
-                raw_links = res_data["links"]
-                links: list[str] = []
-                for lnk in raw_links:
-                    if not lnk:
-                        continue
-                    url_str = str(lnk["url"]).strip() if isinstance(lnk, dict) and "url" in lnk else str(lnk).strip()
-                    if url_str and url_str.startswith("http") and url_str not in links:
-                        links.append(url_str)
-                if url not in links:
-                    links.insert(0, url)
-                return links[:limit]
+        # Mapear um site pode levar o tempo que precisar: so estabelecer a conexao tem limite.
+        response = httpx.post(req_url, json=payload, headers=headers, timeout=httpx.Timeout(None, connect=15.0))
+        res_data = response.json()
+        if res_data.get("success") and isinstance(res_data.get("links"), list):
+            raw_links = res_data["links"]
+            links: list[str] = []
+            for lnk in raw_links:
+                if not lnk:
+                    continue
+                url_str = str(lnk["url"]).strip() if isinstance(lnk, dict) and "url" in lnk else str(lnk).strip()
+                if url_str and url_str.startswith("http") and url_str not in links:
+                    links.append(url_str)
+            if url not in links:
+                links.insert(0, url)
+            return links[:limit]
     except Exception as exc:
         logger.error("[Firecrawl] Falha no /v2/map para %s: %s", url, exc)
     return None

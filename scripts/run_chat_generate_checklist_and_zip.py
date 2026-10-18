@@ -58,7 +58,7 @@ async def main():
         # Aguarda término do turno de análise (aguarda campo textarea voltar a ser editável)
         print("      Aguardando análise do agente...")
         await page.wait_for_timeout(3000)
-        await page.wait_for_selector("textarea:not([readonly])", timeout=240000)
+        await page.wait_for_selector("textarea:not([readonly])", timeout=0)
         print("      Turno 1 concluído.")
 
         # 4. Pede para gerar o checklist e empacotar o ZIP
@@ -71,7 +71,7 @@ async def main():
         # Aguarda o segundo turno terminar
         print("      Aguardando geração do checklist e do ZIP...")
         await page.wait_for_timeout(3000)
-        await page.wait_for_selector("textarea:not([readonly])", timeout=240000)
+        await page.wait_for_selector("textarea:not([readonly])", timeout=0)
         print("      Turno 2 concluído.")
 
         # 5. Validação dos links gerados na interface
@@ -81,7 +81,7 @@ async def main():
         print(f"      Links encontrados no chat: {len(hrefs)}")
 
         # Testa o download do ZIP e do PDF via backend
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(None, connect=15.0)) as client:
             # Baixa o PDF do checklist
             pdf_r = await client.get(f"{BACKEND_URL}/export/last_checklist_pdf")
             pdf_ok = pdf_r.status_code == 200 and pdf_r.content.startswith(b"%PDF")

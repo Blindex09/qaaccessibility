@@ -140,7 +140,7 @@ async def run_real_webpage_test():
         exports_dir = os.path.join(tempfile.gettempdir(), "qa_accessibility_exports")
         os.makedirs(exports_dir, exist_ok=True)
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(None, connect=15.0)) as client:
             # 5.1 Planilha Excel da página real
             r_xlsx = await client.get(f"{BACKEND_URL}/export/last_xlsx")
             xlsx_ok = r_xlsx.status_code == 200 and len(r_xlsx.content) > 1000

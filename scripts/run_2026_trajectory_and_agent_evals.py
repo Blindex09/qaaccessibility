@@ -31,7 +31,7 @@ os.environ["OLLAMA_API_KEY"] = API_KEY
 os.environ["DEFAULT_PROVIDER"] = "ollama-cloud"
 
 BASE_URL = "http://127.0.0.1:8001"
-client = httpx.Client(base_url=BASE_URL, timeout=300.0, follow_redirects=True)
+client = httpx.Client(base_url=BASE_URL, timeout=httpx.Timeout(None, connect=15.0), follow_redirects=True)
 
 eval_matrix = []
 

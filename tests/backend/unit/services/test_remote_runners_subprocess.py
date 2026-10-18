@@ -121,12 +121,12 @@ async def test_newman_com_binario_sumido_no_meio_devolve_none(monkeypatch):
     assert await remote_runners._run_newman({"info": {}}) is None
 
 
-async def test_newman_no_timeout_mata_o_processo_e_devolve_none(monkeypatch):
+async def test_newman_que_para_de_avancar_mata_o_processo_e_devolve_none(monkeypatch):
     monkeypatch.setattr("shutil.which", lambda _name: "/usr/bin/npx")
     proc = _FakeProc(raises=TimeoutError())
     monkeypatch.setattr(asyncio, "create_subprocess_exec", _fake_exec(proc))
 
-    assert await remote_runners._run_newman({"info": {}}, timeout_seconds=0.01) is None
+    assert await remote_runners._run_newman({"info": {}}) is None
     assert proc.killed, "processo pendurado tem de ser morto, nao deixado orfao"
 
 
@@ -166,12 +166,12 @@ async def test_instalar_cypress_com_npm_falhando_devolve_none(projeto_cypress, m
     assert await remote_runners._install_local_cypress() is None
 
 
-async def test_instalar_cypress_no_timeout_mata_o_processo(projeto_cypress, monkeypatch):
+async def test_instalar_cypress_que_para_de_avancar_mata_o_processo(projeto_cypress, monkeypatch):
     monkeypatch.setattr("shutil.which", lambda _name: "/usr/bin/npm")
     proc = _FakeProc(raises=TimeoutError())
     monkeypatch.setattr(asyncio, "create_subprocess_exec", _fake_exec(proc))
 
-    assert await remote_runners._install_local_cypress(timeout_seconds=0.01) is None
+    assert await remote_runners._install_local_cypress() is None
     assert proc.killed
 
 

@@ -55,7 +55,7 @@ def main():
     # raspando; a execucao seguinte estourou), fazendo um ReadTimeout do
     # cliente parecer falha do produto enquanto o servidor seguia trabalhando.
     # 1800s da folga de ~2x sobre o pior caso observado.
-    client = httpx.Client(base_url=BASE_URL, timeout=1800.0, follow_redirects=True)
+    client = httpx.Client(base_url=BASE_URL, timeout=httpx.Timeout(None, connect=15.0), follow_redirects=True)
 
     # 1. Análise Completa de Acessibilidade (POST /analyze/file)
     print("\n--- ETAPA 1: Executando Análise Completa (POST /analyze/file) ---")

@@ -45,7 +45,7 @@ _AZURE_SEVERITY_BY_SEVERITY = {
     "low": "4 - Low",
 }
 
-_REQUEST_TIMEOUT_SECONDS = 15
+_REQUEST_TIMEOUT = (15, None)  # so estabelecer a conexao tem limite
 
 
 def create_jira_issue(
@@ -119,7 +119,7 @@ def create_jira_issue(
     }
 
     try:
-        response = requests.post(endpoint, json=payload, auth=(auth_email, token), timeout=_REQUEST_TIMEOUT_SECONDS)
+        response = requests.post(endpoint, json=payload, auth=(auth_email, token), timeout=_REQUEST_TIMEOUT)
         if response.status_code == 201:
             data = response.json()
             issue_key = data.get("key", "")
@@ -215,7 +215,7 @@ def create_azure_devops_work_item(
             json=patch_document,
             auth=("", pat),
             headers={"Content-Type": "application/json-patch+json"},
-            timeout=_REQUEST_TIMEOUT_SECONDS,
+            timeout=_REQUEST_TIMEOUT,
         )
         if response.status_code in (200, 201):
             data = response.json()

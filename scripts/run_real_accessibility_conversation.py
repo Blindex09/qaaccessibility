@@ -44,7 +44,7 @@ def send_chat_turn(message: str, history: list[dict[str, str]]) -> str:
     print("[ASSISTENTE - Resposta em tempo real]:\n")
 
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req) as resp:
             for line in resp:
                 decoded = line.decode("utf-8").strip()
                 if decoded.startswith("data: "):

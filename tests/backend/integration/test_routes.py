@@ -164,7 +164,7 @@ class TestFixTimeoutNaoViraSucesso:
             )
 
         assert resposta.status_code == 504, "timeout nao pode virar 200"
-        assert "timed out" in resposta.json()["detail"].lower()
+        assert "stopped making progress" in resposta.json()["detail"].lower()
 
     def test_erro_sem_mensagem_nao_vira_erro_em_branco(self):
         class FalhaSemMensagemError(Exception):

@@ -753,7 +753,7 @@ def _run_verapdf_audit(pdf_path: str) -> list[str]:
     try:
         # Executa o validador veraPDF no modo de validação PDF/UA (processor: rmd)
         res = subprocess.run(
-            ["verapdf", "--format", "xml", "--processor", "rmd", pdf_path], capture_output=True, text=True, timeout=30
+            ["verapdf", "--format", "xml", "--processor", "rmd", pdf_path], capture_output=True, text=True
         )
         xml_content = res.stdout
         if not xml_content or "<report>" not in xml_content:
@@ -3287,7 +3287,7 @@ def tavily_search(args: dict[str, Any], **_kw: Any) -> str:
         response = httpx.post(
             "https://api.tavily.com/search",
             json={"api_key": api_key, "query": query, "max_results": limit},
-            timeout=15.0,
+            timeout=httpx.Timeout(None, connect=15.0),  # so estabelecer a conexao tem limite
         )
         response.raise_for_status()
         data = response.json()
@@ -3331,7 +3331,7 @@ def exa_search(args: dict[str, Any], **_kw: Any) -> str:
                 "use_autoprompt": True,
                 "contents": {"text": {"maxCharacters": 2000}, "highlights": {"numSentences": 3}},
             },
-            timeout=15.0,
+            timeout=httpx.Timeout(None, connect=15.0),  # so estabelecer a conexao tem limite
         )
         response.raise_for_status()
         data = response.json()
@@ -4075,7 +4075,6 @@ def install_playwright_browsers_tool(args: dict, **_kw: Any) -> str:
             [sys.executable, "-m", "playwright", "install", "chromium", "firefox", "webkit"],
             capture_output=True,
             text=True,
-            timeout=600,
         )
         if proc.returncode != 0:
             logger.error("[a11y_chat] install_playwright_browsers falhou: %s", proc.stderr[-2000:])

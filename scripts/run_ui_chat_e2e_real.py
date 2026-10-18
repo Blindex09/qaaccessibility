@@ -70,7 +70,7 @@ async def run_real_e2e_test():
         val = await chat_input.input_value()
         log_step("Foco imediato e digitação em Nova Conversa", "texto alternativo" in val, f"Texto no campo: '{val}'")
 
-        async def wait_for_turn_complete(t_out: int = 240000):
+        async def wait_for_turn_complete(t_out: int = 0):
             try:
                 await page.wait_for_selector("[aria-label='Parar geração']", timeout=5000)
             except Exception:
@@ -118,7 +118,7 @@ async def run_real_e2e_test():
             z.writestr("index.html", sample_fixed_code)
         log_step("Geração de Pacote ZIP de Correções", True, f"Arquivo '{zip_filename}' gerado com {os.path.getsize(zip_path)} bytes.")
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(None, connect=15.0)) as client:
             # 5.2 Download do ZIP via HTTP
             r_zip = await client.get(f"{BACKEND_URL}/export/download_zip/{zip_filename}")
             zip_ok = r_zip.status_code == 200 and len(r_zip.content) > 100

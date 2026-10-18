@@ -6,7 +6,8 @@ sobre normas de acessibilidade (WCAG, APG patterns, ACT rules, EN 301 549,
 Section 508, PDF/UA, WAI-ARIA).
 
 Executa pesquisas progressivas: query geral -> específica -> casos de borda.
-Cita as fontes normativas consultadas. max_iterations=8 para pesquisa iterativa.
+Cita as fontes normativas consultadas. O laço com ferramentas não tem contador de rodadas:
+termina por convergência, falta de progresso ou cancelamento.
 """
 
 import logging
@@ -90,7 +91,6 @@ async def run_deep_research(
             provider=provider or "",
             api_key=api_key,
             base_url=base_url,
-            max_iterations=8,
             quiet_mode=True,
             enabled_toolsets=[A11Y_CHAT_TOOLSET],
             # Menor privilégio e economia: a pesquisa só precisa das ferramentas de busca, não das 33 do chat.

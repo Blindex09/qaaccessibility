@@ -14,15 +14,14 @@ Regras (README):
 import asyncio
 import base64
 import contextlib
-import json
 import logging
-import urllib.request
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import httpx
 from playwright.async_api import TimeoutError as PWTimeout
 from playwright.async_api import async_playwright
 
@@ -107,19 +106,18 @@ def _scrape_with_firecrawl(url: str, api_key: str) -> str:
     payload = {"url": url, "formats": ["rawHtml"], "onlyMainContent": False}
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(req_url, data=data, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=45) as response:
-        res_data = json.loads(response.read().decode("utf-8"))
-        if not res_data.get("success") or "data" not in res_data:
-            raise RuntimeError(f"Erro no scrape do Firecrawl: {res_data.get('error', 'Resposta invalida')}")
-        target_status = res_data["data"].get("metadata", {}).get("statusCode")
-        if isinstance(target_status, int) and target_status >= 400:
-            raise RuntimeError("A página solicitada retornou um erro de acesso; seu conteúdo não foi auditado.")
-        html = res_data["data"].get("rawHtml")
-        if not isinstance(html, str) or not html.strip():
-            raise RuntimeError("A extração não forneceu o documento HTML completo; a página não foi auditada.")
-        return html
+    # Renderizar a pagina pode levar o tempo que precisar: so estabelecer a conexao tem limite.
+    response = httpx.post(req_url, json=payload, headers=headers, timeout=httpx.Timeout(None, connect=15.0))
+    res_data = response.json()
+    if not res_data.get("success") or "data" not in res_data:
+        raise RuntimeError(f"Erro no scrape do Firecrawl: {res_data.get('error', 'Resposta invalida')}")
+    target_status = res_data["data"].get("metadata", {}).get("statusCode")
+    if isinstance(target_status, int) and target_status >= 400:
+        raise RuntimeError("A página solicitada retornou um erro de acesso; seu conteúdo não foi auditado.")
+    html = res_data["data"].get("rawHtml")
+    if not isinstance(html, str) or not html.strip():
+        raise RuntimeError("A extração não forneceu o documento HTML completo; a página não foi auditada.")
+    return html
 
 
 async def _fetch_via_direct_browser(

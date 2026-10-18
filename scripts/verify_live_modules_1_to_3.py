@@ -195,7 +195,7 @@ def run_turn(message: str) -> dict:
     request = urllib.request.Request(BASE + "/chat/stream", data=body, headers={"Content-Type": "application/json"})
     text, done, error, waits, tools = [], False, None, 0, []
     started = time.time()
-    with urllib.request.urlopen(request, timeout=3600) as response:
+    with urllib.request.urlopen(request) as response:
         for raw in response:
             line = raw.decode("utf-8", "replace").strip()
             if not line.startswith("data:"):
@@ -230,7 +230,7 @@ def ollama_has_quota() -> tuple[bool, str]:
     if not key:
         return False, "sem chave do Ollama Cloud no cofre"
     try:
-        client = ollama.Client(host="https://ollama.com", headers={"Authorization": f"Bearer {key}"}, timeout=60)
+        client = ollama.Client(host="https://ollama.com", headers={"Authorization": f"Bearer {key}"}, timeout=None)
         client.chat(model="gpt-oss:20b", messages=[{"role": "user", "content": "ok"}], think=False)
         return True, "ok"
     except Exception as exc:  # noqa: BLE001

@@ -7,19 +7,11 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from backend.src.agents.fixer.fixer import run_fixer
 from backend.src.config.settings import get_settings
 from backend.src.security.dependencies import rate_limit_dependency
+from backend.src.services.execution_scope import run_until_stalled
 from backend.src.shared.models import AgentResult, FixRequest
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/fix", tags=["fix"], dependencies=[Depends(rate_limit_dependency)])
-
-# Guardrail: hard wall-clock timeout para o agente fixer (iteration limit)
-# 60s nao cobria o self-healing: ele e um grafo de ate `max_retries=3` rodadas,
-# cada uma com planner + fixer + verificacao axe-core no browser. Medido em
-# 2026-08-30, um /fix com 34 issues batia exatamente no limite (60028ms) e
-# morria no meio da primeira rodada. O fixer simples (self_healing=False)
-# termina em segundos e nao e afetado por um teto mais alto.
-_FIX_TIMEOUT_SECONDS = 420.0
-
 
 @router.post("/", response_model=AgentResult)
 async def fix_html(body: FixRequest) -> AgentResult:
@@ -37,14 +29,13 @@ async def fix_html(body: FixRequest) -> AgentResult:
             from backend.src.services.self_healing import run_self_healing_loop
 
             try:
-                fixed_html, changes_summary, enriched_issues = await asyncio.wait_for(
+                fixed_html, changes_summary, enriched_issues = await run_until_stalled(
                     run_self_healing_loop(
                         body.html_content,
                         body.issues,
                         approved_issue_ids=body.approved_issue_ids,
                         custom_instruction=body.custom_instruction,
-                    ),
-                    timeout=_FIX_TIMEOUT_SECONDS,
+                    )
                 )
                 result = AgentResult(
                     agent="fixer",
@@ -76,23 +67,18 @@ async def fix_html(body: FixRequest) -> AgentResult:
                     error=str(exc) or repr(exc),
                 )
         else:
-            result = await asyncio.wait_for(
+            result = await run_until_stalled(
                 run_fixer(
                     body.html_content,
                     body.issues,
                     request_id=request_id,
                     approved_issue_ids=body.approved_issue_ids,
                     custom_instruction=body.custom_instruction,
-                ),
-                timeout=_FIX_TIMEOUT_SECONDS,
+                )
             )
     except asyncio.TimeoutError:
-        logger.error(
-            "[Route] /fix timeout request_id=%s after %.0fs",
-            request_id,
-            _FIX_TIMEOUT_SECONDS,
-        )
-        raise HTTPException(status_code=504, detail="Fixer agent timed out") from None
+        logger.error("[Route] /fix parou de avancar request_id=%s", request_id)
+        raise HTTPException(status_code=504, detail="Fixer agent stopped making progress") from None
     return result
 
 

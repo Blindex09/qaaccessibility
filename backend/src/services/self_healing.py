@@ -2,6 +2,7 @@ import logging
 
 from playwright.async_api import async_playwright
 
+from backend.src.services.execution_scope import check_execution
 from backend.src.shared.models import AccessibilityIssue, Guideline, Severity
 
 logger = logging.getLogger(__name__)
@@ -159,8 +160,9 @@ async def verify_html_with_axe(html_content: str) -> list[AccessibilityIssue]:
             await browser.close()
 
 
-# Numero de rodadas consecutivas com a MESMA assinatura de erro remanescente
-# (mesmo (criterion, element) que a tentativa anterior) antes de considerar
+# Numero de rodadas consecutivas cuja assinatura de erro remanescente JA FOI VISTA
+# (mesmo (criterion, element) que uma tentativa anterior, nao so a ultima: pega tambem
+# a oscilacao entre dois estados) antes de considerar
 # "loop confirmado e sem saida" e parar de insistir -- exige repeticao real,
 # nao so 1 coincidencia, pra nao cortar tentativas que ainda tinham chance
 # real de resolver com estado limpo (ver conceitos-ia-para-desenvolvimento-de-
@@ -178,10 +180,9 @@ def _remaining_issues_signature(issues: list[AccessibilityIssue]) -> frozenset[t
 
 
 class SelfHealingState:
-    def __init__(self, html: str, issues: list[AccessibilityIssue], max_retries: int):
+    def __init__(self, html: str, issues: list[AccessibilityIssue]):
         self.html = html
         self.issues = issues
-        self.max_retries = max_retries
         self.attempts = 0
         self.changes: list[str] = []
         self.enriched_issues: list[dict] = []
@@ -249,7 +250,7 @@ async def node_audit(state: SelfHealingState) -> None:
             return
 
         signature = _remaining_issues_signature(remaining_violations)
-        if state.audit_signatures and signature == state.audit_signatures[-1]:
+        if signature in state.audit_signatures:
             state.consecutive_repeats += 1
         else:
             state.consecutive_repeats = 0
@@ -282,20 +283,21 @@ async def run_self_healing_loop(
     initial_issues: list[AccessibilityIssue],
     approved_issue_ids: list[str] | None = None,
     custom_instruction: str | None = None,
-    max_retries: int = 3,
 ) -> tuple[str, list[str], list[dict]]:
     """
     Loop autocicatrizante (self-healing) estruturado como um Grafo de Estado Cíclico:
     - Planning: decide ordem/agrupamento de correção a partir dos issues reais (node_plan).
     - Estado: html, issues, attempts, changes, enriched_issues, status.
     - Nós: fix (aplica correções via LLM) e audit (valida via Playwright+Axe).
-    - Roteador de transições baseadas em estado e limites de tentativas.
+    - Roteador de transições baseadas em estado. Não há contador de tentativas: o laço termina
+      quando não há violações, quando o fixer falha, quando as mesmas violações voltam (inclusive
+      numa oscilação entre estados já vistos), ou quando a execução é cancelada ou para de avançar.
     """
     from backend.src.agents.fixer.fixer import run_fixer
 
-    logger.info("[SelfHealing Graph] Iniciando loop autocicatrizante com Grafo de Estado. Limite: %d", max_retries)
+    logger.info("[SelfHealing Graph] Iniciando loop autocicatrizante com Grafo de Estado.")
 
-    state = SelfHealingState(html_content, initial_issues, max_retries)
+    state = SelfHealingState(html_content, initial_issues)
 
     # Planning explícito ANTES de agir: decide a partir dos issues reais desta
     # página, não de uma ordem fixa embutida no prompt do fixer. Some-se ao
@@ -335,7 +337,8 @@ async def run_self_healing_loop(
     )
 
     # Transições cíclicas do grafo de estados
-    while state.attempts < state.max_retries + 1:
+    while True:
+        check_execution()
         if state.status == "fixed":
             # Transiciona para nó de auditoria
             await node_audit(state)
@@ -344,11 +347,5 @@ async def run_self_healing_loop(
             await node_fix(state)
         elif state.status in ("success", "failed", "stuck"):
             break
-
-    if state.status == "needs_fix":
-        logger.warning(
-            "[SelfHealing Graph] Loop finalizado pelo limite de tentativas (%d). Retornando última correção.",
-            max_retries,
-        )
 
     return state.html, state.changes, state.enriched_issues

@@ -81,7 +81,7 @@ def create_github_issue(
     }
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response = requests.post(url, json=payload, headers=headers, timeout=(15, None))
         if response.status_code == 201:
             data = response.json()
             logger.info("[github_service] Issue criada com sucesso: %s", data.get("html_url"))
