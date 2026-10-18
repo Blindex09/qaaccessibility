@@ -701,7 +701,7 @@ export function useChat() {
                 });
                 break;
               case "clarify":
-                // Padrão Hermes (cli.py _clarify_callback): a pergunta vive SO no
+                // A pergunta vive SO no
                 // painel interativo (transitorio) — não ecoa no historico nem na
                 // regiao viva. O registro permanente vem depois, em answerClarify
                 // (pergunta -> resposta numa unica linha). Evita a pergunta

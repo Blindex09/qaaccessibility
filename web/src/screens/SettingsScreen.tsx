@@ -105,7 +105,7 @@ function SettingsSwitch({
 }
 
 // Catálogo de modelos por provider vem AO VIVO do backend (/models →
-// models.dev via Hermes); nada hardcoded que envelhece. Ver state
+// models.dev); nada hardcoded que envelhece. Ver state
 // `providerModels` carregado no componente.
 
 
@@ -149,7 +149,7 @@ export function SettingsScreen({ onBack }: Props) {
   const [providersWithKey, setProvidersWithKey] = useState<string[]>([]);
   const [initialProvider, setInitialProvider] = useState("");
   const [initialHasApiKey, setInitialHasApiKey] = useState(false);
-  // Catálogo por provider AO VIVO (/models → models.dev via Hermes), já sem o
+  // Catálogo por provider AO VIVO (/models → models.dev), já sem o
   // sentinela "alto" (renderizado à parte). Vazio quando o backend está offline.
   const [providerModels, setProviderModels] = useState<Record<string, string[]>>({});
   const [modelCapabilities, setModelCapabilities] = useState<Record<string, Record<string, any>>>({});
@@ -314,8 +314,8 @@ export function SettingsScreen({ onBack }: Props) {
     const choices = { ...modelChoices, [provider]: model };
     setModelChoices(choices);
     setProvider(provId);
-    // NÃO força base_url: o Hermes já conhece o endpoint correto de cada provider
-    // (ex.: Ollama Cloud = https://ollama.com/v1). Deixamos vazio para o Hermes
+    // NÃO força base_url: o backend já conhece o endpoint correto de cada provider
+    // (ex.: Ollama Cloud = https://ollama.com/v1). Deixamos vazio para o backend
     // resolver; o campo Base URL fica como override avançado opcional.
     setBaseUrl("");
     const remembered = choices[provId] || "";
@@ -428,7 +428,7 @@ export function SettingsScreen({ onBack }: Props) {
       </View>
 
       <Text style={styles.subtitle}>
-        Configure as credenciais e modelos que o **Hermes Agent** usará para orquestrar a auditoria de acessibilidade de forma dinâmica.
+        Configure as credenciais e os modelos que o assistente usará para conduzir a auditoria de acessibilidade.
       </Text>
 
       {/* Status Card */}
