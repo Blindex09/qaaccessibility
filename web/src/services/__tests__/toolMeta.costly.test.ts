@@ -12,7 +12,7 @@ describe("risco das ferramentas que gastam muito", () => {
 });
 
 describe("ferramentas que só leem não aparecem como 'altera algo e não dá para desfazer'", () => {
-  it.each(["verify_screen_reader_announcements", "design_review"])("%s é só consulta", (name) => {
+  it.each(["verify_screen_reader_announcements", "verify_page_behavior", "design_review"])("%s é só consulta", (name) => {
     expect(getToolRisk(name)).toBe("read");
   });
 
@@ -21,7 +21,7 @@ describe("ferramentas que só leem não aparecem como 'altera algo e não dá pa
   });
 
   it("toda ferramenta cadastrada tem um nome em português para a pessoa", () => {
-    for (const name of ["verify_screen_reader_announcements", "design_review", "create_jira_issue", "create_azure_devops_work_item"]) {
+    for (const name of ["verify_screen_reader_announcements", "verify_page_behavior", "design_review", "create_jira_issue", "create_azure_devops_work_item"]) {
       expect(getToolLabel(name)).not.toBe("ação solicitada");
     }
   });

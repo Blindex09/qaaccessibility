@@ -221,6 +221,13 @@ const TOOL_META: Readonly<Record<string, ToolMeta>> = {
     start: "Conferindo, na árvore de acessibilidade real do navegador, o que um leitor de tela anunciaria...",
     end: "Verificação de leitor de tela concluída",
   },
+  // Abre a página num navegador real e aperta teclas para provar o comportamento; não altera o site (o que mudaria dados fica retido). Pede aprovação por abrir o navegador.
+  verify_page_behavior: {
+    label: "Prova de comportamento",
+    risk: "read",
+    start: "Provando, num navegador real, como a página se comporta com o teclado e com os avisos dinâmicos...",
+    end: "Prova de comportamento concluída",
+  },
   design_review: {
     label: "Revisão de requisito",
     risk: "read",

@@ -30,6 +30,7 @@ TOOL_GROUPS: dict[str, tuple[str, ...]] = {
         "generate_test_suite", "generate_automation_script", "run_remote_test", "run_cross_browser_test",
         "install_playwright_browsers", "run_code_in_sandbox",
     ),
+    "comportamento": ("verify_page_behavior",),
     "pesquisa": ("tavily_search", "exa_search", "evaluate_research", "run_deep_research"),
     "integracoes": (
         "create_github_issue", "create_jira_issue", "create_azure_devops_work_item",
@@ -42,6 +43,12 @@ GROUP_DESCRIPTIONS: dict[str, str] = {
     "correcao": "corrigir código ou arquivos, mostrar o antes e depois e desfazer correções",
     "documentos": "gerar checklist, planilha, VPAT, declaração de acessibilidade ou relatório SARIF",
     "testes": "gerar suíte de testes ou script de automação e executar testes reais em navegadores",
+    "comportamento": (
+        "provar num navegador real, com o servidor MCP de acessibilidade, como a página se comporta ao ser usada (teclado e foco, diálogos, menus, abas, "
+        "formulários com erro, avisos que surgem sem recarregar, troca de tela), quando a resposta depende do que acontece em execução e ler o código não "
+        "decide: a pessoa quer saber se funciona de verdade, quer confirmar que uma correção resolveu, ou a análise deixou dúvida de comportamento. "
+        "Não é para ler marcação, contraste, textos alternativos, documentos, requisitos nem perguntas conceituais, e custa um navegador real por chamada"
+    ),
     "pesquisa": (
         "pesquisar na web ou nas normas e avaliar as fontes; a pesquisa profunda gasta centenas de milhares "
         "de tokens, então só quando a pessoa pede aprofundamento"

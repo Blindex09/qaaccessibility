@@ -85,6 +85,7 @@ chamadas reais de LLM (cresce com o número de camadas — ver nota acima).
 | 8 | `test_08_online_evals_real.py` | `telemetry.score_trace` (LLM-as-judge) discrimina trace bom vs ruim de verdade |
 | 9 | `test_09_production_observability_real.py` | Falha de rede real vira erro humanizado; logs estruturados; JSON malformado do provider falha explícito, nunca silencioso |
 | 10 | `test_10_planning_real.py` | `self_healing.node_plan` contra o modelo real: ordem/agrupamento de correção decidido pelo modelo, nunca lista de prioridade fixa |
+| 12 | `test_12_roteamento_do_comportamento_real.py` | Roteamento da prova de comportamento: o roteador escolhe o grupo `comportamento` (servidor MCP de acessibilidade) quando a resposta depende do que acontece em execução, e não o escolhe para marcação, contraste, documento, requisito, conceito ou conversa; taxa em tentativas repetidas. Escrito, ainda não rodado ao vivo |
 | 11 | `test_11_multi_run_and_replay_real.py` | Multi-run/Statistical Evals (`eval_stats.run_multi_trial`, Pass@k/variância sobre N execuções reais do mesmo golden case) e Deterministic Replay (`trace_replay.py` reproduz o mesmo resultado sem rechamar o LLM) |
 
 A camada "Production" da pirâmide original não é um teste -- é o estado

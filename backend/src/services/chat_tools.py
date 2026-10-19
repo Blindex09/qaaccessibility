@@ -1905,6 +1905,97 @@ def mcp_call_tool_tool(args: dict[str, Any], **_kw: Any) -> str:
         return json.dumps({"error": f"Não foi possível chamar o servidor MCP: {type(exc).__name__}"}, ensure_ascii=True)
 
 
+# Nome com que a pessoa registra o servidor MCP de acessibilidade (projeto mcp do dono) no cliente MCP. A ferramenta so existe de verdade
+# quando ele esta registrado; senao diz o que fazer, sem fingir que provou nada.
+BEHAVIOR_MCP_SERVER = "accessibility"
+BEHAVIOR_MCP_TOOL = "a11y_check_page"
+
+_VERIFY_PAGE_BEHAVIOR_SCHEMA: dict[str, Any] = {
+    "description": (
+        "Prove, in a REAL browser and through the registered MCP server named 'accessibility', how a page BEHAVES when it is used: keyboard walk and focus, "
+        "dialogs, menus, tabs, accordions, comboboxes, forms with errors, messages that appear without a reload, screen changes in single-page apps. It reports "
+        "measured FACTS (expected x observed per check, met true/false/null where null means it could not be measured, never a pass); you judge them. "
+        "Use it when the answer depends on what happens at runtime and the markup alone cannot settle it: the person asks whether something works by keyboard or "
+        "is announced, wants to confirm that a fix really solved a behavior problem, or the static analysis left a behavior doubt (a focus trap, focus that may not "
+        "return, state that may not update, a status that may not be announced). Do NOT use it to read markup, alt text, contrast, headings, documents, requirements "
+        "or conceptual questions: `analyze_page` and the specialists already cover those, and cheaper. Do not call it on every page: each call opens a real browser, "
+        "takes tens of seconds and needs the person's approval. In practice it takes two calls: first WITHOUT `probes`, to get the Tab walk and the list of interactive "
+        "elements (each with a `css` selector); decide by meaning what each element really is; then call again with `probes` only for the components that matter, "
+        "e.g. [{\"kind\": \"dialog\", \"target\": \"css:#abrir\"}]. Kinds: dialog, disclosure, menu, tabs, combobox, listbox, tree, tooltip, form_errors, "
+        "status_update, route_change (target = the control the person would use). If the server is not registered the result says how: register it with "
+        "`mcp_register_server` (the person approves) and try again. Requests that change data are held and dropped: nothing is sent to the site. Not verified by "
+        "this tool: real screen readers, real devices, multi-step flows with state between steps."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "pre_exec_msg": {"type": "string", "description": "Mensagem curta em português dizendo à pessoa que página será testada no navegador e o que se quer provar."},
+            "url": {"type": "string", "description": "Página http ou https a provar. Informe url OU html."},
+            "html": {"type": "string", "description": "HTML a provar, quando não há endereço."},
+            "probes": {
+                "type": "array",
+                "items": {"type": "object", "properties": {"kind": {"type": "string"}, "target": {"type": "string"}}, "required": ["kind"]},
+                "description": "Sondas de contrato a rodar, cada uma com o tipo e o alvo (css:<seletor> tirado da lista de elementos). Vazio na primeira chamada.",
+            },
+            "persona": {"type": "string", "enum": ["keyboard", "screen_reader", "low_vision", "mobile_touch", "reduced_motion", "forced_colors", "default"]},
+            "browser": {"type": "string", "enum": ["chromium", "firefox", "webkit"]},
+            "color_scheme": {"type": "string", "enum": ["light", "dark"]},
+        },
+        "required": ["pre_exec_msg"],
+    },
+}
+
+
+def verify_page_behavior_tool(args: dict[str, Any], **_kw: Any) -> str:
+    """Prova o comportamento de uma pagina chamando `a11y_check_page` no servidor MCP de acessibilidade (uma chamada, sem sessao entre chamadas)."""
+    from backend.src.services import mcp_client
+
+    url, html = str(args.get("url") or "").strip(), str(args.get("html") or "")
+    if bool(url) == bool(html.strip()):
+        return json.dumps({"error": "Informe exatamente um entre 'url' e 'html'."}, ensure_ascii=True)
+    probes = args.get("probes") or []
+    if not isinstance(probes, list) or not all(isinstance(p, dict) and isinstance(p.get("kind"), str) for p in probes):
+        return json.dumps({"error": "'probes' deve ser uma lista de objetos com 'kind' e, para a maioria, 'target'."}, ensure_ascii=True)
+    if BEHAVIOR_MCP_SERVER not in {s["name"] for s in mcp_client.list_servers()}:
+        return json.dumps(
+            {
+                "status": "not_registered",
+                "message": (
+                    f"O servidor MCP de acessibilidade ('{BEHAVIOR_MCP_SERVER}') ainda não está registrado, então não dá para provar o comportamento agora. "
+                    "Registre-o com `mcp_register_server` (a pessoa aprova) e chame esta ferramenta de novo. Enquanto isso, diga com honestidade que o "
+                    "comportamento NÃO foi provado e que a análise estática só pode indicar o risco."
+                ),
+                "how_to_register": {
+                    "tool": "mcp_register_server",
+                    "name": BEHAVIOR_MCP_SERVER,
+                    "command": "o Python (ou o uv) que roda o projeto mcp do dono",
+                    "args": ["<pasta do projeto mcp>/mcp_server.py"],
+                    "note": "pergunte à pessoa a pasta do projeto mcp se não souber",
+                },
+            },
+            ensure_ascii=False,
+        )
+    arguments = {
+        "url": url, "html": html, "probes": json.dumps(probes, ensure_ascii=False) if probes else "",
+        "persona": str(args.get("persona") or "keyboard"), "browser": str(args.get("browser") or "chromium"), "color_scheme": str(args.get("color_scheme") or ""),
+    }
+    chat_progress.emit_tool_progress(None, "verify_page_behavior", "Provando o comportamento da página num navegador real...")
+    try:
+        result = _safe_async_run(mcp_client.call_tool(BEHAVIOR_MCP_SERVER, BEHAVIOR_MCP_TOOL, arguments))
+    except mcp_client.McpClientError as exc:
+        return json.dumps({"error": str(exc)}, ensure_ascii=True)
+    except Exception as exc:
+        logger.error("[a11y_chat] verify_page_behavior falhou: %s", exc)
+        return json.dumps({"status": "error", "error": f"Não foi possível falar com o servidor MCP de acessibilidade: {type(exc).__name__}"}, ensure_ascii=True)
+    return json.dumps(
+        {
+            "status": "error" if result.get("is_error") else "ok", "server": BEHAVIOR_MCP_SERVER, "tool": BEHAVIOR_MCP_TOOL, "result": result["result"],
+            "note": "fatos medidos por um servidor MCP; o julgamento é seu. Não foi verificado: leitor de tela real, dispositivo real e fluxos com estado entre passos.",
+        },
+        ensure_ascii=False,
+    )
+
+
 _FIX_AND_ZIP_FILES_SCHEMA = {
     "description": (
         "Apply accessibility fixes to multiple local files (HTML, CSS, JS, TS, Swift, Kotlin, Dart, Java, DOCX, PDF) and pack them into a ZIP file for the user to download. "
@@ -4516,6 +4607,16 @@ def register_chat_tools() -> None:
         emoji="",
     )
     logger.info("[a11y_chat] toolset '%s' registrado (load_skill, remember_skill)", A11Y_CHAT_TOOLSET)
+
+    registry.register(
+        name="verify_page_behavior",
+        toolset=A11Y_CHAT_TOOLSET,
+        schema=_VERIFY_PAGE_BEHAVIOR_SCHEMA,
+        handler=verify_page_behavior_tool,
+        is_async=False,
+        emoji="",
+        requires_approval=True,
+    )
 
     registry.register(
         name="mcp_register_server",

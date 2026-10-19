@@ -148,6 +148,15 @@ teclas, clique, preenchimento e espera) e valida foco, nome/papel, diálogos e
 mensagens na árvore de acessibilidade após cada passo — sem capturar áudio e
 sem executar JavaScript arbitrário.
 
+### `verify_page_behavior` 🔒
+Prova, num navegador real e pelo servidor MCP de acessibilidade registrado com o nome `accessibility` (projeto mcp do dono), como uma página SE COMPORTA
+quando é usada: passeio de Tab, foco, diálogos, menus, abas, acordeões, combobox, formulários com erro, mensagens que surgem sem recarregar e troca de tela.
+Devolve fatos medidos (esperado contra observado, `met` verdadeiro, falso ou nulo, e nulo é "não deu para medir", nunca aprovação); o julgamento é do modelo.
+É a ferramenta do grupo `comportamento`: o roteador a oferece só quando a resposta depende do que acontece em execução e ler o código não decide.
+Chamada única (o cliente MCP sobe o servidor de novo a cada chamada): a primeira sem `probes` traz Tab, resumo e a lista de elementos com seletor; a segunda
+roda as sondas pedidas. Sem o servidor registrado responde `not_registered` e diz como registrar, sem fingir que provou. Acrescentada em 19/10/2026; as
+contagens deste documento são de 29/08/2026 e não a incluem. Contrato e limites: `docs/modules/prova_de_comportamento_mcp.md`.
+
 ### `design_review`
 Único agente do projeto que não audita HTML/código já existente: recebe um
 requisito, user story ou trecho de PRD em texto livre e antecipa riscos de
