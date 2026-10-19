@@ -41,6 +41,10 @@ O cliente MCP do Qaaccessibility sobe o servidor de novo a CADA chamada de ferra
 
 Registrar o servidor com o nome `accessibility` (a pessoa aprova, o servidor é revisado sem credencial antes): `mcp_register_server` com o Python e o `mcp_server.py` do projeto mcp. Sem isso a ferramenta responde `not_registered` e explica.
 
+## Registro e prova de ponta a ponta (19/10/2026)
+
+O servidor foi registrado nesta máquina com o nome `accessibility` (o Python do projeto mcp e o `mcp_server.py` dele), pelas funções do próprio cliente MCP: a revisão automática subiu o servidor sem nenhuma credencial, listou 44 ferramentas (inclusive `a11y_check_page`) e só então o registro foi gravado em `%LOCALAPPDATA%\qaaccessibility\memory\mcp_servers.json`, fora do repositório. Depois, a ferramenta `verify_page_behavior` foi chamada duas vezes pelo registro real, sem simulação e sem modelo: a primeira trouxe o passeio de Tab e os elementos com seletor, e a segunda rodou a sonda de diálogo com o seletor da primeira e cumpriu as 8 verificações. Isto prova o caminho da ferramenta, não a decisão do roteador. Em outra máquina, ou em outra pasta de dados, o registro precisa ser refeito (`mcp_register_server`).
+
 ## O que NÃO está provado
 
 - Nenhuma rodada ao vivo com modelo: as taxas de escolha do grupo pelo roteador não foram medidas. O teste `test_12` está escrito, passa na análise estática e fica pulado sem chave. Até a primeira medição, a boa decisão do roteador é uma expectativa, não um fato.
