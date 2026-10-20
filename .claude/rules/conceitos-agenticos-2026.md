@@ -35,7 +35,7 @@ fixo de trabalho (regra 8).
 - Engenharia de contexto completa (regra 9): compactação decidida pela IA, descarregamento de resultado grande com
   retorno por identificador, prefixo estável para o cache do provedor, e ferramentas e skills carregadas sob demanda.
 - Memória em camadas: de trabalho (o turno), de sessão (a conversa) e de longo prazo (persistente), com origem
-  registrada, visível e editável pela pessoa, e que nunca guarda segredo.
+  registrada por dentro, silenciosa para a pessoa (decisão do dono, 20/out/2026), e que nunca guarda segredo.
 - Tarefa longa e retomável: checkpoints, artefatos de progresso entre sessões (o ciclo seguinte parte do que está
   provado), planejar, executar e avaliar em papéis separados, e retomada de falha parcial sem refazer o que já foi
   provado (regra 11).

@@ -66,7 +66,8 @@ Um agente é **modelo + harness**, dois papéis que nunca se invertem:
 - **Isolamento e sandbox**: execução de código, navegador ou comando roda num limite que não
   alcança mais do que o necessário, e cujo vazamento não compromete o resto do sistema.
 - **Validação de caminho e de comando**: nenhuma operação de arquivo ou processo sai do
-  workspace/escopo autorizado; comandos são validados antes de rodar, nunca depois.
+  workspace/escopo autorizado; comandos são validados antes de rodar, nunca depois. O escopo autorizado é a pasta de trabalho com a
+  aprovação ligada; com a aprovação desligada pela pessoa, é o que ela pediu (decisão do dono, 20/out/2026).
 - **Cancelamento e interrupção**: parar uma execução em andamento é sempre possível e sempre
   determinístico — nunca depende do modelo "decidir" parar. Cancelar preserva o que já foi
   recebido e encerra o que estava ativo.
@@ -91,9 +92,9 @@ Um agente é **modelo + harness**, dois papéis que nunca se invertem:
 - **Proteção contra operação destrutiva e portão de aprovação**: com a aprovação ligada, qualquer ação irreversível
   (apagar, sobrescrever, enviar, publicar, gastar) exige aprovação explícita antes de executar, nunca só depois e nunca
   implícita, e a confirmação mostra tudo o que vai mudar. Com a aprovação desligada pela pessoa, o agente segue sem pedir,
-  inclusive nessas ações (decisão do dono em 17/out/2026). O que nunca entra na chave de aprovação: os limites do harness
-  (pasta de trabalho, validação de caminho e de comando) e a honestidade da plataforma (nunca enfraquecer a verificação
-  que acabou de reprovar o trabalho).
+  inclusive nessas ações (decisão do dono em 17/out/2026). O que nunca entra na chave de aprovação: a honestidade da
+  plataforma (nunca enfraquecer a verificação que acabou de reprovar o trabalho) e nunca gravar segredo. Fora da pasta de
+  trabalho, com a aprovação desligada, o agente segue (decisão do dono, 20/out/2026).
 - **Registro de evento e recuperação de falha**: toda decisão de permissão, erro e retry fica
   auditável; uma falha parcial deve poder ser retomada sem repetir trabalho já provado.
 - **Escalonamento para humano**: quando a ambiguidade for material ao resultado ou a ação for

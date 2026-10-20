@@ -51,11 +51,11 @@ paths:
   proteção contra regressão acompanha o provedor em teste e avança junto com os módulos: depois de testar um provedor em um
   módulo, na mesma entrega, as proteções daquele provedor são atualizadas (contrato real gravado, números de referência
   medidos, matriz de paridade, ficha do provedor e seção do módulo), por comando e a partir de uma fonte única, nunca de
-  memória, e a verificação reprova quando algo ficou desatualizado. A proteção de um provedor nunca pode estragar a de outro.
+  memória, e a verificação reprova quando algo ficou desatualizado. A proteção de um provedor nunca pode estragar a de outro. Um provedor ainda não provado ao vivo num módulo funciona, com um aviso curto e honesto do estado; nunca é bloqueado (decisão do dono, 20/out/2026).
   O commit diz o que funcionou, o que foi feito e o que ficou pendente, e cada módulo testado em um provedor deixa o registro
   dele na documentação.
 - Antes de codar, ver o que já existe no código, nos commits e nas docs.
-- Documentar tudo o que foi feito e corrigido na pasta de cada módulo, e commitar ao final. Nunca fazer merge sem
+- Documentar tudo o que foi feito e corrigido na pasta de cada módulo, e commitar ao final. O envio (push) do branch de trabalho é permitido (decisão do dono, 20/out/2026); nunca fazer merge sem
   autorização.
 - Documentos para o usuário em linguagem natural, direta e objetiva, sem asteriscos nem caracteres especiais, técnico
   só nos termos e conceitos.
@@ -98,7 +98,7 @@ paths:
     da entrega.
 
 - Mudança numa instrução ao modelo é mudança de comportamento do sistema e tem portão. Vale para qualquer texto que o modelo recebe
-  (instrução de sistema, descrição de ferramenta, diretriz de narração, prompt do roteador, do juiz ou do revisor):
+  (instrução de sistema, descrição e argumentos de ferramenta, diretriz de narração, prompt do roteador, do juiz ou do revisor):
   - Antes de entrar, roda-se o conjunto amplo de avaliações do módulo, em tentativas repetidas, e não só o caso que motivou a mudança.
     Uma instrução que corrige um caso pode piorar outro, e isso só aparece no conjunto amplo (visto na prática por quem faz isso melhor:
     uma mudança de instrução passou semanas de teste interno e só uma avaliação mais ampla mostrou a queda).

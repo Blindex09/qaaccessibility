@@ -26,6 +26,10 @@ paths:
   tentativa. Cada frase diz algo novo, com palavras diferentes das anteriores. Quando algo falha, diz em uma frase o
   que deu errado e o que tenta agora; quando não consegue, diz o que não foi feito e por quê, sem se desculpar em
   círculos. Reduzir a repetição nunca é tirar o texto corrido.
+- A frase antes de cada ação não pode depender de o modelo querer (achado de 20/out/2026: um modelo que o roteador escolheu não escreveu frase
+  nenhuma em 48 rodadas, nem com a instrução no sistema nem na descrição da ferramenta). As ferramentas que executam ação levam um argumento
+  obrigatório de explicação, uma frase natural escrita pelo modelo, e a interface a mostra no lugar do texto quando o modelo não escreveu outro.
+  O harness só mostra o que o modelo escreveu; nunca escreve a frase. Com a frase no argumento, o mesmo modelo preencheu 24 de 24 rodadas.
 - O que é do bastidor fica no bastidor: o registro técnico guarda cada etapa interna (como a revisão da resposta
   final), mas na conversa nunca aparece nome interno de juiz, revisor, especialista ou ferramenta.
 - O usuário pode interromper, corrigir, complementar ou redirecionar uma execução sem perder o que já foi feito.

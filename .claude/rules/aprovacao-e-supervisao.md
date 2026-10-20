@@ -17,9 +17,9 @@ paths:
 - A confirmação mostra tudo o que vai mudar, inclusive o que seria desligado. Nunca desligar uma capacidade que ninguém
   pediu.
 - A segurança existe, mas sem travas desnecessárias: o sistema é seguro e ao mesmo tempo livre.
-- O que não entra na chave de aprovação são os limites do harness da regra 1, como a pasta de trabalho: o agente não
-  mexe fora da pasta que a pessoa escolheu. A liberdade vem de a pessoa poder escolher qualquer pasta pela interface, e
-  não de o agente sair dela sozinho.
+- A pasta de trabalho acompanha a chave de aprovação (decisão do dono, 20/out/2026): com a aprovação desligada o agente é livre de
+  verdade e mexe onde a pessoa pedir, inclusive fora da pasta; com ela ligada, o que fica fora da pasta pede aprovação mostrando o
+  caminho exato. O que nunca depende da chave: a honestidade da plataforma e nunca gravar segredo em conversa ou registro.
 
 ### 16. Supervisão humana calibrada
 
@@ -35,3 +35,4 @@ paths:
   anterior não vale e uma nova é pedida.
 - Com a aprovação ligada, instalar software desconhecido (pacote, programa, servidor MCP, skill de terceiros) sempre pede aprovação, por risco de
   cadeia de suprimento. Com ela desligada, segue.
+- Decisão de 20/out/2026: com a aprovação desligada, o agente apaga, move e altera onde a pessoa pedir, também fora da pasta de trabalho. Com ela ligada, ação fora da pasta pede aprovação com o caminho exato. Um pedido de aprovação que a IA de governança levanta sobre algo que a pessoa acabou de pedir continua sendo perguntado quando a aprovação está ligada (a pergunta mostra tudo o que vai mudar).

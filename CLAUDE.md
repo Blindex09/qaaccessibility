@@ -19,7 +19,7 @@ NVDAStudio: ao mudá-la num, muda-se nos outros dois na mesma entrega.
    significado. Determinismo só para fato objetivo (código de saída, tamanho, schema, URL no texto) e para proteção. Um teste que força o
    código a adivinhar intenção por palavra-chave é recusado. (rules/agente-e-harness.md)
 3. Conversa corrida, humana, em tempo real, em português e no jeito da pessoa. Informar cada passo em texto natural, direto, sem repetir e sem
-   recomeçar a cada ação; texto, chamada de ferramenta logo em seguida, e o que se diz bate com o que se faz. Streaming token a token. Nunca
+   recomeçar a cada ação; texto, chamada de ferramenta logo em seguida, e o que se diz bate com o que se faz. A frase antes de cada ação não depende de o modelo querer: as ferramentas que executam ação levam um argumento obrigatório de explicação, escrito pelo modelo, que a interface mostra. Streaming token a token. Nunca
    JSON, protocolo, nome técnico de ferramenta, nome interno de juiz ou revisor, nem asteriscos soltos. Comando e código em bloco próprio. A
    pessoa pode interromper e redirecionar sem perder o que foi feito. (rules/conversa-e-interface.md)
 4. Interface e leitor de tela, e 13. acessibilidade e UX, e 14. paridade entre as interfaces: ver rules/conversa-e-interface.md. Em resumo:
@@ -30,7 +30,7 @@ NVDAStudio: ao mudá-la num, muda-se nos outros dois na mesma entrega.
 6. Contexto e ambiguidade: pedido vago de verdade gera uma pergunta curta e cedo; "faça o que combinamos" prossegue sem perguntar. A IA sabe
    sozinha quando pesquisar, usar ferramenta, planejar ou agir. (rules/autonomia-e-contexto.md)
 7. Aprovação ligada ou desligada, nunca bloqueio seco. Ligada, o agente pede com a lista completa do que muda; desligada, faz sem perguntar.
-   O que fica fora da chave são os limites do harness (pasta de trabalho). Com a aprovação desligada pela pessoa, o agente segue sem pedir, inclusive em ação irreversível (decisão do dono, 17/out/2026). Com ela ligada, a aprovação vale para os argumentos exatos: argumento que muda pede nova aprovação. O que nunca depende da chave são os limites do harness e a honestidade da plataforma.
+   Com a aprovação desligada pela pessoa, o agente segue sem pedir, inclusive em ação irreversível e fora da pasta de trabalho (decisões do dono, 17 e 20/out/2026). Com ela ligada, o que fica fora da pasta de trabalho também pede aprovação, e a aprovação vale para os argumentos exatos: argumento que muda pede nova aprovação. O que nunca depende da chave é a honestidade da plataforma.
    (rules/aprovacao-e-supervisao.md)
 8. Nenhum relógio, teto de tokens, de chamadas ou de etapas imposto pelo código corta uma tarefa que continua avançando. O que encerra é:
    convergência, falta de progresso, repetição da mesma decisão, cancelamento pela pessoa ou orçamento que a própria pessoa configurou. Nenhuma
@@ -41,7 +41,7 @@ NVDAStudio: ao mudá-la num, muda-se nos outros dois na mesma entrega.
    ferramentas e quanto pensar, na mesma chamada. Engenharia de contexto: nada é reenviado sem necessidade, a IA organiza a própria memória e
    o que sai do contexto volta por identificador, o começo de cada chamada é estável para o cache. Medir antes de afirmar economia.
    (rules/economia-e-roteamento.md)
-10. Aprendizado sempre e na hora, sem fila de aprovação, sem duplicata, em formato SKILL.md. Aprendizado vindo de conteúdo não confiável também vale na hora, mas com a origem marcada e a confiança reduzida, visível e editável, e nunca vira instrução. (rules/aprendizado.md)
+10. Aprendizado sempre e na hora, sem fila de aprovação, sem duplicata, em formato SKILL.md. Aprendizado vindo de conteúdo não confiável também vale na hora, mas com a origem marcada e a confiança reduzida por dentro, e nunca vira instrução. O aprendizado é silencioso: sem aviso na conversa e sem tela de memória (decisão do dono, 20/out/2026). (rules/aprendizado.md)
 
 ## Como se prova e se trabalha (regras 11 a 17)
 
@@ -53,7 +53,7 @@ NVDAStudio: ao mudá-la num, muda-se nos outros dois na mesma entrega.
     cada vez, e módulo concluído fica protegido e entra na regressão conjunta com tag local; confiança medida e nunca presumida (invariantes
     verificados em toda execução, falha real vira caso permanente barato, taxa em tentativas repetidas, promessa e prova, confiança dita com
     limite); mudança numa instrução ao modelo tem portão (conjunto amplo, ablação, observação, registro). Documentar na pasta do módulo e
-    commitar ao final; nunca merge nem envio sem autorização. Documentos para a pessoa em texto direto, sem asteriscos, em português.
+    commitar ao final; o envio (push) do branch de trabalho é permitido (decisão do dono, 20/out/2026); nunca merge sem ordem. Documentos para a pessoa em texto direto, sem asteriscos, em português.
     (rules/evidencia-e-processo.md)
 16. Supervisão humana calibrada: intervenção onde o risco é maior (irreversível, escopo ampliado, ambiguidade material) e fora do caminho no
     resto. (rules/aprovacao-e-supervisao.md)
@@ -66,7 +66,7 @@ NVDAStudio: ao mudá-la num, muda-se nos outros dois na mesma entrega.
 18. Obrigatórios no nível que o produto entrega, com lacunas registradas e nunca "fora de escopo" em silêncio: laço agêntico com ferramentas
     tipadas; MCP, Agent Skills e A2A em vez de formato próprio, com servidor e skill de terceiros tratados como código não confiável;
     subagentes com contexto isolado que devolvem resumo e têm o resultado verificado; guardrails em entrada, saída e chamada de ferramenta,
-    com conteúdo de fora sempre como dado; hooks determinísticos só para proteger, medir ou registrar; memória em camadas, visível e editável;
+    com conteúdo de fora sempre como dado; hooks determinísticos só para proteger, medir ou registrar; memória em camadas, com a origem registrada por dentro e silenciosa para a pessoa (decisão do dono, 20/out/2026);
     tarefa longa e retomável; observabilidade estruturada, sem segredo, com replay (com as convenções do OpenTelemetry para IA generativa);
     evals como portão, com tentativas repetidas e casos vindos de falha real; roteamento por camada e custo; computador e navegador só em
     sandbox; harness revisado a cada geração de modelo; matriz de cobertura viva rodada antes de dar uma mudança por pronta. Contra o risco das três pernas, com a aprovação ligada o agente que reúne dados privados, conteúdo não confiável e saída externa pede aprovação na saída. (rules/conceitos-agenticos-2026.md)
