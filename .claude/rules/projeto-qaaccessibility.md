@@ -201,3 +201,10 @@ e acrescentar o cenário ao contrato.
 - O VPAT e os relatórios exportados saem sem faixa de aviso no documento (decisão do dono); o aviso de que nenhum achado não é certificação continua valendo na conversa.
 - Rodar no computador da pessoa a suíte de testes gerada (Cypress, Selenium, Newman) segue a chave de aprovação: ligada mostra o que vai instalar e rodar e pede; desligada instala e roda sozinho.
 - O painel de memória do chat sai (ver rules/aprendizado.md).
+
+## Decisão do dono de 21/out/2026: o agente é autônomo (a mesma do Agentic)
+
+- O agente de IA deste projeto é livre quanto à estratégia: se ajusta sozinho, aprende com os erros e se corrige, resolve os laços e os erros por dentro e fica cada vez mais estratégico e independente. O dono já repetiu isto muitas vezes: está escrito aqui e no `CLAUDE.md`.
+- Ordem diante de um laço ou de um erro, sempre nesta ordem: (1) o harness informa ao modelo apenas o fato (o que se repetiu e que nada de novo veio), sem dizer o que fazer; (2) o raciocínio sobe e o roteador leva a chamada para a camada mais forte; (3) o modelo muda de caminho por conta própria e aprende com o erro; (4) só se nada mudou depois disso, a rede de segurança da regra 8 encerra com entrega parcial honesta. O encerramento é o último recurso, deve ser muito raro, e cada vez que acontece é um sintoma a investigar.
+- Nenhum determinismo dita estratégia (regras 1 e 2): nem texto pronto dizendo ao modelo o que fazer, nem lista de passos. Todo laço novo nasce com um teste em que o laço se resolve sozinho antes de ser encerrado e outro em que a IA diz sempre "siga" e ele ainda assim termina.
+- O código deste projeto ainda não obedece em tudo: conferir o que cada laço faz hoje e registrar a diferença como pendência com o item nomeado, em `docs/PENDENCIAS.md`.
