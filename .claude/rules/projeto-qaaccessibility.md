@@ -194,3 +194,10 @@ está em `docs/modules/contrato_de_comportamento.md`:
 
 Regra para todo defeito que aparecer só em um provedor ou modelo: provar a causa (regra 17), corrigir na camada certa, escrever o teste
 e acrescentar o cenário ao contrato.
+
+## Decisões do dono de 20/out/2026 para este projeto
+
+- Analisar uma pasta inteira envia os arquivos compatíveis ao provedor de IA sem aviso antes: a pessoa escolheu a pasta, então sabe (decisão do dono).
+- O VPAT e os relatórios exportados saem sem faixa de aviso no documento (decisão do dono); o aviso de que nenhum achado não é certificação continua valendo na conversa.
+- Rodar no computador da pessoa a suíte de testes gerada (Cypress, Selenium, Newman) segue a chave de aprovação: ligada mostra o que vai instalar e rodar e pede; desligada instala e roda sozinho.
+- O painel de memória do chat sai (ver rules/aprendizado.md).
