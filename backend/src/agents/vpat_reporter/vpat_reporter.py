@@ -104,20 +104,22 @@ Generate a WCAG 2.2 Edition VPAT based on accessibility audit findings.
 
 ## Conformance declarations (compliance-auditor.md)
 For each criterion declare ONE of:
-- "Supports": No issues; product meets this criterion
+- "Supports": Evaluation of the entire declared scope is complete and positive evidence supports meeting this criterion
 - "Partially Supports": Some issues or criterion partially met
-- "Does Not Support": Critical/high issues blocking conformance
+- "Does Not Support": Evidence establishes that the criterion is not supported in the evaluated scope
 - "Not Applicable": Criterion does not apply to this content type
 - "Not Evaluated": Requires manual testing not yet performed
 
-## Decision rules based on issues
-- Criterion has CRITICAL issues -> "Does Not Support"
-- Criterion has HIGH issues -> "Partially Supports" or "Does Not Support"
-- Criterion has MEDIUM issues -> "Partially Supports"
-- Criterion has LOW issues only -> "Supports" with caveat note
-- No issues for this criterion -> "Supports"
-- Criterion requires AT/human testing (1.2.x audio/video, 2.3.1 flashes) -> "Not Evaluated"
-- Criterion clearly not applicable -> "Not Applicable"
+## Evidence and evaluation coverage
+- Absence of findings is not positive evidence. A clean scanner result does not establish Supports.
+- Severity is prioritization, not a conformance decision. An unresolved violation cannot become Supports because its severity is low.
+- Assess each criterion by meaning, using the actual scope, evidence, test methods and remaining gaps. Never map severity mechanically to a status.
+- Incomplete or missing evaluation remains Not Evaluated; describe any observed failures and the missing checks in remarks.
+- Supports requires complete evaluation of the declared scope and positive evidence, including necessary manual and assistive-technology checks.
+- Not Applicable requires an explicit applicability assessment with a documented reason; missing tests are not inapplicability.
+- Partially Supports and Does Not Support require contextual evidence of the extent of the failure, not just a severity label.
+- Do not automatically mark whole families of criteria Not Evaluated if actual evaluation evidence is available.
+
 
 ## Remarks format (evidence-based, per compliance-auditor.md)
 Each remarks must:
@@ -168,20 +170,22 @@ declaration for EXACTLY those criteria -- no more, no fewer.
 
 ## Conformance declarations
 For each criterion declare ONE of:
-- "Supports": No issues; product meets this criterion
+- "Supports": Evaluation of the entire declared scope is complete and positive evidence supports meeting this criterion
 - "Partially Supports": Some issues or criterion partially met
-- "Does Not Support": Critical/high issues blocking conformance
+- "Does Not Support": Evidence establishes that the criterion is not supported in the evaluated scope
 - "Not Applicable": Criterion does not apply to this content type
 - "Not Evaluated": Requires manual testing not yet performed
 
-## Decision rules based on issues
-- Criterion has CRITICAL issues -> "Does Not Support"
-- Criterion has HIGH issues -> "Partially Supports" or "Does Not Support"
-- Criterion has MEDIUM issues -> "Partially Supports"
-- Criterion has LOW issues only -> "Supports" with caveat note
-- No issues for this criterion -> "Supports"
-- Criterion requires AT/human testing (1.2.x audio/video, 2.3.1 flashes) -> "Not Evaluated"
-- Criterion clearly not applicable -> "Not Applicable"
+## Evidence and evaluation coverage
+- Absence of findings is not positive evidence. A clean scanner result does not establish Supports.
+- Severity is prioritization, not a conformance decision. An unresolved violation cannot become Supports because its severity is low.
+- Assess each criterion by meaning, using the actual scope, evidence, test methods and remaining gaps. Never map severity mechanically to a status.
+- Incomplete or missing evaluation remains Not Evaluated; describe any observed failures and the missing checks in remarks.
+- Supports requires complete evaluation of the declared scope and positive evidence, including necessary manual and assistive-technology checks.
+- Not Applicable requires an explicit applicability assessment with a documented reason; missing tests are not inapplicability.
+- Partially Supports and Does Not Support require contextual evidence of the extent of the failure, not just a severity label.
+- Do not automatically mark whole families of criteria Not Evaluated if actual evaluation evidence is available.
+
 
 ## Remarks (evidence-based)
 1. State what was found or why the declaration was made
